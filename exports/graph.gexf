@@ -1,0 +1,511 @@
+<?xml version='1.0' encoding='utf-8'?>
+<gexf xmlns="http://www.gexf.net/1.2draft" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.gexf.net/1.2draft http://www.gexf.net/1.2draft/gexf.xsd" version="1.2">
+  <meta lastmodifieddate="2025-12-25">
+    <creator>NetworkX 3.4.2</creator>
+  </meta>
+  <graph defaultedgetype="directed" mode="static" name="">
+    <attributes mode="static" class="edge">
+      <attribute id="0" title="value" type="double" />
+    </attributes>
+    <nodes>
+      <node id="0x4976a4a02f38326660d17bf34b431dc6e2eb2327" label="0x4976a4a02f38326660d17bf34b431dc6e2eb2327" />
+      <node id="0x098b716b8aaf21512996dc57eb0615e2383e2f96" label="0x098b716b8aaf21512996dc57eb0615e2383e2f96" />
+      <node id="0x1a2a1c938ce3ec39b6d47113c7955baa9dd454f2" label="0x1a2a1c938ce3ec39b6d47113c7955baa9dd454f2" />
+      <node id="0xe708f17240732bbfa1baa8513f66b665fbc7ce10" label="0xe708f17240732bbfa1baa8513f66b665fbc7ce10" />
+      <node id="0x665660f65e94454a64b96693a67a41d440155617" label="0x665660f65e94454a64b96693a67a41d440155617" />
+      <node id="0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48" label="0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48" />
+      <node id="0x776b80e3fd97516ae3a2579cf4eae5ff5867d0f3" label="0x776b80e3fd97516ae3a2579cf4eae5ff5867d0f3" />
+      <node id="0xdb3a63562bb7afd44e6b6be8c8269f807c39f5fa" label="0xdb3a63562bb7afd44e6b6be8c8269f807c39f5fa" />
+      <node id="0x9fae13de16d34873246e48b514fc88581751533f" label="0x9fae13de16d34873246e48b514fc88581751533f" />
+      <node id="0x29fc9b71492ec63696cf9cd56e9832a42b0dced0" label="0x29fc9b71492ec63696cf9cd56e9832a42b0dced0" />
+      <node id="0x5d84a732b355ada31a36b33c446e3dee28f51555" label="0x5d84a732b355ada31a36b33c446e3dee28f51555" />
+      <node id="0x6be687a5143ff5220cc5f4b3c6a43468b5331bc1" label="0x6be687a5143ff5220cc5f4b3c6a43468b5331bc1" />
+      <node id="0x514ab089938c7bf03f83420751b0da148220590d" label="0x514ab089938c7bf03f83420751b0da148220590d" />
+      <node id="0x03cf40b900971561ac6bd997ef1fe939dcbc95e2" label="0x03cf40b900971561ac6bd997ef1fe939dcbc95e2" />
+      <node id="0xb1e33c350d1b865b75e3f116b18dc752cb7e163f" label="0xb1e33c350d1b865b75e3f116b18dc752cb7e163f" />
+      <node id="0xe9baa3f28df9d0646fa872b9c3ca2b9b14aeeed5" label="0xe9baa3f28df9d0646fa872b9c3ca2b9b14aeeed5" />
+      <node id="0xd418e97d62b546bf33e60a24dfe2b9c9b093837c" label="0xd418e97d62b546bf33e60a24dfe2b9c9b093837c" />
+      <node id="0xeb878adb986458c7ac563f52d8756058280eafa4" label="0xeb878adb986458c7ac563f52d8756058280eafa4" />
+      <node id="0x880833ebbcdc2628b7878969430a49c2cb7f0b4e" label="0x880833ebbcdc2628b7878969430a49c2cb7f0b4e" />
+      <node id="0x1eeca807877d4682ad02930960c297d7456fb155" label="0x1eeca807877d4682ad02930960c297d7456fb155" />
+      <node id="0x4e7a17c87d63ac3a78b718530a3f345c2feaeba2" label="0x4e7a17c87d63ac3a78b718530a3f345c2feaeba2" />
+      <node id="0x3f43613210c4f79efefcc9bdacf0a8d391714f3f" label="0x3f43613210c4f79efefcc9bdacf0a8d391714f3f" />
+      <node id="0x5030af6967df26a2bd7788b1d830c952e8ae66e4" label="0x5030af6967df26a2bd7788b1d830c952e8ae66e4" />
+      <node id="0x1c208fcb9d15e0e04a0a579e0f6121e2057ff7f6" label="0x1c208fcb9d15e0e04a0a579e0f6121e2057ff7f6" />
+      <node id="0xa15e31f36d2b2544c89f474c1bf0cf45d5999999" label="0xa15e31f36d2b2544c89f474c1bf0cf45d5999999" />
+      <node id="0x4d655f108956e7872cd118214e4f5073c79dddd3" label="0x4d655f108956e7872cd118214e4f5073c79dddd3" />
+      <node id="0x4aa141ae689da66e7cbe421d6bb93e8d23d660de" label="0x4aa141ae689da66e7cbe421d6bb93e8d23d660de" />
+      <node id="0xb6329a353e95f08281cfc204186d5fef122416d7" label="0xb6329a353e95f08281cfc204186d5fef122416d7" />
+      <node id="0x167ac0c63d76352c8f3682b42bef71c5ef4d0594" label="0x167ac0c63d76352c8f3682b42bef71c5ef4d0594" />
+      <node id="0xf56b7647799e2c4d2fcf93a62b1b578723718814" label="0xf56b7647799e2c4d2fcf93a62b1b578723718814" />
+      <node id="0x196c682b1813cb335b185d0ab5f0a186b04d4633" label="0x196c682b1813cb335b185d0ab5f0a186b04d4633" />
+      <node id="0x1021f3e9f52a09d509225ebfe467eac14dfbeb79" label="0x1021f3e9f52a09d509225ebfe467eac14dfbeb79" />
+      <node id="0x8f1e36a2f9313395e4f46e2b9073dcd9c382a5aa" label="0x8f1e36a2f9313395e4f46e2b9073dcd9c382a5aa" />
+      <node id="0x1c9ed8a5d936c4bf91fda31e36a24325536bf291" label="0x1c9ed8a5d936c4bf91fda31e36a24325536bf291" />
+      <node id="0x4e357c673911f3e5315c73fe9e57919ed11ae20e" label="0x4e357c673911f3e5315c73fe9e57919ed11ae20e" />
+      <node id="0xcb5e7168589a5ecdc06e6a83389486768ec605d3" label="0xcb5e7168589a5ecdc06e6a83389486768ec605d3" />
+      <node id="0xd185911970d161ba6972548357ab123e8b674218" label="0xd185911970d161ba6972548357ab123e8b674218" />
+      <node id="0x3df264de02a63a8731c3ed3aed99f1765164a302" label="0x3df264de02a63a8731c3ed3aed99f1765164a302" />
+      <node id="0x83b3d0f157090c2a91f064b60f886137d62f2c00" label="0x83b3d0f157090c2a91f064b60f886137d62f2c00" />
+      <node id="0x0f1ccf396563cbc7c1f63eb42c2f853b383160cb" label="0x0f1ccf396563cbc7c1f63eb42c2f853b383160cb" />
+      <node id="0x10ef9402ddb1313819a603e4beda6331e48cce1f" label="0x10ef9402ddb1313819a603e4beda6331e48cce1f" />
+      <node id="0x06b1767503aec0d3e827cd27bb016f00f1cec862" label="0x06b1767503aec0d3e827cd27bb016f00f1cec862" />
+      <node id="0x935ba0bd43ea70148bd7bad8eebf28b778fdd16c" label="0x935ba0bd43ea70148bd7bad8eebf28b778fdd16c" />
+      <node id="0x288af93bb8b388563b411f071bc136e9e4a56e51" label="0x288af93bb8b388563b411f071bc136e9e4a56e51" />
+      <node id="0xab3eeae9e5d2fcea35722f6d17f4a1f4dbbe11d7" label="0xab3eeae9e5d2fcea35722f6d17f4a1f4dbbe11d7" />
+      <node id="0xaeacc53f6e7e46b317e18354bd16b3b0fa52ea27" label="0xaeacc53f6e7e46b317e18354bd16b3b0fa52ea27" />
+      <node id="0x8358e0f54179ec00736411244489c60c0c14436b" label="0x8358e0f54179ec00736411244489c60c0c14436b" />
+      <node id="0x14021d4b0cb75c565124b17224e03fbfe58a96cc" label="0x14021d4b0cb75c565124b17224e03fbfe58a96cc" />
+      <node id="0x5a5444f6b5d511f61ff7c3152054d4030f3891ca" label="0x5a5444f6b5d511f61ff7c3152054d4030f3891ca" />
+      <node id="0x45cab89856efb6d2440227f15c8db28cd96ae01f" label="0x45cab89856efb6d2440227f15c8db28cd96ae01f" />
+      <node id="0x128ca64a0fc0c7687106db709191ec58427a80b5" label="0x128ca64a0fc0c7687106db709191ec58427a80b5" />
+      <node id="0x0dced7f736a22dfc9b77f265d5bde568879aa0e1" label="0x0dced7f736a22dfc9b77f265d5bde568879aa0e1" />
+      <node id="0xc2da66c2d669d981455eec43357ae5cd3d388a01" label="0xc2da66c2d669d981455eec43357ae5cd3d388a01" />
+      <node id="0x275a223d34676dfb417f3c18385664a8d35c13fa" label="0x275a223d34676dfb417f3c18385664a8d35c13fa" />
+      <node id="0xece7a9332e4373a22c8ae7baa781378340626123" label="0xece7a9332e4373a22c8ae7baa781378340626123" />
+      <node id="0xecf8a6b5acdf1c3282d8db62c48bd794d01708d9" label="0xecf8a6b5acdf1c3282d8db62c48bd794d01708d9" />
+      <node id="0x00bd22a92b900fb8448b28e2c2e81432e47ae2d2" label="0x00bd22a92b900fb8448b28e2c2e81432e47ae2d2" />
+      <node id="0x65142aeb513c3d1e52320e49dd15efcd9216e79c" label="0x65142aeb513c3d1e52320e49dd15efcd9216e79c" />
+      <node id="0x00000000000360176d958e11c140308cd0863679" label="0x00000000000360176d958e11c140308cd0863679" />
+      <node id="0x9602ed86a671816cdcad5cbb3748aabaeb2e2d06" label="0x9602ed86a671816cdcad5cbb3748aabaeb2e2d06" />
+      <node id="0x90af4a35e763f26498f88f03240d2fa3c8b66480" label="0x90af4a35e763f26498f88f03240d2fa3c8b66480" />
+      <node id="0xe8cc8337dd0e53b3d39a2311526f4da2c0d9e392" label="0xe8cc8337dd0e53b3d39a2311526f4da2c0d9e392" />
+      <node id="0x45b6be23893ff103772f6965db945420fba9009b" label="0x45b6be23893ff103772f6965db945420fba9009b" />
+      <node id="0xcd063293da3c7e5904ca60ab86e37068c941abb0" label="0xcd063293da3c7e5904ca60ab86e37068c941abb0" />
+      <node id="0x5f544f236712ac9926abcd3acc2ebb58b1b7c4b0" label="0x5f544f236712ac9926abcd3acc2ebb58b1b7c4b0" />
+      <node id="0x629b174bc7cbccd97be125c770f7d582a5910353" label="0x629b174bc7cbccd97be125c770f7d582a5910353" />
+      <node id="0x5c154585caa1aecda5842f576fe76ef95bee7f75" label="0x5c154585caa1aecda5842f576fe76ef95bee7f75" />
+      <node id="0xd60cb6587da02f079991161f6314761784ed350d" label="0xd60cb6587da02f079991161f6314761784ed350d" />
+      <node id="0x975f6b37456b9b03996f494b430bde71e75429a4" label="0x975f6b37456b9b03996f494b430bde71e75429a4" />
+      <node id="0x31faa96ea12584fe3d9bf27a14cdfa7922bb5af9" label="0x31faa96ea12584fe3d9bf27a14cdfa7922bb5af9" />
+      <node id="0xa14429e90bd90e17d2a97c4eac1feefabb88727f" label="0xa14429e90bd90e17d2a97c4eac1feefabb88727f" />
+      <node id="0x6bbeb2dcb98696f22041bf54915030b461d8b423" label="0x6bbeb2dcb98696f22041bf54915030b461d8b423" />
+      <node id="0xbe0a3c80ca9c382d173f011113c379785b30f4c4" label="0xbe0a3c80ca9c382d173f011113c379785b30f4c4" />
+      <node id="0x78fd8ea43ae2e19ed8c88e72d317d7bf5b25a8e3" label="0x78fd8ea43ae2e19ed8c88e72d317d7bf5b25a8e3" />
+      <node id="0x2342b8412558605acbba5f98963c996726535b87" label="0x2342b8412558605acbba5f98963c996726535b87" />
+      <node id="0xf62ac058657ff9a98a94efe43ca9b8ec56652da4" label="0xf62ac058657ff9a98a94efe43ca9b8ec56652da4" />
+      <node id="0x07cd0884bd08f547f1c0799fe7a7eb23d8fe4452" label="0x07cd0884bd08f547f1c0799fe7a7eb23d8fe4452" />
+      <node id="0xda3ed34f09fbf58f2196d194d51ac165b11bfeac" label="0xda3ed34f09fbf58f2196d194d51ac165b11bfeac" />
+      <node id="0x4a2d482e20d5c0f8767739f641eda0baa0740858" label="0x4a2d482e20d5c0f8767739f641eda0baa0740858" />
+      <node id="0xaf0c57295e243f33cf82f3c65bd49716a71ba59c" label="0xaf0c57295e243f33cf82f3c65bd49716a71ba59c" />
+      <node id="0xe269d07ace139330f0832456ac641f2062aa19b5" label="0xe269d07ace139330f0832456ac641f2062aa19b5" />
+    </nodes>
+    <edges>
+      <edge source="0x4976a4a02f38326660d17bf34b431dc6e2eb2327" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="0" label="1.06 ETH">
+        <attvalues>
+          <attvalue for="0" value="1.0569" />
+        </attvalues>
+      </edge>
+      <edge source="0x098b716b8aaf21512996dc57eb0615e2383e2f96" target="0x1a2a1c938ce3ec39b6d47113c7955baa9dd454f2" id="1" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x098b716b8aaf21512996dc57eb0615e2383e2f96" target="0xe708f17240732bbfa1baa8513f66b665fbc7ce10" id="2" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0x098b716b8aaf21512996dc57eb0615e2383e2f96" target="0x665660f65e94454a64b96693a67a41d440155617" id="3" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="3.5e-06" />
+        </attvalues>
+      </edge>
+      <edge source="0x098b716b8aaf21512996dc57eb0615e2383e2f96" target="0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48" id="4" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x098b716b8aaf21512996dc57eb0615e2383e2f96" target="0x776b80e3fd97516ae3a2579cf4eae5ff5867d0f3" id="5" label="750.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="750.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x098b716b8aaf21512996dc57eb0615e2383e2f96" target="0xdb3a63562bb7afd44e6b6be8c8269f807c39f5fa" id="6" label="750.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="750.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x098b716b8aaf21512996dc57eb0615e2383e2f96" target="0x9fae13de16d34873246e48b514fc88581751533f" id="7" label="750.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="750.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x098b716b8aaf21512996dc57eb0615e2383e2f96" target="0x29fc9b71492ec63696cf9cd56e9832a42b0dced0" id="8" label="1250.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1250.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x098b716b8aaf21512996dc57eb0615e2383e2f96" target="0x5d84a732b355ada31a36b33c446e3dee28f51555" id="9" label="1250.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1250.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x1a2a1c938ce3ec39b6d47113c7955baa9dd454f2" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="10" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="2.55e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0xe708f17240732bbfa1baa8513f66b665fbc7ce10" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="11" label="3364.54 ETH">
+        <attvalues>
+          <attvalue for="0" value="3364.5375835279715" />
+        </attvalues>
+      </edge>
+      <edge source="0x665660f65e94454a64b96693a67a41d440155617" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="12" label="1180.14 ETH">
+        <attvalues>
+          <attvalue for="0" value="1180.1426056027744" />
+        </attvalues>
+      </edge>
+      <edge source="0x6be687a5143ff5220cc5f4b3c6a43468b5331bc1" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="13" label="0.01 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.01" />
+        </attvalues>
+      </edge>
+      <edge source="0x514ab089938c7bf03f83420751b0da148220590d" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="14" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x03cf40b900971561ac6bd997ef1fe939dcbc95e2" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="15" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0" />
+        </attvalues>
+      </edge>
+      <edge source="0xb1e33c350d1b865b75e3f116b18dc752cb7e163f" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="16" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.001" />
+        </attvalues>
+      </edge>
+      <edge source="0xe9baa3f28df9d0646fa872b9c3ca2b9b14aeeed5" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="17" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0xd418e97d62b546bf33e60a24dfe2b9c9b093837c" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="18" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0001" />
+        </attvalues>
+      </edge>
+      <edge source="0xeb878adb986458c7ac563f52d8756058280eafa4" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="19" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.001" />
+        </attvalues>
+      </edge>
+      <edge source="0x880833ebbcdc2628b7878969430a49c2cb7f0b4e" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="20" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0001" />
+        </attvalues>
+      </edge>
+      <edge source="0x1eeca807877d4682ad02930960c297d7456fb155" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="21" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0001" />
+        </attvalues>
+      </edge>
+      <edge source="0x4e7a17c87d63ac3a78b718530a3f345c2feaeba2" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="22" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.00042069" />
+        </attvalues>
+      </edge>
+      <edge source="0x3f43613210c4f79efefcc9bdacf0a8d391714f3f" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="23" label="0.01 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.01" />
+        </attvalues>
+      </edge>
+      <edge source="0x5030af6967df26a2bd7788b1d830c952e8ae66e4" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="24" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x1c208fcb9d15e0e04a0a579e0f6121e2057ff7f6" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="25" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0" />
+        </attvalues>
+      </edge>
+      <edge source="0xa15e31f36d2b2544c89f474c1bf0cf45d5999999" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="26" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0x4d655f108956e7872cd118214e4f5073c79dddd3" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="27" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0001" />
+        </attvalues>
+      </edge>
+      <edge source="0x4aa141ae689da66e7cbe421d6bb93e8d23d660de" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="28" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.001" />
+        </attvalues>
+      </edge>
+      <edge source="0xb6329a353e95f08281cfc204186d5fef122416d7" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="29" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x167ac0c63d76352c8f3682b42bef71c5ef4d0594" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="30" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0001" />
+        </attvalues>
+      </edge>
+      <edge source="0xf56b7647799e2c4d2fcf93a62b1b578723718814" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="31" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.002" />
+        </attvalues>
+      </edge>
+      <edge source="0x196c682b1813cb335b185d0ab5f0a186b04d4633" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="32" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.00088" />
+        </attvalues>
+      </edge>
+      <edge source="0x1021f3e9f52a09d509225ebfe467eac14dfbeb79" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="33" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0001" />
+        </attvalues>
+      </edge>
+      <edge source="0x8f1e36a2f9313395e4f46e2b9073dcd9c382a5aa" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="34" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.001" />
+        </attvalues>
+      </edge>
+      <edge source="0x1c9ed8a5d936c4bf91fda31e36a24325536bf291" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="35" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.001" />
+        </attvalues>
+      </edge>
+      <edge source="0x4e357c673911f3e5315c73fe9e57919ed11ae20e" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="36" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.000666" />
+        </attvalues>
+      </edge>
+      <edge source="0xcb5e7168589a5ecdc06e6a83389486768ec605d3" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="37" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0001" />
+        </attvalues>
+      </edge>
+      <edge source="0xd185911970d161ba6972548357ab123e8b674218" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="38" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0x3df264de02a63a8731c3ed3aed99f1765164a302" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="39" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-07" />
+        </attvalues>
+      </edge>
+      <edge source="0x83b3d0f157090c2a91f064b60f886137d62f2c00" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="40" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0x0f1ccf396563cbc7c1f63eb42c2f853b383160cb" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="41" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0x10ef9402ddb1313819a603e4beda6331e48cce1f" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="42" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.001314" />
+        </attvalues>
+      </edge>
+      <edge source="0x06b1767503aec0d3e827cd27bb016f00f1cec862" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="43" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0001" />
+        </attvalues>
+      </edge>
+      <edge source="0x935ba0bd43ea70148bd7bad8eebf28b778fdd16c" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="44" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-06" />
+        </attvalues>
+      </edge>
+      <edge source="0x288af93bb8b388563b411f071bc136e9e4a56e51" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="45" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0" />
+        </attvalues>
+      </edge>
+      <edge source="0xab3eeae9e5d2fcea35722f6d17f4a1f4dbbe11d7" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="46" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0003" />
+        </attvalues>
+      </edge>
+      <edge source="0xaeacc53f6e7e46b317e18354bd16b3b0fa52ea27" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="47" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0003" />
+        </attvalues>
+      </edge>
+      <edge source="0x8358e0f54179ec00736411244489c60c0c14436b" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="48" label="0.01 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.005" />
+        </attvalues>
+      </edge>
+      <edge source="0x14021d4b0cb75c565124b17224e03fbfe58a96cc" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="49" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.001" />
+        </attvalues>
+      </edge>
+      <edge source="0x5a5444f6b5d511f61ff7c3152054d4030f3891ca" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="50" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0003" />
+        </attvalues>
+      </edge>
+      <edge source="0x45cab89856efb6d2440227f15c8db28cd96ae01f" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="51" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0001" />
+        </attvalues>
+      </edge>
+      <edge source="0x128ca64a0fc0c7687106db709191ec58427a80b5" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="52" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0x0dced7f736a22dfc9b77f265d5bde568879aa0e1" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="53" label="0.01 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.008" />
+        </attvalues>
+      </edge>
+      <edge source="0xc2da66c2d669d981455eec43357ae5cd3d388a01" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="54" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.000666" />
+        </attvalues>
+      </edge>
+      <edge source="0x275a223d34676dfb417f3c18385664a8d35c13fa" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="55" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0001" />
+        </attvalues>
+      </edge>
+      <edge source="0xece7a9332e4373a22c8ae7baa781378340626123" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="56" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0xecf8a6b5acdf1c3282d8db62c48bd794d01708d9" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="57" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x00bd22a92b900fb8448b28e2c2e81432e47ae2d2" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="58" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="6.66e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0x65142aeb513c3d1e52320e49dd15efcd9216e79c" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="59" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0001" />
+        </attvalues>
+      </edge>
+      <edge source="0x00000000000360176d958e11c140308cd0863679" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="60" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="4.269e-09" />
+        </attvalues>
+      </edge>
+      <edge source="0x9602ed86a671816cdcad5cbb3748aabaeb2e2d06" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="61" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="5.2e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0x90af4a35e763f26498f88f03240d2fa3c8b66480" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="62" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-06" />
+        </attvalues>
+      </edge>
+      <edge source="0xe8cc8337dd0e53b3d39a2311526f4da2c0d9e392" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="63" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.00147" />
+        </attvalues>
+      </edge>
+      <edge source="0x45b6be23893ff103772f6965db945420fba9009b" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="64" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0" />
+        </attvalues>
+      </edge>
+      <edge source="0xcd063293da3c7e5904ca60ab86e37068c941abb0" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="65" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-06" />
+        </attvalues>
+      </edge>
+      <edge source="0x5f544f236712ac9926abcd3acc2ebb58b1b7c4b0" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="66" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.001" />
+        </attvalues>
+      </edge>
+      <edge source="0x629b174bc7cbccd97be125c770f7d582a5910353" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="67" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x5c154585caa1aecda5842f576fe76ef95bee7f75" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="68" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.00029" />
+        </attvalues>
+      </edge>
+      <edge source="0xd60cb6587da02f079991161f6314761784ed350d" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="69" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0001" />
+        </attvalues>
+      </edge>
+      <edge source="0x975f6b37456b9b03996f494b430bde71e75429a4" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="70" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0x31faa96ea12584fe3d9bf27a14cdfa7922bb5af9" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="71" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-06" />
+        </attvalues>
+      </edge>
+      <edge source="0xa14429e90bd90e17d2a97c4eac1feefabb88727f" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="72" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0x6bbeb2dcb98696f22041bf54915030b461d8b423" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="73" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0042069" />
+        </attvalues>
+      </edge>
+      <edge source="0xbe0a3c80ca9c382d173f011113c379785b30f4c4" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="74" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-05" />
+        </attvalues>
+      </edge>
+      <edge source="0x78fd8ea43ae2e19ed8c88e72d317d7bf5b25a8e3" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="75" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.001310944427278948" />
+        </attvalues>
+      </edge>
+      <edge source="0x2342b8412558605acbba5f98963c996726535b87" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="76" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.000586248944751899" />
+        </attvalues>
+      </edge>
+      <edge source="0xf62ac058657ff9a98a94efe43ca9b8ec56652da4" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="77" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0" />
+        </attvalues>
+      </edge>
+      <edge source="0x07cd0884bd08f547f1c0799fe7a7eb23d8fe4452" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="78" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.001" />
+        </attvalues>
+      </edge>
+      <edge source="0xda3ed34f09fbf58f2196d194d51ac165b11bfeac" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="79" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="0.0003" />
+        </attvalues>
+      </edge>
+      <edge source="0x4a2d482e20d5c0f8767739f641eda0baa0740858" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="80" label="0.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1e-08" />
+        </attvalues>
+      </edge>
+      <edge source="0xaf0c57295e243f33cf82f3c65bd49716a71ba59c" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="81" label="1.00 ETH">
+        <attvalues>
+          <attvalue for="0" value="1.0" />
+        </attvalues>
+      </edge>
+      <edge source="0xe269d07ace139330f0832456ac641f2062aa19b5" target="0x098b716b8aaf21512996dc57eb0615e2383e2f96" id="82" label="420.69 ETH">
+        <attvalues>
+          <attvalue for="0" value="420.69" />
+        </attvalues>
+      </edge>
+    </edges>
+  </graph>
+</gexf>
