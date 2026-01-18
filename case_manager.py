@@ -22,6 +22,7 @@ class Case:
         self.addresses = {}  # {address: {tag, notes, risk_level, status}}
         self.findings = []
         self.timeline = []
+        self.assets = []  # Investigation board items
         
     def add_address(self, address, tag="suspect", notes="", risk_level=0):
         """Add address to case with metadata"""
@@ -33,6 +34,23 @@ class Case:
             "added_at": datetime.now().isoformat()
         }
         
+    def add_asset(self, asset_type, content, position=None, metadata=None):
+        """Add asset to investigation board"""
+        asset = {
+            "id": f"asset_{datetime.now().strftime('%Y%m%d%H%M%S')}_{len(self.assets)}",
+            "type": asset_type,  # text, image, wallet, chart
+            "content": content,
+            "position": position or {"x": 0, "y": 0},
+            "metadata": metadata or {},
+            "created_at": datetime.now().isoformat()
+        }
+        self.assets.append(asset)
+        return asset
+
+    def delete_asset(self, asset_id):
+        """Remove asset from board"""
+        self.assets = [a for a in self.assets if a["id"] != asset_id]
+
     def add_note(self, content, address=None):
         """Add investigation note"""
         self.timeline.append({
@@ -59,7 +77,8 @@ class Case:
             "created_at": self.created_at,
             "addresses": self.addresses,
             "findings": self.findings,
-            "timeline": self.timeline
+            "timeline": self.timeline,
+            "assets": self.assets
         }
     
     @staticmethod
@@ -72,6 +91,7 @@ class Case:
         case.addresses = data.get("addresses", {})
         case.findings = data.get("findings", [])
         case.timeline = data.get("timeline", [])
+        case.assets = data.get("assets", [])
         return case
 
 
@@ -112,6 +132,24 @@ class CaseManager:
         case = self.get_case(case_id)
         if case:
             case.add_note(content, address)
+            self.save_case(case)
+            return True
+        return False
+        
+    def add_asset_to_case(self, case_id, asset_type, content, position=None, metadata=None):
+        """Add asset to case board"""
+        case = self.get_case(case_id)
+        if case:
+            asset = case.add_asset(asset_type, content, position, metadata)
+            self.save_case(case)
+            return asset
+        return None
+
+    def delete_asset_from_case(self, case_id, asset_id):
+        """Delete asset from case board"""
+        case = self.get_case(case_id)
+        if case:
+            case.delete_asset(asset_id)
             self.save_case(case)
             return True
         return False

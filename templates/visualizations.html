@@ -1,0 +1,110 @@
+{% extends "layout.html" %}
+
+{% block title %}Case Visualizations{% endblock %}
+{% block header_title %}Visualizations{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Flow Distribution -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0">Transaction Flow Distribution</h6>
+            </div>
+            <div class="card-body">
+                <div style="height: 300px;">
+                    <canvas id="flowChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Series (Placeholder) -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0">Activity Over Time</h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center bg-dark">
+                <div class="text-center text-muted">
+                    <i class="fas fa-chart-line fa-3x mb-3 opacity-50"></i>
+                    <p>Timeline visualization requires detailed transaction history.</p>
+                    <form action="/timeline" method="POST">
+                        <button type="submit" class="btn btn-outline-info">Generate Detailed Timeline</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Visualization Tools -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Advanced Visualization Tools</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="p-3 border border-secondary rounded bg-dark h-100">
+                            <h6 class="text-success"><i class="fas fa-project-diagram me-2"></i>Network Graph</h6>
+                            <p class="small text-muted">Export the transaction network as a GEXF file for analysis in
+                                Gephi.</p>
+                            <form action="/downloads/graph.gexf" method="GET">
+                                <button class="btn btn-sm btn-outline-light w-100">Download .GEXF</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 border border-secondary rounded bg-dark h-100">
+                            <h6 class="text-warning"><i class="fas fa-random me-2"></i>Sankey Flow</h6>
+                            <p class="small text-muted">Visualize the flow of funds between addresses as a Sankey
+                                diagram.</p>
+                            <form action="/sankey" method="POST">
+                                <button class="btn btn-sm btn-outline-light w-100">View Diagram</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 border border-secondary rounded bg-dark h-100">
+                            <h6 class="text-danger"><i class="fas fa-th me-2"></i>Heatmap</h6>
+                            <p class="small text-muted">View activity intensity over time to identify behavioral
+                                patterns.</p>
+                            <form action="/heatmap" method="POST">
+                                <button class="btn btn-sm btn-outline-light w-100">View Heatmap</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if summary %}
+<script>
+    const ctx = document.getElementById('flowChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Unique Senders (In)', 'Unique Receivers (Out)'],
+            datasets: [{
+                data: [{{ summary.unique_senders }}, {{ summary.unique_receivers }}],
+        backgroundColor: ['#198754', '#dc3545'],
+        borderColor: '#1e1e1e',
+        borderWidth: 2
+    }]
+        },
+        options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom', labels: { color: '#aaa' } }
+        }
+    }
+    });
+</script>
+{% endif %}
+{% endblock %}

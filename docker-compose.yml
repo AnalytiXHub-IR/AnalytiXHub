@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: openchain_web
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/openchain_ir
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - FLASK_HOST=0.0.0.0
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+    # Initialize DB then start app
+    command: sh -c "python db_models.py && python app.py"
+
+  worker:
+    build: .
+    container_name: openchain_worker
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/openchain_ir
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+    command: celery -A app.celery worker --loglevel=info
+
+  db:
+    image: postgres:15
+    container_name: openchain_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=openchain_ir
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:latest
+    container_name: openchain_redis
+    ports:
+      - "6380:6379"
+
+volumes:
+  postgres_data:

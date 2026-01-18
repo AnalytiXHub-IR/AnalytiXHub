@@ -1,0 +1,193 @@
+{% extends "layout.html" %}
+
+{% block title %}Case Dashboard - {{ active_case.name }}{% endblock %}
+{% block header_title %}Dashboard: {{ active_case.name }}{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card h-100 border-primary border-opacity-25">
+            <div class="card-body">
+                <h6 class="text-primary text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Case
+                    Status</h6>
+                <div class="d-flex align-items-baseline">
+                    <h2 class="mb-0 text-light me-2">Active</h2>
+                    <span class="text-success"><i class="fas fa-circle fa-xs"></i></span>
+                </div>
+                <small class="text-muted">ID: {{ active_case.case_id }}</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Targets
+                    Tracked</h6>
+                <h2 class="mb-0 text-light">{{ active_case.addresses|length }}</h2>
+                <small class="text-muted">Suspect addresses</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Key Findings
+                </h6>
+                <h2 class="mb-0 text-light">{{ active_case.findings|length }}</h2>
+                <small class="text-muted">Evidence detected</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Investigator
+                </h6>
+                <h2 class="mb-0 text-light truncate">{{ active_case.investigator or "Unassigned" }}</h2>
+                <small class="text-muted">Lead Officer</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Targets List -->
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Tracked Targets</h6>
+                <a href="/case/{{ active_case.case_id }}/investigation" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus me-1"></i> Add Target
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0 align-middle">
+                        <thead class="bg-dark text-muted">
+                            <tr>
+                                <th class="ps-4">Address</th>
+                                <th>Tag</th>
+                                <th>Risk</th>
+                                <th>Notes</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for addr, data in active_case.addresses.items() %}
+                            <tr>
+                                <td class="ps-4">
+                                    <span class="font-monospace text-info">{{ addr[:16] }}...{{ addr[-6:] }}</span>
+                                </td>
+                                <td><span class="badge bg-secondary">{{ data.tag|upper }}</span></td>
+                                <td>
+                                    {% if data.risk_level > 70 %}
+                                    <span class="badge bg-danger">HIGH</span>
+                                    {% elif data.risk_level > 30 %}
+                                    <span class="badge bg-warning text-dark">MED</span>
+                                    {% else %}
+                                    <span class="badge bg-success">LOW</span>
+                                    {% endif %}
+                                </td>
+                                <td><small class="text-muted">{{ data.notes }}</small></td>
+                                <td class="text-end pe-4">
+                                    <form action="/case/{{ active_case.case_id }}/investigation" method="POST"
+                                        class="d-inline">
+                                        <input type="hidden" name="address" value="{{ addr }}">
+                                        <!-- Default params to re-trigger analysis -->
+                                        <input type="hidden" name="chain" value="ethereum">
+                                        <button type="submit" class="btn btn-sm btn-outline-info" title="Analyze">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">
+                                    No targets added yet. Start an investigation.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline / Quick Actions -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">Quick Actions</h6>
+            </div>
+            <div class="list-group list-group-flush bg-dark">
+                <a href="/case/{{ active_case.case_id }}/investigation"
+                    class="list-group-item list-group-item-action bg-dark text-light border-secondary">
+                    <i class="fas fa-search me-2 text-primary"></i> Trace New Address
+                </a>
+                <a href="/case/{{ active_case.case_id }}/charts"
+                    class="list-group-item list-group-item-action bg-dark text-light border-secondary">
+                    <i class="fas fa-project-diagram me-2 text-info"></i> View Visualizations
+                </a>
+                <a href="/case/{{ active_case.case_id }}/reports"
+                    class="list-group-item list-group-item-action bg-dark text-light border-secondary">
+                    <i class="fas fa-file-contract me-2 text-warning"></i> Generate Legal Report
+                </a>
+                <button class="list-group-item list-group-item-action bg-dark text-light border-secondary"
+                    data-bs-toggle="modal" data-bs-target="#noteModal">
+                    <i class="fas fa-sticky-note me-2 text-success"></i> Add Case Note
+                </button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Recent Activity</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush bg-dark">
+                    {% for item in active_case.timeline[-5:]|reverse %}
+                    <div class="list-group-item bg-dark border-secondary">
+                        <div class="d-flex w-100 justify-content-between">
+                            <small class="mb-1 text-primary">{{ item.type|upper }}</small>
+                            <small class="text-muted">{{ item.timestamp[:16].replace('T', ' ') }}</small>
+                        </div>
+                        <p class="mb-1 small text-light">{{ item.content }}</p>
+                    </div>
+                    {% else %}
+                    <div class="p-3 text-center text-muted small">No activity recorded</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Note Modal -->
+<div class="modal fade" id="noteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-light">Add Case Note</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/case/{{ active_case.case_id }}/add_note" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-light">Note Content</label>
+                        <textarea name="note" class="form-control" rows="4" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Note</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,589 @@
+{% extends "layout.html" %}
+
+{% block title %}Trace Analysis{% endblock %}
+{% block header_title %}Trace Analysis{% endblock %}
+
+{% block content %}
+<!-- Analysis Input Form -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0">Run New Trace</h6>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="/case/{{ active_case.case_id }}/investigation">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label text-muted">🔗 Blockchain</label>
+                    <select name="chain" class="form-select bg-dark text-light border-secondary">
+                        <option value="ethereum" {% if current_chain=='ethereum' %}selected{% endif %}>Ethereum Mainnet
+                        </option>
+                        <option value="bsc" {% if current_chain=='bsc' %}selected{% endif %}>BNB Smart Chain</option>
+                        <option value="polygon" {% if current_chain=='polygon' %}selected{% endif %}>Polygon</option>
+                        <option value="arbitrum" {% if current_chain=='arbitrum' %}selected{% endif %}>Arbitrum One
+                        </option>
+                        <option value="optimism" {% if current_chain=='optimism' %}selected{% endif %}>Optimism</option>
+                        <!-- Added extensive chain support from original index.html -->
+                        <option value="base" {% if current_chain=='base' %}selected{% endif %}>Base</option>
+                        <option value="avalanche" {% if current_chain=='avalanche' %}selected{% endif %}>Avalanche
+                        </option>
+                        <option value="fantom" {% if current_chain=='fantom' %}selected{% endif %}>Fantom</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-muted">📍 Target Address</label>
+                    <div class="input-group">
+                        <input type="text" name="address" class="form-control bg-dark text-light border-secondary"
+                            placeholder="0x..."
+                            value="{{ active_case.address if active_case is defined and active_case.address else '' }}"
+                            required>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search me-2"></i>Analyze
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-muted d-block">&nbsp;</label>
+                    <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="collapse"
+                        data-bs-target="#advancedOptions">
+                        <i class="fas fa-sliders-h"></i> Options
+                    </button>
+                </div>
+            </div>
+
+            <div class="collapse mt-3" id="advancedOptions">
+                <div class="card card-body bg-dark border-secondary">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Start Date</label>
+                            <input type="date" name="start_date"
+                                class="form-control bg-dark text-light border-secondary">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">End Date</label>
+                            <input type="date" name="end_date" class="form-control bg-dark text-light border-secondary">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-center pt-4 gap-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="include_internal"
+                                    name="include_internal" checked>
+                                <label class="form-check-label text-muted" for="include_internal">Internal TXs</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="include_token_transfers"
+                                    name="include_token_transfers" checked>
+                                <label class="form-check-label text-muted" for="include_token_transfers">Token
+                                    Transfers</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Real-time Progress Container -->
+<div id="progress-container" class="card mb-4 d-none">
+    <div class="card-header bg-primary bg-opacity-25 border-primary">
+        <h6 class="mb-0 text-primary"><i class="fas fa-satellite-dish me-2"></i>Live Analysis in Progress</h6>
+    </div>
+    <div class="card-body">
+        <div class="progress mb-3" style="height: 20px;">
+            <div id="analysis-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                role="progressbar" style="width: 0%">0%</div>
+        </div>
+        <div id="analysis-log" class="font-monospace small text-muted bg-dark p-2 rounded border border-secondary"
+            style="max-height: 200px; overflow-y: auto;">
+            <!-- Logs go here -->
+        </div>
+    </div>
+</div>
+
+{% if summary %}
+<!-- Overview Stats Row -->
+<div class="row g-3 mb-4">
+    <!-- Risk Score -->
+    <div class="col-md-3">
+        <div
+            class="card h-100 text-center border-{{ 'danger' if summary.risk_score > 70 else 'warning' if summary.risk_score > 30 else 'success' }}">
+            <div class="card-body">
+                <h6 class="text-muted text-uppercase mb-3">Risk Score</h6>
+                <div
+                    class="display-4 fw-bold text-{{ 'danger' if summary.risk_score > 70 else 'warning' if summary.risk_score > 30 else 'success' }}">
+                    {{ summary.risk_score|int }}
+                </div>
+                <small class="text-muted">out of 100</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flow Stats -->
+    <div class="col-md-3">
+        <div class="card h-100 bg-dark border-secondary">
+            <div class="card-body">
+                <small class="text-muted text-uppercase">Total Inflow</small>
+                <h4 class="mt-2 text-success">+{{ "%.2f"|format(summary.total_volume_in) }} ETH</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 bg-dark border-secondary">
+            <div class="card-body">
+                <small class="text-muted text-uppercase">Total Outflow</small>
+                <h4 class="mt-2 text-danger">-{{ "%.2f"|format(summary.total_volume_out) }} ETH</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 bg-dark border-secondary">
+            <div class="card-body">
+                <small class="text-muted text-uppercase">Net Flow</small>
+                <h4 class="mt-2 {{ 'text-success' if summary.net_flow > 0 else 'text-danger' }}">
+                    {{ "%.2f"|format(summary.net_flow) }} ETH
+                </h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs for Deep Dive -->
+<div class="card">
+    <div class="card-header border-bottom border-secondary">
+        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#flow" role="tab"><i
+                        class="fas fa-stream me-2"></i>Fund Flow & Graph</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#anomalies" role="tab"><i
+                        class="fas fa-bug me-2"></i>Anomalies <span class="badge bg-danger rounded-pill ms-1">{{
+                        anomalies|length }}</span></a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#threats" role="tab"><i
+                        class="fas fa-shield-virus me-2"></i>Threat Intel</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#clustering" role="tab"><i
+                        class="fas fa-project-diagram me-2"></i>Clustering</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tools" role="tab"><i
+                        class="fas fa-toolbox me-2"></i>Tools & Exports</a></li>
+        </ul>
+    </div>
+
+    <div class="card-body">
+        <div class="tab-content">
+
+            <!-- Fund Flow & Graph Tab -->
+            <div class="tab-pane fade show active" id="flow">
+
+                <!-- Entity Distribution Chart -->
+                <div class="row mb-4">
+                    <div class="col-md-6" style="height: 300px;">
+                        <canvas id="flowChart"></canvas>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-center">
+                        <div class="p-3">
+                            <h5 class="text-light">Transaction Volume Distribution</h5>
+                            <p class="text-muted">
+                                Visualizing the ratio of incoming vs. outgoing connections.
+                                <br>
+                                <span class="text-success">■ Incoming (Sources)</span> vs
+                                <span class="text-danger">■ Outgoing (Destinations)</span>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Senders -->
+                    <div class="col-md-6">
+                        <h6 class="text-success mb-3 p-2 bg-success bg-opacity-10 border border-success rounded">
+                            <i class="fas fa-arrow-down me-2"></i>Top Senders (Victims/Sources)
+                        </h6>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-sm table-hover">
+                                <thead>
+                                    <th>Address</th>
+                                    <th class="text-end">Amount (ETH)</th>
+                                </thead>
+                                <tbody>
+                                    {% for addr, amount in summary.top_victims[:10] %}
+                                    <tr>
+                                        <td><span class="font-monospace small text-info">{{ addr[:18] }}...</span></td>
+                                        <td class="text-end text-success">{{ "%.4f"|format(amount) }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="2" class="text-muted">No incoming transactions found.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Receivers -->
+                    <div class="col-md-6 border-start border-secondary">
+                        <h6 class="text-danger mb-3 p-2 bg-danger bg-opacity-10 border border-danger rounded">
+                            <i class="fas fa-arrow-up me-2"></i>Top Receivers (Suspects)
+                        </h6>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-sm table-hover">
+                                <thead>
+                                    <th>Address</th>
+                                    <th class="text-end">Amount (ETH)</th>
+                                </thead>
+                                <tbody>
+                                    {% for addr, amount in summary.top_suspects[:10] %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex justify-content-between">
+                                                <span class="font-monospace small text-warning">{{ addr[:18]
+                                                    }}...</span>
+                                                <form action="/case/{{ active_case.case_id }}/add_address" method="POST"
+                                                    class="d-inline ms-2">
+                                                    <input type="hidden" name="address" value="{{ addr }}">
+                                                    <input type="hidden" name="tag" value="suspect">
+                                                    <button type="submit"
+                                                        class="btn btn-link py-0 px-0 shadow-none text-decoration-none"
+                                                        title="Add to Case">
+                                                        <i class="fas fa-plus-circle fa-xs"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                        <td class="text-end text-danger">{{ "%.4f"|format(amount) }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="2" class="text-muted">No outgoing transactions found.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patterns -->
+                {% if summary.patterns %}
+                <div class="mt-4">
+                    <h6 class="text-light mb-3">🔍 Detected Patterns</h6>
+                    <div class="alert alert-warning border-0 bg-warning bg-opacity-10">
+                        {% for pattern_name, pattern_data in summary.patterns.items() %}
+                        {% if pattern_data == True %}
+                        <span class="badge bg-warning text-dark me-2 mb-2">{{ pattern_name|replace('_', ' ')|title
+                            }}</span>
+                        {% elif pattern_data is iterable and pattern_data is not string and pattern_data|length > 0 %}
+                        <span class="badge bg-warning text-dark me-2 mb-2">{{ pattern_name|replace('_', ' ')|title }}:
+                            {{ pattern_data|length }} cases</span>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Anomalies Tab -->
+            <div class="tab-pane fade" id="anomalies">
+                {% if anomalies %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>TX Hash</th>
+                                <th>Score</th>
+                                <th>Reasons</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for anom in anomalies[:20] %}
+                            <tr>
+                                <td><a href="#" class="text-decoration-none font-monospace small text-warning">{{
+                                        anom.hash[:16] }}...</a></td>
+                                <td>
+                                    <span
+                                        class="badge {{ 'bg-danger' if anom.anomaly_score > 0.8 else 'bg-warning text-dark' }}">
+                                        {{ "%.2f"|format(anom.anomaly_score) }}
+                                    </span>
+                                </td>
+                                <td><small class="text-light-muted">{% for reason in anom.reasons %}{{ reason }}<br>{%
+                                        endfor %}</small></td>
+                                <td>{{ "%.4f"|format(anom.amount) }} ETH</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center p-4 text-muted">
+                    <i class="fas fa-check-circle fa-2x mb-2 text-success opacity-50"></i>
+                    <p>No ML anomalies detected locally.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Threat Intel Tab -->
+            <div class="tab-pane fade" id="threats">
+                {% if threat_intel.is_flagged %}
+                <div class="p-4 bg-danger bg-opacity-25 rounded border border-danger">
+                    <h4 class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Flagged Address</h4>
+                    <hr class="border-danger">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Severity:</strong> <span class="badge bg-danger">{{
+                                    threat_intel.severity|upper }}</span></p>
+                            <p class="mb-2"><strong>Confidence:</strong> {{ "%.0f"|format(threat_intel.confidence * 100)
+                                }}%</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Sources:</strong> {{ threat_intel.threat_sources|join(', ') }}</p>
+                            <p class="mb-2"><strong>Types:</strong> {{ threat_intel.threat_types|join(', ') }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div
+                    class="p-4 bg-success bg-opacity-10 rounded border border-success border-opacity-25 text-success text-center">
+                    <i class="fas fa-shield-alt fa-3x mb-3"></i>
+                    <h5>Clean Address</h5>
+                    <p class="mb-0">Address not found in threat databases (Chainalysis, OFAC, ScamAlert)</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Clustering Tab -->
+            <div class="tab-pane fade" id="clustering">
+                {% if clustering_results.suspicious_counterparties or clustering_results.dust_attacks or
+                clustering_results.timing_clusters %}
+                {% if clustering_results.suspicious_counterparties %}
+                <div class="alert alert-warning mb-3">
+                    <h6>Frequent Counterparties (Possible Related Wallets)</h6>
+                    {% for cp in clustering_results.suspicious_counterparties[:10] %}
+                    <small class="d-block text-dark font-monospace">{{ cp.address[:42] }} (Risk: {{
+                        "%.0f"|format(cp.risk_score * 100) }}%)</small>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if clustering_results.dust_attacks %}
+                <div class="alert alert-danger mb-3">
+                    <h6>Dust Attack Detection</h6>
+                    {% for dust in clustering_results.dust_attacks[:5] %}
+                    <small class="d-block text-dark">{{ dust.address[:42] }}</small>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% else %}
+                <p class="text-muted text-center py-4">No significant cross-address clustering patterns found.</p>
+                {% endif %}
+            </div>
+
+            <!-- Tools Tab -->
+            <div class="tab-pane fade" id="tools">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="card h-100 bg-dark border-secondary">
+                            <div class="card-body">
+                                <h6>📄 Forensic Report (PDF)</h6>
+                                <p class="small text-muted">Full generated analysis report provided by Gemini AI.</p>
+                                <form action="/report" method="POST">
+                                    <button class="btn btn-outline-primary w-100">Generate PDF</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100 bg-dark border-secondary">
+                            <div class="card-body">
+                                <h6>📈 Graph Export (.GEXF)</h6>
+                                <p class="small text-muted">Compatible with Gephi for advanced network visualization.
+                                </p>
+                                <form action="/downloads/graph.gexf" method="GET">
+                                    <button class="btn btn-outline-info w-100">Download GEXF</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100 bg-dark border-secondary">
+                            <div class="card-body">
+                                <h6>⚖️ Legal Report (FIR)</h6>
+                                <p class="small text-muted">Format analysis for law enforcement submission.</p>
+                                <form action="/legal_report" method="POST" onsubmit="return promptLegalDetails()">
+                                    <button class="btn btn-outline-danger w-100">Generate FIR</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100 bg-dark border-secondary">
+                            <div class="card-body">
+                                <h6>💰 Sankey Diagram</h6>
+                                <p class="small text-muted">Flow chart visualization of funds.</p>
+                                <form action="/sankey" method="POST">
+                                    <button class="btn btn-outline-success w-100">View Sankey</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100 bg-dark border-secondary">
+                            <div class="card-body">
+                                <h6>🔥 Activity Heatmap</h6>
+                                <p class="small text-muted">Time-based activity visualization.</p>
+                                <form action="/heatmap" method="POST">
+                                    <button class="btn btn-outline-warning w-100">View Heatmap</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if summary %}
+<script>
+    // --- Streaming Logic ---
+    document.querySelector('form[action$="/investigation"]').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+
+        // UI Reset
+        const progressContainer = document.getElementById('progress-container');
+        progressContainer.classList.remove('d-none');
+        const logDiv = document.getElementById('analysis-log');
+        const progressBar = document.getElementById('analysis-progress-bar');
+
+        logDiv.innerHTML = '';
+        progressBar.style.width = '0%';
+        progressBar.textContent = '0%';
+        progressBar.classList.remove('bg-success', 'bg-danger');
+        progressBar.classList.add('bg-primary', 'progress-bar-animated');
+
+        // Start Stream
+        try {
+            const response = await fetch(`/api/case/{{ active_case.case_id }}/analysis/stream`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                const text = decoder.decode(value);
+                const lines = text.split('\n');
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                        const data = JSON.parse(line);
+
+                        if (data.type === 'progress') {
+                            const p = document.createElement('div');
+                            p.className = 'text-info';
+                            p.textContent = `> ${data.msg}`;
+                            logDiv.appendChild(p);
+                            logDiv.scrollTop = logDiv.scrollHeight;
+
+                            if (data.progress) {
+                                progressBar.style.width = data.progress + '%';
+                                progressBar.textContent = data.progress + '%';
+                            }
+                        } else if (data.type === 'info') {
+                            const p = document.createElement('div');
+                            p.className = 'text-success fw-bold';
+                            if (data.data) {
+                                p.textContent = `[+] Fetched ${data.data.tx_count} TXs (In: ${data.data.unique_senders}, Out: ${data.data.unique_receivers})`;
+                            } else {
+                                p.textContent = `[+] ${data.msg}`;
+                            }
+                            logDiv.appendChild(p);
+                        } else if (data.type === 'complete') {
+                            progressBar.classList.remove('progress-bar-animated');
+                            progressBar.classList.add('bg-success');
+                            progressBar.textContent = "Done!";
+                            // Small delay before redirect
+                            setTimeout(() => window.location.href = data.redirect, 500);
+                        } else if (data.type === 'error') {
+                            const p = document.createElement('div');
+                            p.className = 'text-danger fw-bold';
+                            p.textContent = `[!] ERROR: ${data.msg}`;
+                            logDiv.appendChild(p);
+                            progressBar.classList.remove('bg-primary');
+                            progressBar.classList.add('bg-danger');
+                        }
+                    } catch (err) {
+                        console.log("Stream parse error (chunk partial?):", err);
+                    }
+                }
+            }
+        } catch (err) {
+            alert("Connection failed: " + err.message);
+            progressBar.classList.add('bg-danger');
+            progressBar.textContent = "Connection Failed";
+        }
+    });
+
+    // --- Chart & Tools ---
+    {% if summary %}
+    const ctx = document.getElementById('flowChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Unique Senders (In)', 'Unique Receivers (Out)'],
+            datasets: [{
+                data: [{{ summary.unique_senders }}, {{ summary.unique_receivers }}],
+        backgroundColor: ['#198754', '#dc3545'],
+        borderColor: '#1e1e1e',
+        borderWidth: 2
+    }]
+        },
+        options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom', labels: { color: '#aaa' } }
+        }
+    }
+    });
+    {% endif %}
+
+    function promptLegalDetails() {
+        const investigator = prompt("Enter investigator name:", "Officer Name");
+        if (!investigator) return false;
+
+        const department = prompt("Enter department:", "Cybercrime Division");
+        if (!department) return false;
+
+        const caseId = "{{ active_case.case_id }}";
+
+        // Add hidden inputs to form dynamically
+        const form = document.querySelector('form[action="/legal_report"]'); // Target specific form
+
+        const inputs = [
+            { name: 'investigator', value: investigator },
+            { name: 'department', value: department },
+            { name: 'case_id', value: caseId }
+        ];
+
+        inputs.forEach(data => {
+            let input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = data.name;
+            input.value = data.value;
+            form.appendChild(input);
+        });
+
+        return true;
+    }
+</script>
+{% endif %}
+{% endblock %}

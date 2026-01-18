@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, send_file, flash, jsonify
+from flask import Flask, render_template, request, send_file, flash, jsonify, redirect, url_for
 from dotenv import load_dotenv
 import networkx as nx
 import json
@@ -74,6 +74,14 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = "forensic_key_secret"
 
+# Celery Configuration
+app.config['CELERY_BROKER_URL'] = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+app.config['CELERY_RESULT_BACKEND'] = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+
+from celery import Celery
+celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
+celery.conf.update(app.config)
+
 ETHERSCAN_KEY = os.getenv("ETHERSCAN_API_KEY")
 
 # Initialize case manager
@@ -93,222 +101,47 @@ current_case = {
 }
 
 @app.route("/", methods=["GET", "POST"])
+@app.route("/", methods=["GET"])
 def index():
+    """Case Management Dashboard"""
+    cases = case_manager.list_cases()
+    # Sort cases by creation date (newest first)
+    cases.sort(key=lambda x: x.created_at, reverse=True)
+    return render_template("case_list.html", cases=cases)
+
+@app.route("/case/<case_id>/dashboard", methods=["GET"])
+def case_dashboard(case_id):
+    """Specific Case Dashboard"""
+    case = case_manager.get_case(case_id)
+    if not case:
+        flash("Case not found", "error")
+        return redirect(url_for("index"))
+    
+    # Set as active case context (simple way for now)
     global current_case
-    summary = None
-    # Import chain IDs from eth_live module
+    # In a real app, we'd load this from persistent storage or re-hydrate
+    # keeping the simple global/current_case structure for now but scoped
+    
+    return render_template("case_dashboard.html", active_case=case)
+
+@app.route("/case/<case_id>/investigation", methods=["GET", "POST"])
+def investigation(case_id):
+    """Investigation Tool for a specific Case"""
+    case = case_manager.get_case(case_id)
+    if not case:
+        flash("Case not found", "error")
+        return redirect(url_for("index"))
+        
+    global current_case
     from eth_live import SUPPORTED_CHAINS
     supported_chains = SUPPORTED_CHAINS
     
-    if request.method == "POST":
-        address = request.form.get("address")
-        chain_name = request.form.get("chain", "ethereum")
-        chain_id = SUPPORTED_CHAINS.get(chain_name.lower(), 1)  # Default to Ethereum
-        start_date = request.form.get("start_date")
-        end_date = request.form.get("end_date")
-        include_internal = True if request.form.get('include_internal') == 'on' else False
-        include_token_transfers = True if request.form.get('include_token_transfers') == 'on' else False
-        
-        current_case["chain"] = chain_name
-        current_case["chain_id"] = chain_id
-        current_case["address"] = address
-        
-        if address and ETHERSCAN_KEY:
-            try:
-                print(f"[+] Trace initiated: {address} on {chain_name} (Chain ID: {chain_id}) | {start_date} to {end_date}")
-                
-                # Unified API call with chain_id parameter
-                txs, counts = fetch_eth_address_with_counts(
-                    address, ETHERSCAN_KEY,
-                    chain_id=chain_id,
-                    include_internal=include_internal,
-                    include_token_transfers=include_token_transfers
-                )
-                
-                # Comprehensive analysis
-                summary, G, source = analyze_live_eth(
-                    txs, address, 
-                    start_date=start_date,
-                    end_date=end_date,
-                    chain_id=chain_id,
-                    chain_name=chain_name
-                )
-                
-                current_case["summary"] = summary
-                current_case["source"] = source
-                current_case["counts"] = counts
-                current_case["fetch_options"] = {
-                    "include_internal": include_internal,
-                    "include_token_transfers": include_token_transfers
-                }
-                
-                # ===== ADVANCED FEATURES =====
-                
-                # 1. Cross-Address Clustering (#2)
-                if ADVANCED_FEATURES_AVAILABLE and txs:
-                    try:
-                        clustering = AddressClustering.cluster_addresses(txs, address)
-                        current_case["clustering_results"] = clustering
-                        print(f"[+] Cross-address clustering: {len(clustering)} patterns detected")
-                    except Exception as e:
-                        print(f"[!] Clustering error: {e}")
-                
-                # 2. Threat Intelligence (#7)
-                if ADVANCED_FEATURES_AVAILABLE:
-                    try:
-                        threat_data = ThreatIntelligence.load_threat_data()
-                        threat_check = ThreatIntelligence.check_address(address, threat_data)
-                        current_case["threat_intel_results"] = threat_check
-                        if threat_check['is_flagged']:
-                            print(f"[!] THREAT ALERT: Address flagged by {threat_check['threat_sources']}")
-                    except Exception as e:
-                        print(f"[!] Threat Intel error: {e}")
-                
-                # 3. ML Anomaly Detection (#9)
-                if ADVANCED_FEATURES_AVAILABLE and txs:
-                    try:
-                        anomalies = AnomalyDetector.detect_anomalies(txs)
-                        current_case["anomalies"] = anomalies
-                        print(f"[+] ML Anomaly Detection: {len(anomalies)} anomalies found")
-                    except Exception as e:
-                        print(f"[!] Anomaly detection error: {e}")
-                
-                # 4. TAINT ANALYSIS (#4) - NEW
-                if TAINT_ANALYSIS_AVAILABLE and txs:
-                    try:
-                        taint = TaintAnalyzer()
-                        taint_results = taint.trace_fund_flow(address, txs)
-                        current_case["taint_results"] = taint_results
-                        print(f"[+] Taint Analysis: Fund flow traced through {len(taint_results.get('path', []))} addresses")
-                    except Exception as e:
-                        print(f"[!] Taint analysis error: {e}")
-                
-                # 5. SMART CONTRACT ANALYSIS (#5) - NEW
-                # Check if address is a contract
-                if SMART_CONTRACT_AVAILABLE and address:
-                    try:
-                        contract_analyzer = SmartContractAnalyzer(ETHERSCAN_KEY)
-                        contract_results = contract_analyzer.analyze_contract(address)
-                        current_case["contract_results"] = contract_results
-                        if contract_results:
-                            print(f"[+] Smart Contract Analysis: Risk Score {contract_results.get('risk_score', 0)}/100")
-                    except Exception as e:
-                        print(f"[!] Contract analysis error: {e}")
-                
-                # 6. DEFI ACTIVITY TRACKING (#6) - NEW
-                if DEFI_ANALYZER_AVAILABLE and address:
-                    try:
-                        defi = DeFiAnalyzer()
-                        defi_results = {
-                            "uniswap": defi.get_uniswap_swaps(address),
-                            "uniswap_lp": defi.get_uniswap_positions(address),
-                            "aave": defi.get_aave_user_data(address),
-                            "curve": defi.get_curve_pool_activity(address)
-                        }
-                        current_case["defi_results"] = defi_results
-                        total_activities = sum(len(v or []) for v in defi_results.values())
-                        print(f"[+] DeFi Activity: {total_activities} total activities found")
-                    except Exception as e:
-                        print(f"[!] DeFi analysis error: {e}")
-                
-                # Database integration - Save results if DB available
-                # TEMPORARILY DISABLED - Models need schema updates
-                #if DB_AVAILABLE:
-                if False:
-                    try:
-                        db = SessionLocal()
-                        # Create case record
-                        case_record = DBCase(
-                            case_id=f"auto_{datetime.utcnow().timestamp()}",
-                            case_name=f"Analysis: {address[:10]}...",
-                            description=f"Automated analysis of {address}",
-                            investigator="System",
-                            status="completed"
-                        )
-                        db.add(case_record)
-                        
-                        # Save address
-                        addr_record = Address(
-                            case_id=case_record.id,
-                            address=address,
-                            chain=chain_name,
-                            risk_score=summary.get('risk_score', 0),
-                            tag="analyzed"
-                        )
-                        db.add(addr_record)
-                        
-                        # Save taint trace if available
-                        if "taint_results" in current_case:
-                            taint_data = current_case["taint_results"]
-                            taint_record = TaintTrace(
-                                case_id=case_record.id,
-                                source_address=address,
-                                destination_address=taint_data.get("final_destination", address),
-                                trace_depth=taint_data.get("depth", 0),
-                                taint_type=taint_data.get("type", "unknown"),
-                                confidence=taint_data.get("confidence", 0.0)
-                            )
-                            db.add(taint_record)
-                        
-                        # Save smart contract analysis if available
-                        if "contract_results" in current_case:
-                            contract = current_case["contract_results"]
-                            contract_record = SmartContract(
-                                case_id=case_record.id,
-                                contract_address=address,
-                                vulnerability_score=contract.get("risk_score", 0),
-                                is_honeypot=contract.get("is_honeypot", False),
-                                is_rug_pull=contract.get("is_rug_pull", False)
-                            )
-                            db.add(contract_record)
-                        
-                        # Save anomalies
-                        if current_case.get("anomalies"):
-                            for anomaly in current_case["anomalies"]:
-                                anom_record = AnomalyDetection(
-                                    case_id=case_record.id,
-                                    address=address,
-                                    anomaly_type=anomaly.get("type", "unknown"),
-                                    anomaly_score=anomaly.get("score", 0)
-                                )
-                                db.add(anom_record)
-                        
-                        db.commit()
-                        print(f"[+] Database: Analysis results saved to PostgreSQL")
-                    except Exception as e:
-                        print(f"[!] Database save error: {e}")
-                        try:
-                            db.rollback()
-                        except:
-                            pass
-                
-                # Network graph
-                os.makedirs("exports", exist_ok=True)
-                nx.write_gexf(G, "exports/graph.gexf")
-                
-                current_case["findings"] = [
-                    f"Target: {address}",
-                    f"Chain: {chain_name.upper()}",
-                    f"Period: {start_date if start_date else 'All Time'} to {end_date if end_date else 'Present'}",
-                    f"Transactions: {summary.get('total_transactions', 0)}",
-                    f"Net Flow: {summary['net_flow']}",
-                    f"Risk Score: {summary.get('risk_score', 0)}/100",
-                    f"Clusters Found: {len(current_case.get('clustering_results', {}))}",
-                    f"Threat Flagged: {'YES' if current_case['threat_intel_results'].get('is_flagged') else 'NO'}",
-                    f"Anomalies: {len(current_case.get('anomalies', []))}",
-                    f"Smart Contract Risk: {current_case.get('contract_results', {}).get('risk_score', 'N/A')}/100" if "contract_results" in current_case else None,
-                    f"DeFi Activities: {sum(len(v or []) for v in current_case.get('defi_results', {}).values())}" if "defi_results" in current_case else None,
-                ]
-                current_case["findings"] = [f for f in current_case["findings"] if f is not None]
-                
-                flash(f"✓ Analysis complete: {summary['total_transactions']} transactions analyzed on {chain_name}", "success")
-
-            except Exception as e:
-                print(f"[ERROR] {e}")
-                flash(f"Error: {str(e)}", "error")
-
-    return render_template("index.html", 
-                         summary=summary, 
+    # Note: POST logic is moved to /api/stream_analysis for real-time feedback
+    # This route now primarily serves the view
+    
+    return render_template("investigation.html", 
+                         active_case=case,
+                         summary=current_case.get("summary"), 
                          tx_counts=current_case.get('counts'), 
                          source=current_case.get('source'), 
                          fetch_options=current_case.get('fetch_options', {}),
@@ -317,9 +150,101 @@ def index():
                          clustering_results=current_case.get('clustering_results', {}),
                          threat_intel=current_case.get('threat_intel_results', {}),
                          anomalies=current_case.get('anomalies', []),
-                         taint_results=current_case.get('taint_results', {}),
-                         contract_results=current_case.get('contract_results', {}),
-                         defi_results=current_case.get('defi_results', {}))
+                         taint_results=current_case.get('taint_results', {}))
+
+@app.route("/api/case/<case_id>/analysis/stream", methods=["POST"])
+def stream_analysis(case_id):
+    """Stream analysis progress and results"""
+    from flask import Response, stream_with_context
+    from eth_live import SUPPORTED_CHAINS
+    
+    case = case_manager.get_case(case_id)
+    if not case: return jsonify({"error": "Case not found"}), 404
+    
+    address = request.form.get("address")
+    chain_name = request.form.get("chain", "ethereum")
+    chain_id = SUPPORTED_CHAINS.get(chain_name.lower(), 1)
+    # Parse logic args
+    start_date = request.form.get("start_date")
+    end_date = request.form.get("end_date")
+    include_internal = request.form.get('include_internal') == 'on'
+    include_token_transfers = request.form.get('include_token_transfers') == 'on'
+    
+    # Store context
+    current_case["chain"] = chain_name
+    current_case["chain_id"] = chain_id
+    current_case["address"] = address
+    
+    def generate():
+        try:
+            yield json.dumps({"type": "progress", "msg": f"Initiating trace for {address[:10]}...", "progress": 10}) + "\n"
+            
+            # 1. Add to case tracking
+            case.add_address(address, tag="target", notes=f"Analysis started on {datetime.now()}")
+            case_manager.save_case(case)
+            yield json.dumps({"type": "progress", "msg": "Address added to case tracking.", "progress": 20}) + "\n"
+            
+            # 2. Fetch Data
+            if ETHERSCAN_KEY:
+                yield json.dumps({"type": "progress", "msg": f"Fetching transactions from {chain_name}...", "progress": 30}) + "\n"
+                
+                txs, counts = fetch_eth_address_with_counts(
+                    address, ETHERSCAN_KEY,
+                    chain_id=chain_id,
+                    include_internal=include_internal,
+                    include_token_transfers=include_token_transfers
+                )
+                
+                yield json.dumps({"type": "info", "data": counts, "msg": f"Fetched {len(txs)} transactions."}) + "\n"
+                yield json.dumps({"type": "progress", "msg": "Analyzing transaction patterns...", "progress": 50}) + "\n"
+                
+                # 3. Basic Analysis
+                summary, G, source = analyze_live_eth(
+                    txs, address, 
+                    start_date=start_date, end_date=end_date, chain_id=chain_id
+                )
+                
+                current_case["summary"] = summary
+                current_case["source"] = source
+                current_case["counts"] = counts
+                current_case["fetch_options"] = {"include_internal": include_internal, "include_token_transfers": include_token_transfers}
+                
+                yield json.dumps({"type": "progress", "msg": "Running advanced forensics...", "progress": 70}) + "\n"
+                
+                # 4. Advanced Features
+                if ADVANCED_FEATURES_AVAILABLE and txs:
+                    try:
+                        yield json.dumps({"type": "progress", "msg": "Clustering related addresses...", "progress": 75}) + "\n"
+                        current_case["clustering_results"] = AddressClustering.cluster_addresses(txs, address)
+                    except: pass
+                    
+                    try:
+                        yield json.dumps({"type": "progress", "msg": "Detecting anomalies...", "progress": 80}) + "\n"
+                        current_case["anomalies"] = AnomalyDetector.detect_anomalies(txs)
+                    except: pass
+                    
+                    try:
+                        yield json.dumps({"type": "progress", "msg": "Checking threat intelligence databases...", "progress": 85}) + "\n"
+                        threat_data = ThreatIntelligence.load_threat_data()
+                        current_case["threat_intel_results"] = ThreatIntelligence.check_address(address, threat_data)
+                    except: pass
+                
+                if TAINT_ANALYSIS_AVAILABLE and txs:
+                    try:
+                         yield json.dumps({"type": "progress", "msg": "Tracing fund flow paths...", "progress": 90}) + "\n"
+                         taint = TaintAnalyzer()
+                         current_case["taint_results"] = taint.trace_fund_flow(address, txs)
+                    except: pass
+                
+                yield json.dumps({"type": "progress", "msg": "Analysis complete. Rendering results...", "progress": 100}) + "\n"
+                yield json.dumps({"type": "complete", "redirect": url_for('investigation', case_id=case_id)}) + "\n"
+            else:
+                 yield json.dumps({"type": "error", "msg": "API Key missing."}) + "\n"
+
+        except Exception as e:
+            yield json.dumps({"type": "error", "msg": str(e)}) + "\n"
+            
+    return Response(stream_with_context(generate()), mimetype='application/x-ndjson')
 
 @app.route("/report", methods=["POST"])
 def report():
@@ -628,8 +553,121 @@ def batch_processing():
             
             except Exception as e:
                 flash(f"Batch processing error: {str(e)}", "error")
+
+# ==================== CASE SPECIFIC ROUTES ====================
+
+
+@app.route("/case/<case_id>/board")
+def case_board(case_id):
+    """Investigation Board View"""
+    case = case_manager.get_case(case_id)
+    if not case: return redirect(url_for("index"))
     
-    return render_template("batch.html", results=results, batch_status=batch_status)
+    return render_template("board.html", active_case=case)
+
+@app.route("/case/<case_id>/asset/add", methods=["POST"])
+def add_board_asset(case_id):
+    """Add item to investigation board"""
+    asset_type = request.form.get("type")
+    content = request.form.get("content")
+    
+    # Handle Image Uploads
+    if asset_type == "image":
+        if 'image_file' in request.files:
+            file = request.files['image_file']
+            if file.filename != '':
+                # Ensure uploads dir exists
+                upload_dir = os.path.join("static", "uploads", case_id)
+                os.makedirs(upload_dir, exist_ok=True)
+                
+                # Save file
+                filename = f"{datetime.now().strftime('%H%M%S')}_{file.filename}"
+                filepath = os.path.join(upload_dir, filename)
+                file.save(filepath)
+                
+                # Content is relative path for frontend
+                content = f"/static/uploads/{case_id}/{filename}"
+    
+    if case_manager.add_asset_to_case(case_id, asset_type, content):
+        return redirect(url_for('case_board', case_id=case_id))
+    
+    return "Failed to add asset", 400
+
+@app.route("/case/<case_id>/asset/delete/<asset_id>", methods=["POST"])
+def delete_board_asset(case_id, asset_id):
+    """Delete item from investigation board"""
+    case_manager.delete_asset_from_case(case_id, asset_id)
+    return redirect(url_for('case_board', case_id=case_id))
+
+@app.route("/case/<case_id>/asset/move/<asset_id>", methods=["POST"])
+def move_board_asset(case_id, asset_id):
+    """Update asset position on board"""
+    data = request.get_json()
+    case = case_manager.get_case(case_id)
+    if case:
+        for asset in case.assets:
+            if asset["id"] == asset_id:
+                asset["position"] = {"x": data["x"], "y": data["y"]}
+                break
+        case_manager.save_case(case)
+        return jsonify({"status": "success"})
+    return jsonify({"error": "Case not found"}), 404
+
+@app.route("/case/<case_id>/visualizations")
+def case_visualizations(case_id):
+    """Visualizations Dashboard for a Case"""
+    case = case_manager.get_case(case_id)
+    if not case: return redirect(url_for("index"))
+    
+    # Use current_case data for now if available
+    return render_template("visualizations.html", 
+                         active_case=case,
+                         summary=current_case.get("summary"),
+                         tx_counts=current_case.get("counts"))
+
+@app.route("/case/<case_id>/charts")
+def case_charts(case_id):
+    """Redirect for legacy link"""
+    return redirect(url_for("case_visualizations", case_id=case_id))
+
+@app.route("/case/<case_id>/clustering")
+def case_clustering(case_id):
+    """Clustering View for a Case"""
+    case = case_manager.get_case(case_id)
+    if not case: return redirect(url_for("index"))
+    
+    return render_template("clustering.html", 
+                         active_case=case,
+                         clustering_results=current_case.get("clustering_results", {}))
+
+@app.route("/case/<case_id>/threat-intel")
+def case_threat_intel(case_id):
+    """Threat Intel View for a Case"""
+    case = case_manager.get_case(case_id)
+    if not case: return redirect(url_for("index"))
+    
+    return render_template("threat_intel.html", 
+                         active_case=case,
+                         threat=current_case.get("threat_intel_results", {}),
+                         anomalies=current_case.get("anomalies", []))
+
+@app.route("/case/<case_id>/monitoring")
+def case_monitoring(case_id):
+    """Real-time Monitoring View"""
+    case = case_manager.get_case(case_id)
+    if not case: return redirect(url_for("index"))
+    
+    return render_template("monitoring.html", active_case=case)
+
+@app.route("/case/<case_id>/reports")
+def case_reports(case_id):
+    """Reports Generation Hub"""
+    case = case_manager.get_case(case_id)
+    if not case: return redirect(url_for("index"))
+    
+    return render_template("reports.html", active_case=case, summary=current_case.get("summary"))
+
+# =============================================================
 
 
 # ==================== CLUSTERING DETAILS ROUTE (#2) ====================
@@ -801,4 +839,4 @@ def api_export_case(case_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=False, port=5000, use_reloader=False)
+    app.run(host="0.0.0.0", debug=False, port=5000, use_reloader=False)

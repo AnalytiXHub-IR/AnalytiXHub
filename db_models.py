@@ -80,6 +80,7 @@ class Address(Base):
     id = Column(Integer, primary_key=True, index=True)
     case_id = Column(Integer, ForeignKey("cases.id"), index=True)
     chain_id = Column(Integer, ForeignKey("chains.id"), index=True)
+    cluster_id = Column(Integer, ForeignKey("address_clusters.id"), nullable=True)
     
     address = Column(String, index=True)
     alias = Column(String)  # Human-readable name
@@ -104,11 +105,19 @@ class Address(Base):
     # Relationships
     case = relationship("Case", back_populates="addresses")
     chain = relationship("Chain", back_populates="addresses")
-    transactions = relationship("Transaction", back_populates="address")
+    # transactions = relationship("Transaction", back_populates="address") # Removed due to ambiguity
     cluster = relationship("AddressCluster", back_populates="addresses")
     
     created_at = Column(DateTime, default=datetime.utcnow)
     last_analyzed = Column(DateTime)
+    
+    # Relationships (Modified to handle multiple FKs from Transaction)
+    outgoing_transactions = relationship("Transaction", 
+                                       foreign_keys="[Transaction.from_address_id]", 
+                                       back_populates="from_address_rel")
+    incoming_transactions = relationship("Transaction", 
+                                       foreign_keys="[Transaction.to_address_id]", 
+                                       back_populates="to_address_rel")
     
     def to_dict(self):
         return {
@@ -159,7 +168,15 @@ class Transaction(Base):
     # Relationships
     case = relationship("Case", back_populates="transactions")
     chain = relationship("Chain", back_populates="transactions")
-    address = relationship("Address", back_populates="transactions")
+    # address = relationship("Address", back_populates="transactions") # Removed due to ambiguity
+    
+    # Explicit relationships for from/to addresses
+    from_address_rel = relationship("Address", 
+                                  foreign_keys=[from_address_id], 
+                                  back_populates="outgoing_transactions")
+    to_address_rel = relationship("Address", 
+                                foreign_keys=[to_address_id], 
+                                  back_populates="incoming_transactions")
     
     def to_dict(self):
         return {
@@ -350,6 +367,7 @@ class DeFiActivity(Base):
     
     address = Column(String, index=True)
     chain = Column(String)
+    chain_id = Column(Integer, ForeignKey("chains.id"), index=True)
     
     activity_type = Column(String)  # swap, liquidity_add, liquidity_remove, yield_farming, borrowing, lending
     protocol = Column(String)  # uniswap, aave, curve, compound, etc.
@@ -468,11 +486,10 @@ class BatchJob(Base):
     case = relationship("Case", back_populates="batch_jobs")
 
 
+
 # Add relationships to Case model
-Case.addresses = relationship("Address", back_populates="case", cascade="all, delete-orphan")
-Case.transactions = relationship("Transaction", back_populates="case", cascade="all, delete-orphan")
-Case.clusters = relationship("AddressCluster", back_populates="case", cascade="all, delete-orphan")
-Case.alerts = relationship("Alert", back_populates="case", cascade="all, delete-orphan")
+# Removed duplicate relationship definitions for Case class as they are already defined inside the class.
+
 Case.contracts = relationship("SmartContract", back_populates="case", cascade="all, delete-orphan")
 Case.defi_activities = relationship("DeFiActivity", back_populates="case", cascade="all, delete-orphan")
 Case.taint_traces = relationship("TaintTrace", back_populates="case", cascade="all, delete-orphan")
