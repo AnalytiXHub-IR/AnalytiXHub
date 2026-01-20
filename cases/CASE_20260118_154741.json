@@ -7,10 +7,10 @@
   "addresses": {
     "0x12d66f87a04a9e220743712ce6d9bb1b5616b8fc": {
       "tag": "target",
-      "notes": "Analysis started on 2026-01-18 17:27:40.572681",
+      "notes": "Analysis started on 2026-01-20 10:44:50.079676",
       "risk_level": 0,
       "status": "active",
-      "added_at": "2026-01-18T17:27:40.572697"
+      "added_at": "2026-01-20T10:44:50.079687"
     }
   },
   "findings": [],

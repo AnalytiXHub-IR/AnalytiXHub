@@ -416,9 +416,8 @@
                             <div class="card-body">
                                 <h6>💰 Sankey Diagram</h6>
                                 <p class="small text-muted">Flow chart visualization of funds.</p>
-                                <form action="/sankey" method="POST">
-                                    <button class="btn btn-outline-success w-100">View Sankey</button>
-                                </form>
+                                <button class="btn btn-outline-success w-100" data-bs-toggle="modal"
+                                    data-bs-target="#sankeyModal">View Sankey</button>
                             </div>
                         </div>
                     </div>
@@ -427,9 +426,8 @@
                             <div class="card-body">
                                 <h6>🔥 Activity Heatmap</h6>
                                 <p class="small text-muted">Time-based activity visualization.</p>
-                                <form action="/heatmap" method="POST">
-                                    <button class="btn btn-outline-warning w-100">View Heatmap</button>
-                                </form>
+                                <button class="btn btn-outline-warning w-100" data-bs-toggle="modal"
+                                    data-bs-target="#heatmapModal">View Heatmap</button>
                             </div>
                         </div>
                     </div>
@@ -439,122 +437,144 @@
         </div>
     </div>
 </div>
+
+<!-- Modals for Visualizations -->
+<div class="modal fade" id="sankeyModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 90vw; height: 90vh;">
+        <div class="modal-content h-100 bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-light">Fund Flow (Sankey)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="sankeyFrame" src="" class="w-100 h-100 border-0"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="heatmapModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-light">Activity Heatmap</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0 text-center bg-white rounded-bottom">
+                <img id="heatmapImg" src="" class="img-fluid" alt="Heatmap Loading...">
+            </div>
+        </div>
+    </div>
+</div>
 {% endif %}
 
 {% endblock %}
 
 {% block extra_js %}
-{% if summary %}
 <script>
     // --- Streaming Logic ---
-    document.querySelector('form[action$="/investigation"]').addEventListener('submit', async function (e) {
-        e.preventDefault();
-        const form = e.target;
-        const formData = new FormData(form);
+    const analysisForm = document.querySelector('form[action$="/investigation"]');
+    if (analysisForm) {
+        analysisForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
 
-        // UI Reset
-        const progressContainer = document.getElementById('progress-container');
-        progressContainer.classList.remove('d-none');
-        const logDiv = document.getElementById('analysis-log');
-        const progressBar = document.getElementById('analysis-progress-bar');
+            // UI Reset
+            const progressContainer = document.getElementById('progress-container');
+            if (progressContainer) progressContainer.classList.remove('d-none');
 
-        logDiv.innerHTML = '';
-        progressBar.style.width = '0%';
-        progressBar.textContent = '0%';
-        progressBar.classList.remove('bg-success', 'bg-danger');
-        progressBar.classList.add('bg-primary', 'progress-bar-animated');
+            const logDiv = document.getElementById('analysis-log');
+            const progressBar = document.getElementById('analysis-progress-bar');
 
-        // Start Stream
-        try {
-            const response = await fetch(`/api/case/{{ active_case.case_id }}/analysis/stream`, {
-                method: 'POST',
-                body: formData
-            });
+            if (logDiv) logDiv.innerHTML = '';
+            if (progressBar) {
+                progressBar.style.width = '0%';
+                progressBar.textContent = '0%';
+                progressBar.classList.remove('bg-success', 'bg-danger');
+                progressBar.classList.add('bg-primary', 'progress-bar-animated');
+            }
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
+            // Start Stream
+            try {
+                const response = await fetch(`/api/case/{{ active_case.case_id }}/analysis/stream`, {
+                    method: 'POST',
+                    body: formData
+                });
 
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
 
-                const text = decoder.decode(value);
-                const lines = text.split('\n');
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
 
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    try {
-                        const data = JSON.parse(line);
+                    const text = decoder.decode(value);
+                    const lines = text.split('\n');
 
-                        if (data.type === 'progress') {
-                            const p = document.createElement('div');
-                            p.className = 'text-info';
-                            p.textContent = `> ${data.msg}`;
-                            logDiv.appendChild(p);
-                            logDiv.scrollTop = logDiv.scrollHeight;
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        try {
+                            const data = JSON.parse(line);
 
-                            if (data.progress) {
-                                progressBar.style.width = data.progress + '%';
-                                progressBar.textContent = data.progress + '%';
+                            if (data.type === 'progress') {
+                                if (logDiv) {
+                                    const p = document.createElement('div');
+                                    p.className = 'text-info';
+                                    p.textContent = `> ${data.msg}`;
+                                    logDiv.appendChild(p);
+                                    logDiv.scrollTop = logDiv.scrollHeight;
+                                }
+
+                                if (data.progress && progressBar) {
+                                    progressBar.style.width = data.progress + '%';
+                                    progressBar.textContent = data.progress + '%';
+                                }
+                            } else if (data.type === 'info') {
+                                if (logDiv) {
+                                    const p = document.createElement('div');
+                                    p.className = 'text-success fw-bold';
+                                    if (data.data) {
+                                        p.textContent = `[+] Fetched ${data.data.tx_count} TXs (In: ${data.data.unique_senders}, Out: ${data.data.unique_receivers})`;
+                                    } else {
+                                        p.textContent = `[+] ${data.msg}`;
+                                    }
+                                    logDiv.appendChild(p);
+                                }
+                            } else if (data.type === 'complete') {
+                                if (progressBar) {
+                                    progressBar.classList.remove('progress-bar-animated');
+                                    progressBar.classList.add('bg-success');
+                                    progressBar.textContent = "Done!";
+                                }
+                                // Small delay before redirect
+                                setTimeout(() => window.location.href = data.redirect, 500);
+                            } else if (data.type === 'error') {
+                                if (logDiv) {
+                                    const p = document.createElement('div');
+                                    p.className = 'text-danger fw-bold';
+                                    p.textContent = `[!] ERROR: ${data.msg}`;
+                                    logDiv.appendChild(p);
+                                }
+                                if (progressBar) {
+                                    progressBar.classList.remove('bg-primary');
+                                    progressBar.classList.add('bg-danger');
+                                }
                             }
-                        } else if (data.type === 'info') {
-                            const p = document.createElement('div');
-                            p.className = 'text-success fw-bold';
-                            if (data.data) {
-                                p.textContent = `[+] Fetched ${data.data.tx_count} TXs (In: ${data.data.unique_senders}, Out: ${data.data.unique_receivers})`;
-                            } else {
-                                p.textContent = `[+] ${data.msg}`;
-                            }
-                            logDiv.appendChild(p);
-                        } else if (data.type === 'complete') {
-                            progressBar.classList.remove('progress-bar-animated');
-                            progressBar.classList.add('bg-success');
-                            progressBar.textContent = "Done!";
-                            // Small delay before redirect
-                            setTimeout(() => window.location.href = data.redirect, 500);
-                        } else if (data.type === 'error') {
-                            const p = document.createElement('div');
-                            p.className = 'text-danger fw-bold';
-                            p.textContent = `[!] ERROR: ${data.msg}`;
-                            logDiv.appendChild(p);
-                            progressBar.classList.remove('bg-primary');
-                            progressBar.classList.add('bg-danger');
+                        } catch (err) {
+                            console.log("Stream parse error (chunk partial?):", err);
                         }
-                    } catch (err) {
-                        console.log("Stream parse error (chunk partial?):", err);
                     }
                 }
+            } catch (err) {
+                alert("Connection failed: " + err.message);
+                if (progressBar) {
+                    progressBar.classList.add('bg-danger');
+                    progressBar.textContent = "Connection Failed";
+                }
             }
-        } catch (err) {
-            alert("Connection failed: " + err.message);
-            progressBar.classList.add('bg-danger');
-            progressBar.textContent = "Connection Failed";
-        }
-    });
-
-    // --- Chart & Tools ---
-    {% if summary %}
-    const ctx = document.getElementById('flowChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Unique Senders (In)', 'Unique Receivers (Out)'],
-            datasets: [{
-                data: [{{ summary.unique_senders }}, {{ summary.unique_receivers }}],
-        backgroundColor: ['#198754', '#dc3545'],
-        borderColor: '#1e1e1e',
-        borderWidth: 2
-    }]
-        },
-        options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { position: 'bottom', labels: { color: '#aaa' } }
-        }
+        });
     }
-    });
-    {% endif %}
 
     function promptLegalDetails() {
         const investigator = prompt("Enter investigator name:", "Officer Name");
@@ -567,6 +587,7 @@
 
         // Add hidden inputs to form dynamically
         const form = document.querySelector('form[action="/legal_report"]'); // Target specific form
+        if (!form) return false;
 
         const inputs = [
             { name: 'investigator', value: investigator },
@@ -583,6 +604,54 @@
         });
 
         return true;
+    }
+</script>
+
+{% if summary %}
+<script>
+    // --- Chart & Tools ---
+    const ctx = document.getElementById('flowChart');
+    if (ctx) {
+        new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Unique Senders (In)', 'Unique Receivers (Out)'],
+                datasets: [{
+                    data: [{{ summary.unique_senders }}, {{ summary.unique_receivers }}],
+            backgroundColor: ['#198754', '#dc3545'],
+            borderColor: '#1e1e1e',
+            borderWidth: 2
+        }]
+            },
+    options: {
+        responsive: true,
+            maintainAspectRatio: false,
+                plugins: {
+            legend: { position: 'bottom', labels: { color: '#aaa' } }
+        }
+    }
+        });
+    }
+
+    // Modal Loaders
+    const sankeyModal = document.getElementById('sankeyModal');
+    if (sankeyModal) {
+        sankeyModal.addEventListener('show.bs.modal', event => {
+            const frame = document.getElementById('sankeyFrame');
+            if (!frame.src || frame.src === window.location.href) {
+                frame.src = "/sankey";
+            }
+        });
+    }
+
+    const heatmapModal = document.getElementById('heatmapModal');
+    if (heatmapModal) {
+        heatmapModal.addEventListener('show.bs.modal', event => {
+            const img = document.getElementById('heatmapImg');
+            if (!img.src || img.src === window.location.href) {
+                img.src = "/heatmap";
+            }
+        });
     }
 </script>
 {% endif %}

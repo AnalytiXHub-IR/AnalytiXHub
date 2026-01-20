@@ -306,7 +306,7 @@ def timeline():
     return "Failed to generate timeline", 500
 
 # Sankey Diagram Route
-@app.route("/sankey", methods=["POST"])
+@app.route("/sankey", methods=["GET", "POST"])
 def sankey():
     """Generate Sankey fund flow diagram"""
     if not current_case["summary"]:
@@ -316,7 +316,7 @@ def sankey():
     sankey_file = create_sankey_diagram(current_case["summary"], address)
     
     if sankey_file and os.path.exists(sankey_file):
-        return send_file(sankey_file, as_attachment=True, download_name="sankey.html")
+        return send_file(sankey_file)
     
     return "Failed to generate Sankey diagram", 500
 
