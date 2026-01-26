@@ -891,8 +891,8 @@ Update SUPPORTED_CHAINS in eth_live.py
 **Kolluru Sai Abhiram**
 - VIT-AP UNIVERSITY
 - Specialized in Blockchain Forensics & AML
-- Email: [your-email]
-- LinkedIn: [your-linkedin]
+- Email:kolluru.sai.abhiram@vitstudent.ac.in
+- LinkedIn: https://www.linkedin.com/in/sai-abhiram-kolluru-a0b71228b
 
 ### Built With
 - **Etherscan** - Blockchain data

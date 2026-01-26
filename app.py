@@ -139,8 +139,19 @@ def investigation(case_id):
     # Note: POST logic is moved to /api/stream_analysis for real-time feedback
     # This route now primarily serves the view
     
+    # Support GET parameters for automatic rescan from dashboard
+    address = request.args.get("address")
+    chain_name = request.args.get("chain")
+    auto_scan = request.args.get("auto_scan", "false").lower() == "true"
+    
+    if address:
+        current_case["address"] = address
+    if chain_name:
+        current_case["chain"] = chain_name
+    
     return render_template("investigation.html", 
                          active_case=case,
+                         target_address=address or current_case.get("address"),
                          summary=current_case.get("summary"), 
                          tx_counts=current_case.get('counts'), 
                          source=current_case.get('source'), 
@@ -150,7 +161,8 @@ def investigation(case_id):
                          clustering_results=current_case.get('clustering_results', {}),
                          threat_intel=current_case.get('threat_intel_results', {}),
                          anomalies=current_case.get('anomalies', []),
-                         taint_results=current_case.get('taint_results', {}))
+                         taint_results=current_case.get('taint_results', {}),
+                         auto_scan=auto_scan)
 
 @app.route("/api/case/<case_id>/analysis/stream", methods=["POST"])
 def stream_analysis(case_id):
@@ -195,6 +207,9 @@ def stream_analysis(case_id):
                     include_token_transfers=include_token_transfers
                 )
                 
+                # Cache transactions for visualizations
+                current_case["transactions"] = txs
+                
                 yield json.dumps({"type": "info", "data": counts, "msg": f"Fetched {len(txs)} transactions."}) + "\n"
                 yield json.dumps({"type": "progress", "msg": "Analyzing transaction patterns...", "progress": 50}) + "\n"
                 
@@ -203,6 +218,10 @@ def stream_analysis(case_id):
                     txs, address, 
                     start_date=start_date, end_date=end_date, chain_id=chain_id
                 )
+                
+                # Propagate risk score back to case for dashboard consistency
+                case.add_address(address, tag="target", risk_level=summary.get('risk_score', 0))
+                case_manager.save_case(case)
                 
                 current_case["summary"] = summary
                 current_case["source"] = source
@@ -463,22 +482,55 @@ ADDRESSES TRACKED:
     return report_content, 200, {'Content-Type': 'text/plain'}
 
 # Heatmap Visualization Route
-@app.route("/heatmap", methods=["POST"])
+@app.route("/heatmap", methods=["GET", "POST"])
 def heatmap():
     """Generate activity heatmap"""
-    if not current_case["summary"]:
-        return "No data available. Please perform an analysis first.", 400
+    # Try to get address and chain from request or current context
+    address = request.args.get("address") or current_case.get("address")
+    chain_name = request.args.get("chain") or current_case.get("chain", "ethereum")
     
-    address = current_case.get("address")
-    chain_id = current_case.get("chain_id", 1)
-    txs_data = fetch_eth_address(address, ETHERSCAN_KEY, chain_id=chain_id, include_internal=True, include_token_transfers=True) if ETHERSCAN_KEY else []
+    # Handle download vs inline viewing
+    as_attachment = request.args.get("download", "true").lower() == "true"
     
-    heatmap_file = create_heatmap_visualization(txs_data, address)
+    if not address:
+        if not current_case["summary"]:
+            return "No data available. Please perform an analysis first.", 400
+        address = current_case.get("address")
     
-    if heatmap_file and os.path.exists(heatmap_file):
-        return send_file(heatmap_file, as_attachment=True, download_name="activity_heatmap.png")
+    print(f"[+] Generating heatmap for {address} on {chain_name}...")
     
-    return "Failed to generate heatmap", 500
+    try:
+        from eth_live import SUPPORTED_CHAINS
+        chain_id = SUPPORTED_CHAINS.get(chain_name.lower(), 1)
+        
+        # Check cache first
+        txs_data = current_case.get("transactions", [])
+        
+        # If not in cache and we have an API key, fetch it
+        if not txs_data and ETHERSCAN_KEY:
+            print(f"[!] Target not in cache, fetching transactions for {address}...")
+            txs_data = fetch_eth_address(address, ETHERSCAN_KEY, chain_id=chain_id, include_internal=True, include_token_transfers=True)
+            # Optional: cache it now
+            if txs_data:
+                current_case["transactions"] = txs_data
+            
+        if not txs_data:
+            return "Transaction data not available for heatmap generation.", 404
+        
+        heatmap_file = create_heatmap_visualization(txs_data, address)
+        
+        if heatmap_file and os.path.exists(heatmap_file):
+            return send_file(
+                heatmap_file, 
+                as_attachment=as_attachment, 
+                download_name=f"activity_heatmap_{address[:10]}.png",
+                mimetype='image/png'
+            )
+        
+        return "Failed to generate heatmap - no activity found", 404
+    except Exception as e:
+        print(f"[ERROR] Heatmap generation failed: {e}")
+        return f"Heatmap generation error: {str(e)}", 500
 
 
 # ==================== BATCH PROCESSING ROUTE (#8) ====================

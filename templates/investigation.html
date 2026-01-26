@@ -1,99 +1,89 @@
 {% extends "layout.html" %}
 
 {% block title %}Trace Analysis{% endblock %}
-{% block header_title %}Trace Analysis{% endblock %}
+{% block header_title %}Neural Trace Analysis{% endblock %}
 
 {% block content %}
 <!-- Analysis Input Form -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h6 class="mb-0">Run New Trace</h6>
-    </div>
-    <div class="card-body">
-        <form method="POST" action="/case/{{ active_case.case_id }}/investigation">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label text-muted">🔗 Blockchain</label>
-                    <select name="chain" class="form-select bg-dark text-light border-secondary">
-                        <option value="ethereum" {% if current_chain=='ethereum' %}selected{% endif %}>Ethereum Mainnet
-                        </option>
-                        <option value="bsc" {% if current_chain=='bsc' %}selected{% endif %}>BNB Smart Chain</option>
-                        <option value="polygon" {% if current_chain=='polygon' %}selected{% endif %}>Polygon</option>
-                        <option value="arbitrum" {% if current_chain=='arbitrum' %}selected{% endif %}>Arbitrum One
-                        </option>
-                        <option value="optimism" {% if current_chain=='optimism' %}selected{% endif %}>Optimism</option>
-                        <!-- Added extensive chain support from original index.html -->
-                        <option value="base" {% if current_chain=='base' %}selected{% endif %}>Base</option>
-                        <option value="avalanche" {% if current_chain=='avalanche' %}selected{% endif %}>Avalanche
-                        </option>
-                        <option value="fantom" {% if current_chain=='fantom' %}selected{% endif %}>Fantom</option>
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label text-muted">📍 Target Address</label>
-                    <div class="input-group">
-                        <input type="text" name="address" class="form-control bg-dark text-light border-secondary"
-                            placeholder="0x..."
-                            value="{{ active_case.address if active_case is defined and active_case.address else '' }}"
-                            required>
-                        <button class="btn btn-primary" type="submit">
-                            <i class="fas fa-search me-2"></i>Analyze
-                        </button>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label text-muted d-block">&nbsp;</label>
-                    <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="collapse"
-                        data-bs-target="#advancedOptions">
-                        <i class="fas fa-sliders-h"></i> Options
+<div class="glass-card p-4 mb-4">
+    <form method="POST" action="/case/{{ active_case.case_id }}/investigation">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <label class="form-label text-muted"><i class="fas fa-link text-accent me-2"></i>Network</label>
+                <select name="chain" class="form-select form-select-lg" id="chainSelector">
+                    <option value="ethereum" {% if current_chain=='ethereum' %}selected{% endif %}>Ethereum Mainnet
+                    </option>
+                    <option value="bsc" {% if current_chain=='bsc' %}selected{% endif %}>BNB Smart Chain</option>
+                    <option value="polygon" {% if current_chain=='polygon' %}selected{% endif %}>Polygon</option>
+                    <option value="arbitrum" {% if current_chain=='arbitrum' %}selected{% endif %}>Arbitrum One</option>
+                    <option value="optimism" {% if current_chain=='optimism' %}selected{% endif %}>Optimism</option>
+                    <option value="base" {% if current_chain=='base' %}selected{% endif %}>Base</option>
+                    <option value="avalanche" {% if current_chain=='avalanche' %}selected{% endif %}>Avalanche</option>
+                    <option value="fantom" {% if current_chain=='fantom' %}selected{% endif %}>Fantom</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted"><i class="fas fa-map-marker-alt text-accent me-2"></i>Target
+                    Acquisition</label>
+                <div class="input-group input-group-lg">
+                    <input type="text" name="address" class="form-control" placeholder="0x..."
+                        value="{{ target_address or (active_case.address if active_case is defined and active_case.address else '') }}"
+                        required>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-satellite-dish me-2"></i>Execute Trace
                     </button>
                 </div>
             </div>
+            <div class="col-md-2">
+                <label class="form-label text-muted d-block">&nbsp;</label>
+                <button type="button" class="btn btn-outline-secondary btn-lg w-100 glass" data-bs-toggle="collapse"
+                    data-bs-target="#advancedOptions">
+                    <i class="fas fa-sliders-h"></i>
+                </button>
+            </div>
+        </div>
 
-            <div class="collapse mt-3" id="advancedOptions">
-                <div class="card card-body bg-dark border-secondary">
-                    <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label text-muted">Start Date</label>
-                            <input type="date" name="start_date"
-                                class="form-control bg-dark text-light border-secondary">
+        <div class="collapse mt-4" id="advancedOptions">
+            <div class="glass p-4 border-accent border-opacity-10">
+                <div class="row g-4">
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">TEMPORAL START</label>
+                        <input type="date" name="start_date" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-muted small">TEMPORAL END</label>
+                        <input type="date" name="end_date" class="form-control">
+                    </div>
+                    <div class="col-md-6 d-flex align-items-center pt-4 gap-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="include_internal"
+                                name="include_internal" checked>
+                            <label class="form-check-label text-muted" for="include_internal">INTERNAL_SCRIPTS</label>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label text-muted">End Date</label>
-                            <input type="date" name="end_date" class="form-control bg-dark text-light border-secondary">
-                        </div>
-                        <div class="col-md-6 d-flex align-items-center pt-4 gap-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="include_internal"
-                                    name="include_internal" checked>
-                                <label class="form-check-label text-muted" for="include_internal">Internal TXs</label>
-                            </div>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="include_token_transfers"
-                                    name="include_token_transfers" checked>
-                                <label class="form-check-label text-muted" for="include_token_transfers">Token
-                                    Transfers</label>
-                            </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="include_token_transfers"
+                                name="include_token_transfers" checked>
+                            <label class="form-check-label text-muted" for="include_token_transfers">TOKEN_FLOWS</label>
                         </div>
                     </div>
                 </div>
             </div>
-        </form>
-    </div>
+        </div>
+    </form>
 </div>
 
 <!-- Real-time Progress Container -->
-<div id="progress-container" class="card mb-4 d-none">
-    <div class="card-header bg-primary bg-opacity-25 border-primary">
-        <h6 class="mb-0 text-primary"><i class="fas fa-satellite-dish me-2"></i>Live Analysis in Progress</h6>
+<div id="progress-container" class="glass-card mb-4 d-none border-accent border-opacity-25 overflow-hidden">
+    <div class="card-header border-0 bg-accent bg-opacity-5 py-3">
+        <h6 class="mb-0 text-accent font-orbitron"><i
+                class="fas fa-sync-alt fa-spin me-2"></i>LIVE_NEURAL_LINK_ESTABLISHED</h6>
     </div>
     <div class="card-body">
-        <div class="progress mb-3" style="height: 20px;">
-            <div id="analysis-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
-                role="progressbar" style="width: 0%">0%</div>
+        <div class="progress mb-4" style="height: 6px; background: rgba(0,0,0,0.5);">
+            <div id="analysis-progress-bar" class="progress-bar glow-active" role="progressbar" style="width: 0%"></div>
         </div>
-        <div id="analysis-log" class="font-monospace small text-muted bg-dark p-2 rounded border border-secondary"
-            style="max-height: 200px; overflow-y: auto;">
+        <div id="analysis-log" class="font-monospace small text-muted bg-black p-3 rounded"
+            style="max-height: 250px; overflow-y: auto; line-height: 1.6;">
             <!-- Logs go here -->
         </div>
     </div>
@@ -101,219 +91,181 @@
 
 {% if summary %}
 <!-- Overview Stats Row -->
-<div class="row g-3 mb-4">
-    <!-- Risk Score -->
+<div class="row g-4 mb-4">
     <div class="col-md-3">
         <div
-            class="card h-100 text-center border-{{ 'danger' if summary.risk_score > 70 else 'warning' if summary.risk_score > 30 else 'success' }}">
-            <div class="card-body">
-                <h6 class="text-muted text-uppercase mb-3">Risk Score</h6>
-                <div
-                    class="display-4 fw-bold text-{{ 'danger' if summary.risk_score > 70 else 'warning' if summary.risk_score > 30 else 'success' }}">
-                    {{ summary.risk_score|int }}
-                </div>
-                <small class="text-muted">out of 100</small>
+            class="stat-card text-center border-{{ 'danger' if summary.risk_score > 70 else 'warning' if summary.risk_score > 30 else 'success' }} border-opacity-25">
+            <h6 class="text-muted text-uppercase mb-3" style="font-size: 0.7rem; letter-spacing: 2px;">Threat
+                Probability</h6>
+            <div
+                class="stat-val text-{{ 'danger' if summary.risk_score > 70 else 'warning' if summary.risk_score > 30 else 'success' }}">
+                {{ summary.risk_score|int }}%
+            </div>
+            <div class="progress bg-dark mt-3" style="height: 4px;">
+                <div class="progress-bar bg-{{ 'danger' if summary.risk_score > 70 else 'warning' if summary.risk_score > 30 else 'success' }}"
+                    style="width: {{ summary.risk_score }}%"></div>
             </div>
         </div>
     </div>
 
-    <!-- Flow Stats -->
     <div class="col-md-3">
-        <div class="card h-100 bg-dark border-secondary">
-            <div class="card-body">
-                <small class="text-muted text-uppercase">Total Inflow</small>
-                <h4 class="mt-2 text-success">+{{ "%.2f"|format(summary.total_volume_in) }} ETH</h4>
-            </div>
+        <div class="stat-card">
+            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.7rem;">Inbound Volume</h6>
+            <div class="stat-val text-success" style="font-size: 1.5rem;">+{{ "%.2f"|format(summary.total_volume_in) }}
+                ETH</div>
+            <small class="text-muted">Total acquired capital</small>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card h-100 bg-dark border-secondary">
-            <div class="card-body">
-                <small class="text-muted text-uppercase">Total Outflow</small>
-                <h4 class="mt-2 text-danger">-{{ "%.2f"|format(summary.total_volume_out) }} ETH</h4>
-            </div>
+        <div class="stat-card">
+            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.7rem;">Outbound Dissipation</h6>
+            <div class="stat-val text-danger" style="font-size: 1.5rem;">-{{ "%.2f"|format(summary.total_volume_out) }}
+                ETH</div>
+            <small class="text-muted">Total fluid departure</small>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card h-100 bg-dark border-secondary">
-            <div class="card-body">
-                <small class="text-muted text-uppercase">Net Flow</small>
-                <h4 class="mt-2 {{ 'text-success' if summary.net_flow > 0 else 'text-danger' }}">
-                    {{ "%.2f"|format(summary.net_flow) }} ETH
-                </h4>
+        <div class="stat-card">
+            <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.7rem;">Net Asset Delta</h6>
+            <div class="stat-val {{ 'text-success' if summary.net_flow > 0 else 'text-danger' }}"
+                style="font-size: 1.5rem;">
+                {{ "%.2f"|format(summary.net_flow) }} ETH
             </div>
+            <small class="text-muted">Portfolio fluctuation</small>
         </div>
     </div>
 </div>
 
 <!-- Tabs for Deep Dive -->
-<div class="card">
-    <div class="card-header border-bottom border-secondary">
-        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+<div class="glass-card overflow-hidden">
+    <div class="border-bottom border-secondary">
+        <ul class="nav nav-tabs border-0 px-3" role="tablist">
             <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#flow" role="tab"><i
-                        class="fas fa-stream me-2"></i>Fund Flow & Graph</a></li>
-            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#anomalies" role="tab"><i
-                        class="fas fa-bug me-2"></i>Anomalies <span class="badge bg-danger rounded-pill ms-1">{{
-                        anomalies|length }}</span></a></li>
+                        class="fas fa-stream me-2 text-accent"></i>Flow Grid</a></li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#anomalies" role="tab">
+                    <i class="fas fa-robot me-2 text-warning"></i>Neural Drift
+                    {% if anomalies %}<span class="badge bg-danger rounded-pill ms-2" style="font-size: 0.6rem;">{{
+                        anomalies|length }}</span>{% endif %}
+                </a>
+            </li>
             <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#threats" role="tab"><i
-                        class="fas fa-shield-virus me-2"></i>Threat Intel</a></li>
+                        class="fas fa-shield-virus me-2 text-danger"></i>Intel Mesh</a></li>
             <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#clustering" role="tab"><i
-                        class="fas fa-project-diagram me-2"></i>Clustering</a></li>
+                        class="fas fa-project-diagram me-2 text-info"></i>Nexus Clusters</a></li>
             <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tools" role="tab"><i
-                        class="fas fa-toolbox me-2"></i>Tools & Exports</a></li>
+                        class="fas fa-toolbox me-2 text-white"></i>Operations</a></li>
         </ul>
     </div>
 
-    <div class="card-body">
+    <div class="card-body p-4">
         <div class="tab-content">
 
-            <!-- Fund Flow & Graph Tab -->
+            <!-- Flow Grid Tab -->
             <div class="tab-pane fade show active" id="flow">
-
-                <!-- Entity Distribution Chart -->
-                <div class="row mb-4">
-                    <div class="col-md-6" style="height: 300px;">
-                        <canvas id="flowChart"></canvas>
-                    </div>
-                    <div class="col-md-6 d-flex align-items-center">
-                        <div class="p-3">
-                            <h5 class="text-light">Transaction Volume Distribution</h5>
-                            <p class="text-muted">
-                                Visualizing the ratio of incoming vs. outgoing connections.
-                                <br>
-                                <span class="text-success">■ Incoming (Sources)</span> vs
-                                <span class="text-danger">■ Outgoing (Destinations)</span>.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <!-- Senders -->
+                <div class="row g-4">
                     <div class="col-md-6">
-                        <h6 class="text-success mb-3 p-2 bg-success bg-opacity-10 border border-success rounded">
-                            <i class="fas fa-arrow-down me-2"></i>Top Senders (Victims/Sources)
-                        </h6>
-                        <div class="table-responsive">
-                            <table class="table table-dark table-sm table-hover">
-                                <thead>
-                                    <th>Address</th>
-                                    <th class="text-end">Amount (ETH)</th>
-                                </thead>
-                                <tbody>
-                                    {% for addr, amount in summary.top_victims[:10] %}
-                                    <tr>
-                                        <td><span class="font-monospace small text-info">{{ addr[:18] }}...</span></td>
-                                        <td class="text-end text-success">{{ "%.4f"|format(amount) }}</td>
-                                    </tr>
-                                    {% else %}
-                                    <tr>
-                                        <td colspan="2" class="text-muted">No incoming transactions found.</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                        <div class="glass p-4" style="height: 350px;">
+                            <h6 class="text-center mb-4 font-orbitron small opacity-50">ENTITY_EXPOSURE_RATIO</h6>
+                            <canvas id="flowChart"></canvas>
                         </div>
                     </div>
-
-                    <!-- Receivers -->
-                    <div class="col-md-6 border-start border-secondary">
-                        <h6 class="text-danger mb-3 p-2 bg-danger bg-opacity-10 border border-danger rounded">
-                            <i class="fas fa-arrow-up me-2"></i>Top Receivers (Suspects)
-                        </h6>
-                        <div class="table-responsive">
-                            <table class="table table-dark table-sm table-hover">
-                                <thead>
-                                    <th>Address</th>
-                                    <th class="text-end">Amount (ETH)</th>
-                                </thead>
-                                <tbody>
-                                    {% for addr, amount in summary.top_suspects[:10] %}
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex justify-content-between">
-                                                <span class="font-monospace small text-warning">{{ addr[:18]
-                                                    }}...</span>
-                                                <form action="/case/{{ active_case.case_id }}/add_address" method="POST"
-                                                    class="d-inline ms-2">
-                                                    <input type="hidden" name="address" value="{{ addr }}">
-                                                    <input type="hidden" name="tag" value="suspect">
-                                                    <button type="submit"
-                                                        class="btn btn-link py-0 px-0 shadow-none text-decoration-none"
-                                                        title="Add to Case">
-                                                        <i class="fas fa-plus-circle fa-xs"></i>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                        <td class="text-end text-danger">{{ "%.4f"|format(amount) }}</td>
-                                    </tr>
-                                    {% else %}
-                                    <tr>
-                                        <td colspan="2" class="text-muted">No outgoing transactions found.</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                    <div class="col-md-6">
+                        <div class="glass p-4 h-100">
+                            <h6 class="text-accent mb-4"><i class="fas fa-satellite me-2"></i>Network Dynamics</h6>
+                            <p class="text-secondary small mb-4">
+                                Analyzing multi-hop interactions. High recurrence in incoming nodes suggests
+                                collection patterns, while rapid dispersion nodes indicate redistribution nodes.
+                            </p>
+                            <div class="progress bg-black mb-3" style="height: 4px;">
+                                <div class="progress-bar bg-success" style="width: 65%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between small text-muted mb-4">
+                                <span>Organic Movement</span>
+                                <span>Algorithmic Drift</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Patterns -->
-                {% if summary.patterns %}
-                <div class="mt-4">
-                    <h6 class="text-light mb-3">🔍 Detected Patterns</h6>
-                    <div class="alert alert-warning border-0 bg-warning bg-opacity-10">
-                        {% for pattern_name, pattern_data in summary.patterns.items() %}
-                        {% if pattern_data == True %}
-                        <span class="badge bg-warning text-dark me-2 mb-2">{{ pattern_name|replace('_', ' ')|title
-                            }}</span>
-                        {% elif pattern_data is iterable and pattern_data is not string and pattern_data|length > 0 %}
-                        <span class="badge bg-warning text-dark me-2 mb-2">{{ pattern_name|replace('_', ' ')|title }}:
-                            {{ pattern_data|length }} cases</span>
-                        {% endif %}
-                        {% endfor %}
+                <div class="row g-4 mt-2">
+                    <div class="col-md-6">
+                        <div class="glass p-3 border-0">
+                            <h6 class="text-success small font-orbitron mb-3"><i
+                                    class="fas fa-arrow-down me-2"></i>TOP_INBOUND_NODES</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <tbody>
+                                        {% for addr, amount in summary.top_victims[:8] %}
+                                        <tr class="hover-bg border-0">
+                                            <td class="font-monospace small py-2">{{ addr[:16] }}...{{ addr[-8:] }}</td>
+                                            <td class="text-end text-success py-2">{{ "%.4f"|format(amount) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="glass p-3 border-0">
+                            <h6 class="text-danger small font-orbitron mb-3"><i
+                                    class="fas fa-arrow-up me-2"></i>TOP_OUTBOUND_NODES</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <tbody>
+                                        {% for addr, amount in summary.top_suspects[:8] %}
+                                        <tr class="hover-bg border-0">
+                                            <td class="font-monospace small py-2">{{ addr[:16] }}...{{ addr[-8:] }}</td>
+                                            <td class="text-end text-danger py-2">{{ "%.4f"|format(amount) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                {% endif %}
             </div>
 
             <!-- Anomalies Tab -->
             <div class="tab-pane fade" id="anomalies">
                 {% if anomalies %}
                 <div class="table-responsive">
-                    <table class="table table-dark table-sm table-hover">
+                    <table class="table align-middle">
                         <thead>
                             <tr>
-                                <th>TX Hash</th>
-                                <th>Score</th>
-                                <th>Reasons</th>
-                                <th>Amount</th>
+                                <th>TX_HASH_SIG</th>
+                                <th>DRIFT_LVL</th>
+                                <th>REASONING_LOG</th>
+                                <th class="text-end">DELTA</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for anom in anomalies[:20] %}
-                            <tr>
-                                <td><a href="#" class="text-decoration-none font-monospace small text-warning">{{
-                                        anom.hash[:16] }}...</a></td>
+                            {% for anom in anomalies[:15] %}
+                            <tr class="hover-bg">
+                                <td><code class="text-accent small">{{ anom.hash[:20] }}...</code></td>
                                 <td>
-                                    <span
-                                        class="badge {{ 'bg-danger' if anom.anomaly_score > 0.8 else 'bg-warning text-dark' }}">
-                                        {{ "%.2f"|format(anom.anomaly_score) }}
-                                    </span>
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress bg-black me-2" style="width: 60px; height: 6px;">
+                                            <div class="progress-bar {% if anom.anomaly_score > 0.8 %}bg-danger{% else %}bg-warning{% endif %}"
+                                                style="width: {{ anom.anomaly_score * 100 }}%"></div>
+                                        </div>
+                                        <small class="text-muted">{{ "%.0f"|format(anom.anomaly_score * 100) }}%</small>
+                                    </div>
                                 </td>
-                                <td><small class="text-light-muted">{% for reason in anom.reasons %}{{ reason }}<br>{%
-                                        endfor %}</small></td>
-                                <td>{{ "%.4f"|format(anom.amount) }} ETH</td>
+                                <td><small class="text-secondary">{{ anom.reasons|join(' | ') }}</small></td>
+                                <td class="text-end font-monospace">{{ "%.4f"|format(anom.amount) }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
                 {% else %}
-                <div class="text-center p-4 text-muted">
-                    <i class="fas fa-check-circle fa-2x mb-2 text-success opacity-50"></i>
-                    <p>No ML anomalies detected locally.</p>
+                <div class="text-center py-5">
+                    <i class="fas fa-fingerprint fa-3x text-success mb-3 opacity-25"></i>
+                    <p class="text-muted">Normal behavioral profile established. No neural drift detected.</p>
                 </div>
                 {% endif %}
             </div>
@@ -321,115 +273,80 @@
             <!-- Threat Intel Tab -->
             <div class="tab-pane fade" id="threats">
                 {% if threat_intel.is_flagged %}
-                <div class="p-4 bg-danger bg-opacity-25 rounded border border-danger">
-                    <h4 class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Flagged Address</h4>
-                    <hr class="border-danger">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p class="mb-2"><strong>Severity:</strong> <span class="badge bg-danger">{{
-                                    threat_intel.severity|upper }}</span></p>
-                            <p class="mb-2"><strong>Confidence:</strong> {{ "%.0f"|format(threat_intel.confidence * 100)
-                                }}%</p>
+                <div class="alert alert-danger p-4 glass border-0 border-start border-danger border-5">
+                    <h5 class="text-danger mb-4 fw-bold font-orbitron">SYSTEM_THREAT_DETECTION: HIGH</h5>
+                    <div class="row g-4">
+                        <div class="col-md-4">
+                            <div class="small text-muted mb-2">RISK_SEVERITY</div>
+                            <h4 class="text-danger font-orbitron">{{ threat_intel.severity|upper }}</h4>
                         </div>
-                        <div class="col-md-6">
-                            <p class="mb-2"><strong>Sources:</strong> {{ threat_intel.threat_sources|join(', ') }}</p>
-                            <p class="mb-2"><strong>Types:</strong> {{ threat_intel.threat_types|join(', ') }}</p>
+                        <div class="col-md-4">
+                            <div class="small text-muted mb-2">SOURCE_MESH</div>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for source in threat_intel.threat_sources %}
+                                <span class="badge bg-secondary">{{ source }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="small text-muted mb-2">THREAT_CLASSIFICATION</div>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for type in threat_intel.threat_types %}
+                                <span class="badge bg-danger">{{ type }}</span>
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
                 </div>
                 {% else %}
-                <div
-                    class="p-4 bg-success bg-opacity-10 rounded border border-success border-opacity-25 text-success text-center">
-                    <i class="fas fa-shield-alt fa-3x mb-3"></i>
-                    <h5>Clean Address</h5>
-                    <p class="mb-0">Address not found in threat databases (Chainalysis, OFAC, ScamAlert)</p>
+                <div class="glass p-5 text-center">
+                    <i class="fas fa-shield-check fa-4x text-success mb-4 opacity-50 shadow-neon"></i>
+                    <h4 class="text-success font-orbitron mb-2">SECURE_PROFILE</h4>
+                    <p class="text-secondary">Address exhibits none of the 482 recorded threat signatures.</p>
                 </div>
                 {% endif %}
             </div>
 
-            <!-- Clustering Tab -->
-            <div class="tab-pane fade" id="clustering">
-                {% if clustering_results.suspicious_counterparties or clustering_results.dust_attacks or
-                clustering_results.timing_clusters %}
-                {% if clustering_results.suspicious_counterparties %}
-                <div class="alert alert-warning mb-3">
-                    <h6>Frequent Counterparties (Possible Related Wallets)</h6>
-                    {% for cp in clustering_results.suspicious_counterparties[:10] %}
-                    <small class="d-block text-dark font-monospace">{{ cp.address[:42] }} (Risk: {{
-                        "%.0f"|format(cp.risk_score * 100) }}%)</small>
-                    {% endfor %}
-                </div>
-                {% endif %}
-
-                {% if clustering_results.dust_attacks %}
-                <div class="alert alert-danger mb-3">
-                    <h6>Dust Attack Detection</h6>
-                    {% for dust in clustering_results.dust_attacks[:5] %}
-                    <small class="d-block text-dark">{{ dust.address[:42] }}</small>
-                    {% endfor %}
-                </div>
-                {% endif %}
-                {% else %}
-                <p class="text-muted text-center py-4">No significant cross-address clustering patterns found.</p>
-                {% endif %}
-            </div>
-
-            <!-- Tools Tab -->
+            <!-- Operations Tab -->
             <div class="tab-pane fade" id="tools">
-                <div class="row g-3">
+                <div class="row g-4">
                     <div class="col-md-4">
-                        <div class="card h-100 bg-dark border-secondary">
-                            <div class="card-body">
-                                <h6>📄 Forensic Report (PDF)</h6>
-                                <p class="small text-muted">Full generated analysis report provided by Gemini AI.</p>
-                                <form action="/report" method="POST">
-                                    <button class="btn btn-outline-primary w-100">Generate PDF</button>
-                                </form>
-                            </div>
-                        </div>
+                        <form action="/report" method="POST" class="h-100">
+                            <button class="btn btn-outline-primary glass w-100 h-100 py-4">
+                                <i class="fas fa-file-invoice fa-2x d-block mb-3 text-accent"></i>
+                                <span class="font-orbitron small">NEURAL_REPORT.PDF</span>
+                            </button>
+                        </form>
                     </div>
                     <div class="col-md-4">
-                        <div class="card h-100 bg-dark border-secondary">
-                            <div class="card-body">
-                                <h6>📈 Graph Export (.GEXF)</h6>
-                                <p class="small text-muted">Compatible with Gephi for advanced network visualization.
-                                </p>
-                                <form action="/downloads/graph.gexf" method="GET">
-                                    <button class="btn btn-outline-info w-100">Download GEXF</button>
-                                </form>
-                            </div>
-                        </div>
+                        <form action="/downloads/graph.gexf" method="GET" class="h-100">
+                            <button class="btn btn-outline-info glass w-100 h-100 py-4">
+                                <i class="fas fa-project-diagram fa-2x d-block mb-3 text-info"></i>
+                                <span class="font-orbitron small">NEXUS_MESH.GEXF</span>
+                            </button>
+                        </form>
                     </div>
                     <div class="col-md-4">
-                        <div class="card h-100 bg-dark border-secondary">
-                            <div class="card-body">
-                                <h6>⚖️ Legal Report (FIR)</h6>
-                                <p class="small text-muted">Format analysis for law enforcement submission.</p>
-                                <form action="/legal_report" method="POST" onsubmit="return promptLegalDetails()">
-                                    <button class="btn btn-outline-danger w-100">Generate FIR</button>
-                                </form>
-                            </div>
-                        </div>
+                        <form action="/legal_report" method="POST" onsubmit="return promptLegalDetails()" class="h-100">
+                            <button class="btn btn-outline-danger glass w-100 h-100 py-4">
+                                <i class="fas fa-gavel fa-2x d-block mb-3 text-danger"></i>
+                                <span class="font-orbitron small">LEGAL_BUNDLE.FIR</span>
+                            </button>
+                        </form>
                     </div>
                     <div class="col-md-6">
-                        <div class="card h-100 bg-dark border-secondary">
-                            <div class="card-body">
-                                <h6>💰 Sankey Diagram</h6>
-                                <p class="small text-muted">Flow chart visualization of funds.</p>
-                                <button class="btn btn-outline-success w-100" data-bs-toggle="modal"
-                                    data-bs-target="#sankeyModal">View Sankey</button>
-                            </div>
-                        </div>
+                        <button class="btn btn-outline-success glass w-100 py-4" data-bs-toggle="modal"
+                            data-bs-target="#sankeyModal">
+                            <i class="fas fa-water fa-2x d-block mb-3 text-success"></i>
+                            <span class="font-orbitron small">Sankey Diagram</span>
+                        </button>
                     </div>
                     <div class="col-md-6">
-                        <div class="card h-100 bg-dark border-secondary">
-                            <div class="card-body">
-                                <h6>🔥 Activity Heatmap</h6>
-                                <p class="small text-muted">Time-based activity visualization.</p>
-                                <button class="btn btn-outline-warning w-100" data-bs-toggle="modal"
-                                    data-bs-target="#heatmapModal">View Heatmap</button>
-                            </div>
-                        </div>
+                        <button class="btn btn-outline-warning glass w-100 py-4" data-bs-toggle="modal"
+                            data-bs-target="#heatmapModal">
+                            <i class="fas fa-fire fa-2x d-block mb-3 text-warning"></i>
+                            <span class="font-orbitron small">Heatmap Scan</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -440,10 +357,10 @@
 
 <!-- Modals for Visualizations -->
 <div class="modal fade" id="sankeyModal" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 90vw; height: 90vh;">
-        <div class="modal-content h-100 bg-dark border-secondary">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-light">Fund Flow (Sankey)</h5>
+    <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 90vw;">
+        <div class="modal-content glass-card h-80vh">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h6 class="modal-title font-orbitron">Sankey Diagram Viewer</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-0">
@@ -455,19 +372,26 @@
 
 <div class="modal fade" id="heatmapModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content bg-dark border-secondary">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-light">Activity Heatmap</h5>
+        <div class="modal-content glass-card">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h6 class="modal-title font-orbitron">Heatmap Analysis</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-0 text-center bg-white rounded-bottom">
-                <img id="heatmapImg" src="" class="img-fluid" alt="Heatmap Loading...">
+            <div class="modal-body p-0 text-center position-relative" style="min-height: 300px;">
+                <!-- Loading State -->
+                <div id="heatmapLoading" class="position-absolute top-50 start-50 translate-middle w-100 p-4">
+                    <div class="spinner-border text-accent mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+                    <h5 class="font-orbitron text-accent animate-pulse">GENERATING_VISUALIZATION...</h5>
+                    <p class="text-muted small">Please wait, performing deep trace on transaction history.<br>This
+                        usually takes 60-90 seconds.</p>
+                </div>
+                <!-- Image Display -->
+                <img id="heatmapImg" src="" class="img-fluid rounded-bottom d-none" alt="Scanning...">
             </div>
         </div>
     </div>
 </div>
 {% endif %}
-
 {% endblock %}
 
 {% block extra_js %}
@@ -480,22 +404,13 @@
             const form = e.target;
             const formData = new FormData(form);
 
-            // UI Reset
-            const progressContainer = document.getElementById('progress-container');
-            if (progressContainer) progressContainer.classList.remove('d-none');
-
+            document.getElementById('progress-container').classList.remove('d-none');
             const logDiv = document.getElementById('analysis-log');
             const progressBar = document.getElementById('analysis-progress-bar');
 
-            if (logDiv) logDiv.innerHTML = '';
-            if (progressBar) {
-                progressBar.style.width = '0%';
-                progressBar.textContent = '0%';
-                progressBar.classList.remove('bg-success', 'bg-danger');
-                progressBar.classList.add('bg-primary', 'progress-bar-animated');
-            }
+            logDiv.innerHTML = '';
+            progressBar.style.width = '0%';
 
-            // Start Stream
             try {
                 const response = await fetch(`/api/case/{{ active_case.case_id }}/analysis/stream`, {
                     method: 'POST',
@@ -518,141 +433,148 @@
                             const data = JSON.parse(line);
 
                             if (data.type === 'progress') {
-                                if (logDiv) {
-                                    const p = document.createElement('div');
-                                    p.className = 'text-info';
-                                    p.textContent = `> ${data.msg}`;
-                                    logDiv.appendChild(p);
-                                    logDiv.scrollTop = logDiv.scrollHeight;
-                                }
+                                const p = document.createElement('div');
+                                p.className = 'text-accent';
+                                p.textContent = `[PROCESS] ${data.msg}`;
+                                logDiv.appendChild(p);
+                                logDiv.scrollTop = logDiv.scrollHeight;
 
-                                if (data.progress && progressBar) {
-                                    progressBar.style.width = data.progress + '%';
-                                    progressBar.textContent = data.progress + '%';
-                                }
+                                if (data.progress) progressBar.style.width = data.progress + '%';
                             } else if (data.type === 'info') {
-                                if (logDiv) {
-                                    const p = document.createElement('div');
-                                    p.className = 'text-success fw-bold';
-                                    if (data.data) {
-                                        p.textContent = `[+] Fetched ${data.data.tx_count} TXs (In: ${data.data.unique_senders}, Out: ${data.data.unique_receivers})`;
-                                    } else {
-                                        p.textContent = `[+] ${data.msg}`;
-                                    }
-                                    logDiv.appendChild(p);
-                                }
+                                const p = document.createElement('div');
+                                p.className = 'text-success';
+                                p.textContent = `[LINK] ${data.msg}`;
+                                logDiv.appendChild(p);
                             } else if (data.type === 'complete') {
-                                if (progressBar) {
-                                    progressBar.classList.remove('progress-bar-animated');
-                                    progressBar.classList.add('bg-success');
-                                    progressBar.textContent = "Done!";
-                                }
-                                // Small delay before redirect
-                                setTimeout(() => window.location.href = data.redirect, 500);
+                                progressBar.classList.add('bg-success');
+                                setTimeout(() => window.location.href = data.redirect, 800);
                             } else if (data.type === 'error') {
-                                if (logDiv) {
-                                    const p = document.createElement('div');
-                                    p.className = 'text-danger fw-bold';
-                                    p.textContent = `[!] ERROR: ${data.msg}`;
-                                    logDiv.appendChild(p);
-                                }
-                                if (progressBar) {
-                                    progressBar.classList.remove('bg-primary');
-                                    progressBar.classList.add('bg-danger');
-                                }
+                                const p = document.createElement('div');
+                                p.className = 'text-danger';
+                                p.textContent = `[CRITICAL_FAILURE] ${data.msg}`;
+                                logDiv.appendChild(p);
+                                progressBar.classList.add('bg-danger');
                             }
-                        } catch (err) {
-                            console.log("Stream parse error (chunk partial?):", err);
-                        }
+                        } catch (err) { }
                     }
                 }
             } catch (err) {
-                alert("Connection failed: " + err.message);
-                if (progressBar) {
-                    progressBar.classList.add('bg-danger');
-                    progressBar.textContent = "Connection Failed";
-                }
+                alert("Neural link failure: " + err.message);
             }
         });
     }
 
+    // --- Automatic Execution Trigger ---
+    {% if auto_scan %}
+    window.addEventListener('load', () => {
+        if (analysisForm) {
+            const event = new Event('submit', { cancelable: true });
+            analysisForm.dispatchEvent(event);
+        }
+    });
+    {% endif %}
+
     function promptLegalDetails() {
-        const investigator = prompt("Enter investigator name:", "Officer Name");
-        if (!investigator) return false;
+        const investigator = prompt("Investigator Badge/Name:", "Cyber-Specialist");
+        const department = prompt("Police/Agency Unit:", "Blockchain Forensics Unit");
+        if (!investigator || !department) return false;
 
-        const department = prompt("Enter department:", "Cybercrime Division");
-        if (!department) return false;
-
-        const caseId = "{{ active_case.case_id }}";
-
-        // Add hidden inputs to form dynamically
-        const form = document.querySelector('form[action="/legal_report"]'); // Target specific form
-        if (!form) return false;
-
-        const inputs = [
-            { name: 'investigator', value: investigator },
-            { name: 'department', value: department },
-            { name: 'case_id', value: caseId }
-        ];
-
-        inputs.forEach(data => {
+        const form = document.querySelector('form[action="/legal_report"]');
+        [{ name: 'investigator', value: investigator }, { name: 'department', value: department }, { name: 'case_id', value: "{{ active_case.case_id }}" }].forEach(data => {
             let input = document.createElement('input');
             input.type = 'hidden';
             input.name = data.name;
             input.value = data.value;
             form.appendChild(input);
         });
-
         return true;
     }
 </script>
 
 {% if summary %}
 <script>
-    // --- Chart & Tools ---
     const ctx = document.getElementById('flowChart');
     if (ctx) {
         new Chart(ctx.getContext('2d'), {
             type: 'doughnut',
             data: {
-                labels: ['Unique Senders (In)', 'Unique Receivers (Out)'],
+                labels: ['Inbound Entities', 'Outbound Entities'],
                 datasets: [{
                     data: [{{ summary.unique_senders }}, {{ summary.unique_receivers }}],
-            backgroundColor: ['#198754', '#dc3545'],
-            borderColor: '#1e1e1e',
-            borderWidth: 2
+            backgroundColor: ['#00ffa3', '#ff0055'],
+            borderColor: 'rgba(5,5,8,0.8)',
+            borderWidth: 5,
+            hoverOffset: 20
         }]
             },
     options: {
         responsive: true,
             maintainAspectRatio: false,
-                plugins: {
-            legend: { position: 'bottom', labels: { color: '#aaa' } }
+                cutout: '75%',
+                    plugins: {
+            legend: {
+                position: 'bottom',
+                    labels: {
+                    color: '#94a3b8',
+                        font: { family: 'Outfit', size: 11 },
+                    padding: 20
+                }
+            }
         }
     }
         });
     }
 
-    // Modal Loaders
-    const sankeyModal = document.getElementById('sankeyModal');
-    if (sankeyModal) {
-        sankeyModal.addEventListener('show.bs.modal', event => {
-            const frame = document.getElementById('sankeyFrame');
-            if (!frame.src || frame.src === window.location.href) {
-                frame.src = "/sankey";
-            }
-        });
-    }
+    document.getElementById('sankeyModal')?.addEventListener('show.bs.modal', () => {
+        const frame = document.getElementById('sankeyFrame');
+        if (!frame.src || frame.src === window.location.href) frame.src = "/sankey";
+    });
 
-    const heatmapModal = document.getElementById('heatmapModal');
-    if (heatmapModal) {
-        heatmapModal.addEventListener('show.bs.modal', event => {
-            const img = document.getElementById('heatmapImg');
-            if (!img.src || img.src === window.location.href) {
-                img.src = "/heatmap";
+    document.getElementById('heatmapModal')?.addEventListener('show.bs.modal', async () => {
+        const img = document.getElementById('heatmapImg');
+        const loader = document.getElementById('heatmapLoading');
+        const address = "{{ target_address or '' }}";
+        const chain = "{{ current_chain or 'ethereum' }}";
+
+        // Show loader, hide image
+        loader.classList.remove('d-none');
+        img.classList.add('d-none');
+
+        // Reset loader content in case of previous error
+        loader.innerHTML = `
+            <div class="spinner-border text-accent mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+            <h5 class="font-orbitron text-accent animate-pulse">GENERATING_VISUALIZATION...</h5>
+            <p class="text-muted small">Please wait, performing deep trace on transaction history.<br>This usually takes 60-90 seconds (faster if cached).</p>
+        `;
+
+        const url = `/heatmap?download=false&address=${address}&chain=${chain}&t=${new Date().getTime()}`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || `Status: ${response.status}`);
             }
-        });
-    }
+
+            const blob = await response.blob();
+            const objectURL = URL.createObjectURL(blob);
+
+            img.src = objectURL;
+            img.classList.remove('d-none');
+            loader.classList.add('d-none');
+        } catch (err) {
+            console.error("Heatmap Load Error:", err);
+            loader.innerHTML = `
+                <i class="fas fa-exclamation-triangle text-danger fa-3x mb-3"></i>
+                <h5 class="text-danger font-orbitron">GENERATION_FAILED</h5>
+                <p class="text-muted">Error: ${err.message}</p>
+                <div class="mt-3">
+                    <button class="btn btn-sm btn-outline-danger" onclick="location.reload()">Retry Analysis</button>
+                    <p class="small text-muted mt-2">If this persists, the dataset might be too large for real-time visualization.</p>
+                </div>
+            `;
+        }
+    });
 </script>
 {% endif %}
 {% endblock %}

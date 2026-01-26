@@ -7,10 +7,31 @@
   "addresses": {
     "0x12d66f87a04a9e220743712ce6d9bb1b5616b8fc": {
       "tag": "target",
-      "notes": "Analysis started on 2026-01-20 10:44:50.079676",
+      "notes": "Analysis started on 2026-01-26 16:06:19.998386",
       "risk_level": 0,
       "status": "active",
-      "added_at": "2026-01-20T10:44:50.079687"
+      "added_at": "2026-01-26T16:06:19.998386"
+    },
+    "0x388c818ca8b9251b393131c08a736a67ccb19297": {
+      "tag": "target",
+      "notes": "Analysis started on 2026-01-26 19:36:26.574817",
+      "risk_level": 0,
+      "status": "active",
+      "added_at": "2026-01-26T19:36:26.574817"
+    },
+    "0xee220fb7d34d1a6d14d2ece1b4b73304dd2a72386ae3aedd7d17bbd8223670d2": {
+      "tag": "target",
+      "notes": "",
+      "risk_level": 0,
+      "status": "active",
+      "added_at": "2026-01-26T16:02:55.843169"
+    },
+    "0x59abf3837fa962d6853b4cc0a19513aa031fd32b": {
+      "tag": "target",
+      "notes": "",
+      "risk_level": 100,
+      "status": "active",
+      "added_at": "2026-01-26T20:56:16.725468"
     }
   },
   "findings": [],

@@ -1,54 +1,48 @@
 {% extends "layout.html" %}
 
 {% block title %}Case Dashboard - {{ active_case.name }}{% endblock %}
-{% block header_title %}Dashboard: {{ active_case.name }}{% endblock %}
+{% block header_title %}Case Intelligence: {{ active_case.name }}{% endblock %}
 
 {% block content %}
 <div class="row g-4 mb-4">
     <div class="col-md-3">
-        <div class="card h-100 border-primary border-opacity-25">
-            <div class="card-body">
-                <h6 class="text-primary text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Case
-                    Status</h6>
-                <div class="d-flex align-items-baseline">
-                    <h2 class="mb-0 text-light me-2">Active</h2>
-                    <span class="text-success"><i class="fas fa-circle fa-xs"></i></span>
+        <div class="stat-card">
+            <h6 class="text-accent text-uppercase mb-2"
+                style="font-size: 0.7rem; letter-spacing: 2px; font-weight: 700;">Operational Status</h6>
+            <div class="d-flex align-items-center">
+                <h2 class="mb-0 text-white me-2 font-orbitron">ACTIVE</h2>
+                <div class="glow-active rounded-circle" style="width: 8px; height: 8px; background: var(--success);">
                 </div>
-                <small class="text-muted">ID: {{ active_case.case_id }}</small>
             </div>
+            <small class="text-muted font-monospace">SIG: {{ active_case.case_id }}</small>
         </div>
     </div>
 
     <div class="col-md-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Targets
-                    Tracked</h6>
-                <h2 class="mb-0 text-light">{{ active_case.addresses|length }}</h2>
-                <small class="text-muted">Suspect addresses</small>
-            </div>
+        <div class="stat-card">
+            <h6 class="text-muted text-uppercase mb-2"
+                style="font-size: 0.7rem; letter-spacing: 2px; font-weight: 700;">Nodes Tracked</h6>
+            <h2 class="mb-0 text-white font-orbitron">{{ active_case.addresses|length }}</h2>
+            <small class="text-muted">Suspect entities in network</small>
         </div>
     </div>
 
     <div class="col-md-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Key Findings
-                </h6>
-                <h2 class="mb-0 text-light">{{ active_case.findings|length }}</h2>
-                <small class="text-muted">Evidence detected</small>
-            </div>
+        <div class="stat-card">
+            <h6 class="text-muted text-uppercase mb-2"
+                style="font-size: 0.7rem; letter-spacing: 2px; font-weight: 700;">Evidence Tags</h6>
+            <h2 class="mb-0 text-white font-orbitron">{{ active_case.findings|length }}</h2>
+            <small class="text-muted">Detected indicators of compromise</small>
         </div>
     </div>
 
     <div class="col-md-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Investigator
-                </h6>
-                <h2 class="mb-0 text-light truncate">{{ active_case.investigator or "Unassigned" }}</h2>
-                <small class="text-muted">Lead Officer</small>
-            </div>
+        <div class="stat-card">
+            <h6 class="text-muted text-uppercase mb-2"
+                style="font-size: 0.7rem; letter-spacing: 2px; font-weight: 700;">Lead Officer</h6>
+            <h2 class="mb-0 text-white truncate font-orbitron" style="font-size: 1.5rem;">Cpt. {{
+                active_case.investigator or "Shadow" }}</h2>
+            <small class="text-accent">Auth Profile: Verified</small>
         </div>
     </div>
 </div>
@@ -56,58 +50,57 @@
 <div class="row g-4">
     <!-- Targets List -->
     <div class="col-md-8">
-        <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Tracked Targets</h6>
-                <a href="/case/{{ active_case.case_id }}/investigation" class="btn btn-sm btn-primary">
-                    <i class="fas fa-plus me-1"></i> Add Target
+        <div class="glass-card h-100 overflow-hidden">
+            <div class="card-header d-flex justify-content-between align-items-center py-3">
+                <h6 class="mb-0 text-uppercase" style="letter-spacing: 1px;">Target Acquisition List</h6>
+                <a href="/case/{{ active_case.case_id }}/investigation" class="btn btn-primary btn-sm">
+                    <i class="fas fa-crosshairs me-2"></i>New Target
                 </a>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-dark table-hover mb-0 align-middle">
-                        <thead class="bg-dark text-muted">
+                    <table class="table align-middle">
+                        <thead>
                             <tr>
-                                <th class="ps-4">Address</th>
-                                <th>Tag</th>
-                                <th>Risk</th>
-                                <th>Notes</th>
-                                <th class="text-end pe-4">Actions</th>
+                                <th class="ps-4">Entity Identifier</th>
+                                <th>Classification</th>
+                                <th>Threat Level</th>
+                                <th>Intelligence Notes</th>
+                                <th class="text-end pe-4">System Link</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for addr, data in active_case.addresses.items() %}
-                            <tr>
+                            <tr class="hover-bg">
                                 <td class="ps-4">
-                                    <span class="font-monospace text-info">{{ addr[:16] }}...{{ addr[-6:] }}</span>
+                                    <code class="text-accent">{{ addr[:12] }}...{{ addr[-8:] }}</code>
                                 </td>
-                                <td><span class="badge bg-secondary">{{ data.tag|upper }}</span></td>
+                                <td><span class="badge bg-secondary opacity-75">{{ data.tag|upper }}</span></td>
                                 <td>
                                     {% if data.risk_level > 70 %}
-                                    <span class="badge bg-danger">HIGH</span>
+                                    <span class="text-danger fw-bold"><i class="fas fa-radiation-alt me-1"></i>
+                                        CRITICAL</span>
                                     {% elif data.risk_level > 30 %}
-                                    <span class="badge bg-warning text-dark">MED</span>
+                                    <span class="text-warning fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>
+                                        ELEVATED</span>
                                     {% else %}
-                                    <span class="badge bg-success">LOW</span>
+                                    <span class="text-success fw-bold"><i class="fas fa-shield-alt me-1"></i>
+                                        NOMINAL</span>
                                     {% endif %}
                                 </td>
-                                <td><small class="text-muted">{{ data.notes }}</small></td>
+                                <td><small class="text-muted">{{ data.notes|truncate(30) }}</small></td>
                                 <td class="text-end pe-4">
-                                    <form action="/case/{{ active_case.case_id }}/investigation" method="POST"
-                                        class="d-inline">
-                                        <input type="hidden" name="address" value="{{ addr }}">
-                                        <!-- Default params to re-trigger analysis -->
-                                        <input type="hidden" name="chain" value="ethereum">
-                                        <button type="submit" class="btn btn-sm btn-outline-info" title="Analyze">
-                                            <i class="fas fa-search"></i>
-                                        </button>
-                                    </form>
+                                    <a href="/case/{{ active_case.case_id }}/investigation?address={{ addr }}&chain=ethereum&auto_scan=true"
+                                        class="btn btn-outline-secondary btn-sm glass" title="Re-scan Address">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </a>
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">
-                                    No targets added yet. Start an investigation.
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="fas fa-ghost fa-3x mb-3 opacity-25"></i>
+                                    <p>No active targets identified for this operation.</p>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -118,48 +111,50 @@
         </div>
     </div>
 
-    <!-- Timeline / Quick Actions -->
+    <!-- Sidebar Info -->
     <div class="col-md-4">
-        <div class="card mb-4">
+        <div class="glass-card mb-4">
             <div class="card-header">
-                <h6 class="mb-0">Quick Actions</h6>
+                <h6 class="mb-0 text-uppercase" style="letter-spacing: 1px;">Neural Operations</h6>
             </div>
-            <div class="list-group list-group-flush bg-dark">
+            <div class="list-group list-group-flush">
                 <a href="/case/{{ active_case.case_id }}/investigation"
-                    class="list-group-item list-group-item-action bg-dark text-light border-secondary">
-                    <i class="fas fa-search me-2 text-primary"></i> Trace New Address
+                    class="list-group-item bg-transparent text-white border-secondary border-opacity-25 hover-bg py-3">
+                    <i class="fas fa-search-location me-3 text-accent"></i>Trace Data Point
                 </a>
-                <a href="/case/{{ active_case.case_id }}/charts"
-                    class="list-group-item list-group-item-action bg-dark text-light border-secondary">
-                    <i class="fas fa-project-diagram me-2 text-info"></i> View Visualizations
+                <a href="/case/{{ active_case.case_id }}/clustering"
+                    class="list-group-item bg-transparent text-white border-secondary border-opacity-25 hover-bg py-3">
+                    <i class="fas fa-project-diagram me-3 text-info"></i>Nexus Visualization
                 </a>
                 <a href="/case/{{ active_case.case_id }}/reports"
-                    class="list-group-item list-group-item-action bg-dark text-light border-secondary">
-                    <i class="fas fa-file-contract me-2 text-warning"></i> Generate Legal Report
+                    class="list-group-item bg-transparent text-white border-secondary border-opacity-25 hover-bg py-3">
+                    <i class="fas fa-file-signature me-3 text-warning"></i>Generate Legal Bundle
                 </a>
-                <button class="list-group-item list-group-item-action bg-dark text-light border-secondary"
+                <button class="list-group-item bg-transparent text-white border-0 hover-bg text-start py-3"
                     data-bs-toggle="modal" data-bs-target="#noteModal">
-                    <i class="fas fa-sticky-note me-2 text-success"></i> Add Case Note
+                    <i class="fas fa-terminal me-3 text-success"></i>Insert Intelligence Note
                 </button>
             </div>
         </div>
 
-        <div class="card">
+        <div class="glass-card">
             <div class="card-header">
-                <h6 class="mb-0">Recent Activity</h6>
+                <h6 class="mb-0 text-uppercase" style="letter-spacing: 1px;">Live Activity Log</h6>
             </div>
             <div class="card-body p-0">
-                <div class="list-group list-group-flush bg-dark">
+                <div class="list-group list-group-flush">
                     {% for item in active_case.timeline[-5:]|reverse %}
-                    <div class="list-group-item bg-dark border-secondary">
-                        <div class="d-flex w-100 justify-content-between">
-                            <small class="mb-1 text-primary">{{ item.type|upper }}</small>
-                            <small class="text-muted">{{ item.timestamp[:16].replace('T', ' ') }}</small>
+                    <div class="list-group-item bg-transparent border-secondary border-opacity-10 py-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small class="text-accent font-orbitron" style="font-size: 0.65rem;">{{ item.type|upper
+                                }}</small>
+                            <small class="text-muted font-monospace" style="font-size: 0.65rem;">{{
+                                item.timestamp[11:16] }}Z</small>
                         </div>
-                        <p class="mb-1 small text-light">{{ item.content }}</p>
+                        <p class="mb-0 small text-secondary">{{ item.content }}</p>
                     </div>
                     {% else %}
-                    <div class="p-3 text-center text-muted small">No activity recorded</div>
+                    <div class="p-4 text-center text-muted small">Log quiet... no recent activity.</div>
                     {% endfor %}
                 </div>
             </div>
@@ -169,22 +164,25 @@
 
 <!-- Note Modal -->
 <div class="modal fade" id="noteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content bg-dark border-secondary">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-light">Add Case Note</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title font-orbitron">SYSTEM_LOG_INSERT</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="/case/{{ active_case.case_id }}/add_note" method="POST">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label text-light">Note Content</label>
-                        <textarea name="note" class="form-control" rows="4" required></textarea>
+                        <label class="form-label text-muted small text-uppercase">Input Case Note</label>
+                        <textarea name="note" class="form-control" rows="5"
+                            placeholder="Enter findings, address tags, or investigation progress..."
+                            required></textarea>
                     </div>
                 </div>
-                <div class="modal-footer border-secondary">
-                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Note</button>
+                <div class="modal-footer border-secondary border-opacity-25">
+                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                        data-bs-dismiss="modal">Abort</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Log Findings</button>
                 </div>
             </form>
         </div>

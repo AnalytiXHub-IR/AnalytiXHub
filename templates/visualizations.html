@@ -60,7 +60,7 @@
                             <h6 class="text-warning"><i class="fas fa-random me-2"></i>Sankey Flow</h6>
                             <p class="small text-muted">Visualize the flow of funds between addresses as a Sankey
                                 diagram.</p>
-                            <form action="/sankey" method="POST">
+                            <form action="/sankey" method="POST" onsubmit="return handleLiveTool(this, 'Sankey')">
                                 <button class="btn btn-sm btn-outline-light w-100">View Diagram</button>
                             </form>
                         </div>
@@ -70,7 +70,7 @@
                             <h6 class="text-danger"><i class="fas fa-th me-2"></i>Heatmap</h6>
                             <p class="small text-muted">View activity intensity over time to identify behavioral
                                 patterns.</p>
-                            <form action="/heatmap" method="POST">
+                            <form action="/heatmap" method="POST" onsubmit="return handleLiveTool(this, 'Heatmap')">
                                 <button class="btn btn-sm btn-outline-light w-100">View Heatmap</button>
                             </form>
                         </div>
@@ -105,6 +105,22 @@
         }
     }
     });
+
+    function handleLiveTool(form, name) {
+        const btn = form.querySelector('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>Creating ${name}...`;
+        btn.classList.add('disabled');
+
+        // Since it's a download, we can't easily know when it's done. 
+        // Re-enable after 10 seconds as a fallback, or just let it stay for a bit
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.remove('disabled');
+        }, 15000); // 15s should be enough for "creation" message to be meaningful
+
+        return true;
+    }
 </script>
 {% endif %}
 {% endblock %}

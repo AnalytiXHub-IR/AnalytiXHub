@@ -1,24 +1,38 @@
 {% extends "layout.html" %}
 
 {% block title %}Investigation Board{% endblock %}
-{% block header_title %}Investigation Board{% endblock %}
+{% block header_title %}Tactical Analysis Board{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Infinite Canvas Style */
+    /* Infinite Canvas Style - Futuristic Grid */
     #board-wrapper {
         width: 100%;
         height: calc(100vh - 120px);
         overflow: hidden;
         position: relative;
-        background-color: #121212;
+        background-color: #050508;
         background-image:
-            linear-gradient(rgba(50, 50, 50, 0.5) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(50, 50, 50, 0.5) 1px, transparent 1px);
-        background-size: 50px 50px;
-        border: 1px solid #333;
-        border-radius: 8px;
+            linear-gradient(rgba(0, 229, 255, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 229, 255, 0.05) 1px, transparent 1px),
+            linear-gradient(rgba(0, 229, 255, 0.02) 2px, transparent 2px),
+            linear-gradient(90deg, rgba(0, 229, 255, 0.02) 2px, transparent 2px);
+        background-size: 50px 50px, 50px 50px, 250px 250px, 250px 250px;
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-lg);
         cursor: grab;
+        box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.8);
+    }
+
+    #board-wrapper::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at center, transparent 0%, rgba(5, 5, 8, 0.4) 100%);
+        pointer-events: none;
     }
 
     #board-wrapper:active {
@@ -30,285 +44,266 @@
         top: 0;
         left: 0;
         transform-origin: 0 0;
-        width: 5000px;
-        height: 5000px;
+        width: 8000px;
+        height: 8000px;
     }
 
-    /* Draggable Items */
+    /* Draggable Items - HUD Style */
     .board-item {
         position: absolute;
-        width: 300px;
+        width: 320px;
         cursor: default;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        transition: box-shadow 0.2s, transform 0.1s;
-        /* Prevent selection during drag */
+        background: rgba(15, 15, 20, 0.85);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-md);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        transition: border-color 0.3s, box-shadow 0.3s;
+        overflow: hidden;
         user-select: none;
     }
 
     .board-item:hover {
         z-index: 100 !important;
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
-        border-color: #0d6efd !important;
+        border-color: var(--accent);
+        box-shadow: 0 0 20px var(--accent-glow);
     }
 
     .board-item.dragging {
-        opacity: 0.9;
+        opacity: 0.8;
         cursor: grabbing;
         z-index: 1000 !important;
+        border-color: var(--accent-glow);
     }
 
-    /* Item Types */
+    /* Item Subtypes */
     .note-card {
-        background-color: #ffd700;
-        color: #000;
-        transform: rotate(-1deg);
+        background: rgba(255, 215, 0, 0.1);
+        border-left: 4px solid #ffd700;
     }
 
     .wallet-card {
-        background-color: #1e1e1e;
-        border: 1px solid #0d6efd;
-        width: 320px;
+        border-left: 4px solid var(--accent);
     }
 
     .chart-card {
-        background-color: #1e1e1e;
-        border: 1px solid #198754;
-        width: 450px;
-        height: 350px;
+        width: 480px;
+        height: 380px;
+        border-left: 4px solid var(--success);
     }
 
     .image-card {
-        background-color: #1e1e1e;
-        border: 1px solid #666;
-        padding: 5px;
         width: auto;
-        min-width: 200px;
+        min-width: 240px;
+        border: 1px solid var(--glass-border);
     }
 
-    /* UI Controls */
+    /* UI Overlay Controls */
     .board-controls {
         position: absolute;
-        bottom: 30px;
-        right: 30px;
-        background: rgba(30, 30, 30, 0.9);
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px solid #444;
+        bottom: 25px;
+        right: 25px;
+        background: rgba(5, 5, 8, 0.7);
+        backdrop-filter: blur(10px);
+        padding: 12px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--glass-border);
         display: flex;
-        gap: 10px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        gap: 12px;
         z-index: 9999;
     }
 
     .toolbar {
         position: absolute;
-        top: 20px;
+        top: 25px;
         left: 50%;
         transform: translateX(-50%);
-        background: #1e1e1e;
-        padding: 10px 20px;
+        background: rgba(5, 5, 8, 0.7);
+        backdrop-filter: blur(15px);
+        padding: 10px 25px;
         border-radius: 50px;
-        border: 1px solid #444;
+        border: 1px solid var(--glass-border);
         display: flex;
-        gap: 15px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        gap: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         z-index: 9999;
     }
 
     .toolbar-btn {
         background: none;
         border: none;
-        color: #fff;
-        font-size: 1.2rem;
+        color: var(--text-secondary);
+        font-size: 1.3rem;
         cursor: pointer;
-        padding: 5px 10px;
-        border-radius: 5px;
-        transition: background 0.2s;
+        padding: 8px;
+        border-radius: 50%;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .toolbar-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #0d6efd;
+        color: #fff;
+        background: rgba(255, 255, 255, 0.05);
+        transform: translateY(-2px);
+    }
+
+    .toolbar-btn i {
+        filter: drop-shadow(0 0 5px currentColor);
     }
 
     .item-header {
         cursor: move;
-        /* Handle for dragging */
-        padding: 8px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 10px 15px;
+        background: rgba(255, 255, 255, 0.03);
+        border-bottom: 1px solid var(--glass-border);
         display: flex;
         justify-content: space-between;
         align-items: center;
+    }
+
+    .font-orbitron {
+        font-family: 'Orbitron', sans-serif;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div id="board-wrapper">
-    <!-- Floating Toolbar -->
+    <!-- HUD Toolbar -->
     <div class="toolbar">
-        <button class="toolbar-btn" onclick="addAsset('note')" title="Add Note"><i
-                class="fas fa-sticky-note text-warning"></i></button>
-        <button class="toolbar-btn" onclick="addAsset('wallet')" title="Add Wallet"><i
-                class="fas fa-wallet text-primary"></i></button>
-        <button class="toolbar-btn" onclick="addAsset('image')" title="Add Image"><i
-                class="fas fa-image text-info"></i></button>
-        <button class="toolbar-btn" onclick="addAsset('chart')" title="Add Chart"><i
-                class="fas fa-chart-pie text-success"></i></button>
-        <div class="vr bg-secondary"></div>
-        <button class="toolbar-btn" onclick="saveBoardState()" title="Save Layout"><i class="fas fa-save"></i></button>
+        <button class="toolbar-btn" onclick="addAsset('note')" title="Deploy Data Note">
+            <i class="fas fa-sticky-note text-warning"></i>
+        </button>
+        <button class="toolbar-btn" onclick="addAsset('wallet')" title="Link Node/Wallet">
+            <i class="fas fa-wallet text-accent"></i>
+        </button>
+        <button class="toolbar-btn" onclick="addAsset('image')" title="Import Visual Intel">
+            <i class="fas fa-image text-info"></i>
+        </button>
+        <button class="toolbar-btn" onclick="addAsset('chart')" title="Render Data Stream">
+            <i class="fas fa-chart-line text-success"></i>
+        </button>
+        <div class="vr bg-secondary opacity-25"></div>
+        <button class="toolbar-btn" onclick="saveBoardState()" title="Sync Board State">
+            <i class="fas fa-cloud-upload-alt text-white"></i>
+        </button>
     </div>
 
-    <!-- Zoom Controls -->
-    <div class="board-controls">
-        <button class="btn btn-sm btn-dark border-secondary" onclick="zoom(0.1)"><i class="fas fa-plus"></i></button>
-        <span class="text-light align-self-center mx-2" id="zoom-level">100%</span>
-        <button class="btn btn-sm btn-dark border-secondary" onclick="zoom(-0.1)"><i class="fas fa-minus"></i></button>
-        <button class="btn btn-sm btn-dark border-secondary" onclick="resetView()"><i
-                class="fas fa-compress-arrows-alt"></i></button>
+    <!-- Navigation Hub -->
+    <div class="board-controls glass">
+        <button class="btn btn-sm btn-outline-secondary border-0" onclick="zoom(0.1)"><i
+                class="fas fa-plus"></i></button>
+        <span class="text-accent small font-orbitron align-self-center mx-2" id="zoom-level">100%</span>
+        <button class="btn btn-sm btn-outline-secondary border-0" onclick="zoom(-0.1)"><i
+                class="fas fa-minus"></i></button>
+        <button class="btn btn-sm btn-outline-secondary border-0" onclick="resetView()"><i
+                class="fas fa-expand"></i></button>
     </div>
 
-    <!-- The Infinite Canvas -->
+    <!-- The Tactical Canvas -->
     <div id="board-canvas">
         {% for asset in active_case.assets %}
         {% set pos = asset.position or {'x': 100, 'y': 100} %}
 
-        <!-- Sticky Note -->
+        <!-- Tactical Note -->
         {% if asset.type == 'note' %}
-        <div class="card board-item note-card" id="{{ asset.id }}" style="left: {{ pos.x }}px; top: {{ pos.y }}px;">
+        <div class="board-item note-card" id="{{ asset.id }}" style="left: {{ pos.x }}px; top: {{ pos.y }}px;">
             <div class="item-header">
-                <i class="fas fa-grip-lines opacity-50"></i>
-                <button class="btn btn-link p-0 text-dark opacity-50" onclick="deleteAsset('{{ asset.id }}')"><i
-                        class="fas fa-times"></i></button>
+                <small class="text-warning text-uppercase fw-bold font-orbitron"
+                    style="font-size: 0.6rem;">Intelligence_Report</small>
+                <button class="btn btn-link p-0 text-muted" onclick="deleteAsset('{{ asset.id }}')"><i
+                        class="fas fa-times fa-xs"></i></button>
             </div>
             <div class="card-body p-3">
-                <p class="mb-0 fw-bold" style="white-space: pre-wrap; font-family: 'Comic Sans MS', cursive;">{{
-                    asset.content }}</p>
+                <p class="mb-0 text-white" style="white-space: pre-wrap; font-size: 0.9rem;">{{ asset.content }}</p>
             </div>
         </div>
 
-        <!-- Wallet Entity -->
+        <!-- Node Asset (Wallet) -->
         {% elif asset.type == 'wallet' %}
-        <div class="card board-item wallet-card" id="{{ asset.id }}" style="left: {{ pos.x }}px; top: {{ pos.y }}px;">
-            <div class="item-header bg-dark">
-                <small class="text-primary fw-bold"><i class="fas fa-wallet me-1"></i> Suspect Wallet</small>
+        <div class="board-item wallet-card" id="{{ asset.id }}" style="left: {{ pos.x }}px; top: {{ pos.y }}px;">
+            <div class="item-header">
+                <small class="text-accent text-uppercase fw-bold font-orbitron"
+                    style="font-size: 0.6rem;">Target_Node</small>
                 <button class="btn btn-link p-0 text-muted" onclick="deleteAsset('{{ asset.id }}')"><i
-                        class="fas fa-times"></i></button>
+                        class="fas fa-times fa-xs"></i></button>
             </div>
             <div class="card-body p-3">
-                <p class="font-monospace small mb-2 text-light text-break">{{ asset.content }}</p>
+                <code class="text-white d-block mb-3 text-break small">{{ asset.content }}</code>
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="badge bg-dark border border-secondary">ETH</span>
+                    <span
+                        class="badge bg-secondary bg-opacity-10 text-accent border border-accent border-opacity-25">ETH_MAINNET</span>
                     <a href="/case/{{ active_case.case_id }}/investigation?address={{ asset.content }}"
-                        class="btn btn-xs btn-primary py-0">Analyze</a>
+                        class="btn btn-primary btn-sm py-1 px-3">Scan Node</a>
                 </div>
             </div>
         </div>
 
-        <!-- Live Chart Viz -->
+        <!-- Sensor Stream (Chart) -->
         {% elif asset.type == 'chart' %}
-        <div class="card board-item chart-card" id="{{ asset.id }}" style="left: {{ pos.x }}px; top: {{ pos.y }}px;">
-            <div class="item-header bg-dark">
-                <small class="text-success fw-bold"><i class="fas fa-chart-pie me-1"></i> Transaction Flow</small>
+        <div class="board-item chart-card" id="{{ asset.id }}" style="left: {{ pos.x }}px; top: {{ pos.y }}px;">
+            <div class="item-header">
+                <small class="text-success text-uppercase fw-bold font-orbitron"
+                    style="font-size: 0.6rem;">Data_Visualization_Stream</small>
                 <button class="btn btn-link p-0 text-muted" onclick="deleteAsset('{{ asset.id }}')"><i
-                        class="fas fa-times"></i></button>
+                        class="fas fa-times fa-xs"></i></button>
             </div>
-            <div class="card-body p-1 h-100 bg-dark">
-                <canvas id="chart_{{ asset.id }}" width="400" height="300"></canvas>
+            <div class="card-body p-2 h-100">
+                <canvas id="chart_{{ asset.id }}" width="450" height="280"></canvas>
             </div>
         </div>
 
-        <!-- Image Asset -->
+        <!-- Visual Intel (Image) -->
         {% elif asset.type == 'image' %}
-        <div class="card board-item image-card" id="{{ asset.id }}" style="left: {{ pos.x }}px; top: {{ pos.y }}px;">
-            <div class="item-header bg-dark p-1">
-                <button class="btn btn-link p-0 text-white opacity-50 ms-auto d-block"
-                    onclick="deleteAsset('{{ asset.id }}')"><i class="fas fa-times"></i></button>
+        <div class="board-item image-card" id="{{ asset.id }}" style="left: {{ pos.x }}px; top: {{ pos.y }}px;">
+            <div class="item-header">
+                <small class="text-info text-uppercase fw-bold font-orbitron"
+                    style="font-size: 0.6rem;">Visual_Capture</small>
+                <button class="btn btn-link p-0 text-muted" onclick="deleteAsset('{{ asset.id }}')"><i
+                        class="fas fa-times fa-xs"></i></button>
             </div>
-            <img src="{{ asset.content }}" style="max-width: 100%; display: block;">
+            <img src="{{ asset.content }}" style="max-width: 100%; display: block; opacity: 0.9;">
         </div>
         {% endif %}
         {% endfor %}
     </div>
 </div>
 
-<!-- Modals (Hidden) -->
+<!-- Add Asset Modals -->
 <div class="modal fade" id="addNoteModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <form action="/case/{{ active_case.case_id }}/asset/add" method="POST"
-            class="modal-content bg-dark border-secondary">
+            class="modal-content glass-card border-warning border-opacity-25">
             <input type="hidden" name="type" value="note">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-light">Add Note</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title font-orbitron text-warning">NEW_INTEL_NODE</h6>
             </div>
             <div class="modal-body">
-                <textarea name="content" class="form-control bg-warning text-dark border-0" rows="4"
+                <textarea name="content" class="form-control" rows="5" placeholder="Enter observational data..."
                     required></textarea>
             </div>
-            <div class="modal-footer border-secondary">
-                <button type="submit" class="btn btn-warning">Add</button>
+            <div class="modal-footer border-0">
+                <button type="submit" class="btn btn-primary btn-sm w-100">DEPLOY_NOTE</button>
             </div>
         </form>
     </div>
 </div>
 
 <div class="modal fade" id="addWalletModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <form action="/case/{{ active_case.case_id }}/asset/add" method="POST"
-            class="modal-content bg-dark border-secondary">
+            class="modal-content glass-card border-accent border-opacity-25">
             <input type="hidden" name="type" value="wallet">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-light">Add Wallet</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title font-orbitron text-accent">NODE_ACQUISITION</h6>
             </div>
             <div class="modal-body">
-                <input type="text" name="content" class="form-control bg-dark text-light border-secondary"
-                    placeholder="0x..." required>
+                <input type="text" name="content" class="form-control" placeholder="Target Address (0x...)" required>
             </div>
-            <div class="modal-footer border-secondary">
-                <button type="submit" class="btn btn-primary">Add</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal fade" id="addImageModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form action="/case/{{ active_case.case_id }}/asset/add" method="POST" enctype="multipart/form-data"
-            class="modal-content bg-dark border-secondary">
-            <input type="hidden" name="type" value="image">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-light">Upload Image</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="file" name="image_file" class="form-control bg-dark text-light border-secondary" required>
-            </div>
-            <div class="modal-footer border-secondary">
-                <button type="submit" class="btn btn-info">Upload</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal fade" id="addChartModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form action="/case/{{ active_case.case_id }}/asset/add" method="POST"
-            class="modal-content bg-dark border-secondary">
-            <input type="hidden" name="type" value="chart">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-light">Add Chart</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <select name="content" class="form-select bg-dark text-light border-secondary">
-                    <option value="flow">Transaction Flow Distribution</option>
-                    <option value="timeline">Activity Timeline</option>
-                </select>
-            </div>
-            <div class="modal-footer border-secondary">
-                <button type="submit" class="btn btn-success">Add</button>
+            <div class="modal-footer border-0">
+                <button type="submit" class="btn btn-primary btn-sm w-100">LINK_NODE</button>
             </div>
         </form>
     </div>
@@ -329,9 +324,7 @@
     const canvas = document.getElementById("board-canvas");
     const zoomDisplay = document.getElementById("zoom-level");
 
-    // --- Panning Logic ---
     wrapper.addEventListener('mousedown', (e) => {
-        // Only pan if clicking on background (not on an item)
         if (e.target === wrapper || e.target === canvas) {
             panning = true;
             startX = e.clientX - pointX;
@@ -340,20 +333,18 @@
         }
     });
 
-    wrapper.addEventListener('mouseup', () => {
+    document.addEventListener('mouseup', () => {
         panning = false;
         wrapper.style.cursor = 'grab';
     });
 
-    wrapper.addEventListener('mousemove', (e) => {
-        e.preventDefault();
+    document.addEventListener('mousemove', (e) => {
         if (!panning) return;
         pointX = e.clientX - startX;
         pointY = e.clientY - startY;
         updateTransform();
     });
 
-    // --- Zoom Logic ---
     function zoom(delta) {
         scale += delta;
         scale = Math.min(Math.max(.125, scale), 4);
@@ -362,9 +353,7 @@
     }
 
     function resetView() {
-        scale = 1;
-        pointX = 0;
-        pointY = 0;
+        scale = 1; pointX = 0; pointY = 0;
         updateTransform();
         zoomDisplay.innerText = "100%";
     }
@@ -373,69 +362,51 @@
         canvas.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
     }
 
-    // --- Drag & Drop for Items ---
+    // --- Drag & Drop ---
     let draggedItem = null;
     let dragOffsetX = 0;
     let dragOffsetY = 0;
 
     document.querySelectorAll('.board-item').forEach(item => {
         const header = item.querySelector('.item-header');
-        if (!header) return; // Images might use whole card
+        if (!header) return;
 
         header.addEventListener('mousedown', (e) => {
             draggedItem = item;
-            // Calculate offset logic relative to item 
             const rect = item.getBoundingClientRect();
-            // We need to account for scale in offset calculation
             dragOffsetX = (e.clientX - rect.left) / scale;
             dragOffsetY = (e.clientY - rect.top) / scale;
-
             item.classList.add('dragging');
-            e.stopPropagation(); // Stop board panning
+            e.stopPropagation();
         });
     });
 
     document.addEventListener('mousemove', (e) => {
         if (!draggedItem) return;
-
-        // Calculate new position relative to canvas origin
-        // We reverse the canvas transform logic to find "local" coordinates
         const wrapperRect = wrapper.getBoundingClientRect();
-
-        // Mouse pos relative to wrapper
         const mouseX = e.clientX - wrapperRect.left;
         const mouseY = e.clientY - wrapperRect.top;
-
-        // Adjust for canvas pan (pointX, pointY) and scale
-        // x_local = (x_screen - pan_x) / scale
         let newLeft = (mouseX - pointX) / scale - dragOffsetX;
         let newTop = (mouseY - pointY) / scale - dragOffsetY;
-
         draggedItem.style.left = newLeft + 'px';
         draggedItem.style.top = newTop + 'px';
     });
 
-    document.addEventListener('mouseup', (e) => {
+    document.addEventListener('mouseup', () => {
         if (draggedItem) {
             draggedItem.classList.remove('dragging');
-
-            // Auto-save position via AJAX
             saveItemPosition(draggedItem.id, draggedItem.style.left, draggedItem.style.top);
-
             draggedItem = null;
         }
     });
 
-    // --- AJAX Actions ---
     function addAsset(type) {
         if (type === 'note') new bootstrap.Modal(document.getElementById('addNoteModal')).show();
         if (type === 'wallet') new bootstrap.Modal(document.getElementById('addWalletModal')).show();
-        if (type === 'image') new bootstrap.Modal(document.getElementById('addImageModal')).show();
-        if (type === 'chart') new bootstrap.Modal(document.getElementById('addChartModal')).show();
     }
 
     function deleteAsset(id) {
-        if (confirm("Delete this item?")) {
+        if (confirm("Decommission this data node?")) {
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = `/case/{{ active_case.case_id }}/asset/delete/${id}`;
@@ -445,39 +416,46 @@
     }
 
     function saveItemPosition(id, x, y) {
-        // Parse "100px" to 100
-        const xVal = parseFloat(x);
-        const yVal = parseFloat(y);
-
         fetch(`/case/{{ active_case.case_id }}/asset/move/${id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ x: xVal, y: yVal })
+            body: JSON.stringify({ x: parseFloat(x), y: parseFloat(y) })
         });
     }
 
-    // --- Chart Initialization for 'chart' items ---
+    // --- Graph Rendering ---
     document.querySelectorAll('.chart-card canvas').forEach(canvas => {
         const ctx = canvas.getContext('2d');
-        // Mock data for demo - in real app would load specific case data
         new Chart(ctx, {
-            type: 'doughnut',
+            type: 'line',
             data: {
-                labels: ['In', 'Out'],
+                labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
                 datasets: [{
-                    data: [12, 19],
-                    backgroundColor: ['#198754', '#dc3545'],
-                    borderColor: '#000',
-                    borderWidth: 1
+                    label: 'TX Volume',
+                    data: [12, 19, 3, 5, 2, 3],
+                    borderColor: '#00ffa3',
+                    backgroundColor: 'rgba(0, 255, 163, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: {
+                        ticks: { color: '#94a3b8', font: { size: 10 } },
+                        grid: { color: 'rgba(255,255,255,0.03)' }
+                    },
+                    y: {
+                        ticks: { color: '#94a3b8', font: { size: 10 } },
+                        grid: { color: 'rgba(255,255,255,0.03)' }
+                    }
+                }
             }
         });
     });
-
 </script>
 {% endblock %}

@@ -52,7 +52,7 @@ def _fetch_page(address, api_key, chain_id=1, page=1, offset=1000, action="txlis
         "apikey": api_key
     }
 
-    r = requests.get(ETHERSCAN_API, params=params, timeout=15)
+    r = requests.get(ETHERSCAN_API, params=params, timeout=30)
     return r.json()
 
 
