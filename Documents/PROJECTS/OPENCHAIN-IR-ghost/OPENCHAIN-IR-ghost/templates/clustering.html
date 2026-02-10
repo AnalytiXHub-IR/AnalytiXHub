@@ -1,0 +1,84 @@
+{% extends "layout.html" %}
+
+{% block title %}Clustering Analysis{% endblock %}
+{% block header_title %}Clustering Analysis{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Clustering Overview -->
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0">Cross-Address Clustering Results</h6>
+            </div>
+            <div class="card-body">
+                {% if clustering_results and (clustering_results.suspicious_counterparties or
+                clustering_results.dust_attacks or clustering_results.timing_clusters) %}
+
+                {% if clustering_results.suspicious_counterparties %}
+                <div class="alert alert-warning mb-4 border-warning bg-opacity-10 bg-warning text-light">
+                    <h6 class="alert-heading fw-bold"><i class="fas fa-users me-2"></i>Frequent Counterparties</h6>
+                    <p class="mb-2">Addresses with high interaction volume, suggesting a relationship or common control.
+                    </p>
+                    <div class="list-group">
+                        {% for cp in clustering_results.suspicious_counterparties %}
+                        <div class="list-group-item bg-dark border-secondary text-light d-flex justify-content-between">
+                            <span class="font-monospace small">{{ cp.address }}</span>
+                            <span class="badge bg-danger rounded-pill">{{ "%.0f"|format(cp.risk_score * 100) }}%
+                                Risk</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if clustering_results.dust_attacks %}
+                <div class="alert alert-danger mb-4 border-danger bg-opacity-10 bg-danger text-light">
+                    <h6 class="alert-heading fw-bold"><i class="fas fa-broom me-2"></i>Dust Attack / Airdrop Spam</h6>
+                    <p class="mb-2">Small incoming transactions from known spam/dusting contracts.</p>
+                    <div class="list-group">
+                        {% for dust in clustering_results.dust_attacks %}
+                        <div class="list-group-item bg-dark border-secondary text-light">
+                            <i class="fas fa-exclamation-circle text-danger me-2"></i>
+                            <span class="font-monospace small">{{ dust.address }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-project-diagram fa-3x text-muted mb-3 opacity-50"></i>
+                    <p class="lead text-muted">No significant clusters detected.</p>
+                    <small class="text-muted">Run a trace analysis first to populate data.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Cluster Settings -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-dark border-bottom border-secondary">
+                <h6 class="mb-0">Parameters</h6>
+            </div>
+            <div class="card-body">
+                <form>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Time Window (Hours)</label>
+                        <input type="number" class="form-control bg-dark text-light border-secondary" value="24">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Min. Interaction Count</label>
+                        <input type="number" class="form-control bg-dark text-light border-secondary" value="3">
+                    </div>
+                    <button class="btn btn-outline-primary w-100" type="button" disabled>Recalculate Clusters
+                        (Pro)</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

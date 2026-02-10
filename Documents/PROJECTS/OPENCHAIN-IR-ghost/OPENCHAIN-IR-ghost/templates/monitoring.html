@@ -1,0 +1,130 @@
+{% extends "layout.html" %}
+
+{% block title %}Real-time Monitoring{% endblock %}
+{% block header_title %}Real-time Monitoring{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="text-light mb-1">Live Transaction Monitoring</h3>
+        <p class="text-muted">Monitoring {{ active_case.addresses|length }} target addresses for new activity</p>
+    </div>
+    <div class="text-end">
+        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 pulse">
+            <i class="fas fa-circle me-1"></i> System Active
+        </span>
+    </div>
+</div>
+
+<div class="card bg-dark border-secondary mb-4">
+    <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 text-light"><i class="fas fa-bell me-2 text-warning"></i>Recent Alerts</h6>
+        <small class="text-muted">Polling every 10s</small>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Time</th>
+                        <th>Type</th>
+                        <th>Address</th>
+                        <th>Description</th>
+                        <th>Severity</th>
+                    </tr>
+                </thead>
+                <tbody id="alert-table-body">
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            Waiting for alerts...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <h6 class="text-muted text-uppercase mb-3 small">Monitored Targets</h6>
+        <div class="d-flex flex-wrap gap-2">
+            {% for addr in active_case.addresses %}
+            <div class="badge bg-secondary bg-opacity-10 text-light border border-secondary p-2 fw-normal">
+                <span class="font-monospace">{{ addr.address[:12] }}...</span>
+                <span class="ms-2 text-muted">| {{ addr.label }}</span>
+            </div>
+            {% else %}
+            <span class="text-muted">No targets assigned.</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+</div>
+</div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function fetchAlerts() {
+        fetch('/api/alerts')
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.getElementById('alert-table-body');
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No active alerts</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                data.forEach(alert => {
+                    // Format time
+                    const date = new Date(alert.time);
+                    const timeStr = date.toLocaleTimeString();
+
+                    // Severity Badge
+                    let badgeClass = 'bg-info';
+                    if (alert.severity === 'high' || alert.severity === 'critical') badgeClass = 'bg-danger';
+                    if (alert.severity === 'medium') badgeClass = 'bg-warning text-dark';
+
+                    const row = `
+                        <tr>
+                            <td class="ps-4 text-muted small">${timeStr}</td>
+                            <td><span class="badge bg-secondary">${alert.type}</span></td>
+                            <td><span class="font-monospace text-info small">${alert.address.substring(0, 10)}...</span></td>
+                            <td class="text-light">${alert.description}</td>
+                            <td><span class="badge ${badgeClass}">${alert.severity.toUpperCase()}</span></td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            })
+            .catch(error => console.error('Error fetching alerts:', error));
+    }
+
+    // Poll every 5 seconds
+    setInterval(fetchAlerts, 5000);
+    fetchAlerts(); // Initial call
+</script>
+<style>
+    .pulse {
+        animation: pulse-animation 2s infinite;
+    }
+
+    @keyframes pulse-animation {
+        0% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+
+        100% {
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}

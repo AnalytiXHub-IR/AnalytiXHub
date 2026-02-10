@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenChain IR | {% block title %}Dashboard{% endblock %}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --topbar-height: 60px;
+            --primary-color: #0d6efd;
+            --bg-dark: #121212;
+            --bg-card: #1e1e1e;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #e0e0e0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #1a1a1a;
+            border-right: 1px solid #333;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-brand {
+            height: var(--topbar-height);
+            display: flex;
+            align-items: center;
+            padding: 0 1.5rem;
+            border-bottom: 1px solid #333;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .sidebar-brand span {
+            color: var(--primary-color);
+        }
+
+        .sidebar-menu {
+            padding: 1rem 0;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: #a0a0a0;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: #fff;
+            background-color: rgba(13, 110, 253, 0.1);
+            border-left-color: var(--primary-color);
+        }
+
+        .nav-link i {
+            width: 24px;
+            margin-right: 10px;
+            text-align: center;
+        }
+
+        .nav-category {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #6c757d;
+            padding: 1rem 1.5rem 0.5rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Topbar */
+        .topbar {
+            height: var(--topbar-height);
+            background-color: #1a1a1a;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 900;
+        }
+
+        .content-wrapper {
+            padding: 2rem;
+            flex-grow: 1;
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid #333;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            background-color: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid #333;
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* Case Selector */
+        .case-selector {
+            min-width: 200px;
+        }
+
+        /* Utils */
+        .text-light-muted {
+            color: #aaa;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <a href="/" class="sidebar-brand">
+            OPENCHAIN <span>IR</span>
+        </a>
+
+        <div class="sidebar-menu">
+            {% if active_case %}
+            <div class="px-3 mb-3">
+                <div class="p-2 border border-secondary rounded bg-dark">
+                    <small class="text-muted d-block mb-1">Active Case</small>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong class="text-truncate" style="max-width: 140px;" title="{{ active_case.name }}">
+                            {{ active_case.name }}
+                        </strong>
+                        <a href="/" class="text-muted"><i class="fas fa-exchange-alt fa-xs"></i></a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="nav-category">Main</div>
+            <a href="/" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
+                <i class="fas fa-briefcase"></i> Cases
+            </a>
+
+            {% if active_case %}
+            <a href="/case/{{ active_case.case_id }}/dashboard"
+                class="nav-link {% if 'dashboard' in request.endpoint and 'case' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a href="/case/{{ active_case.case_id }}/board"
+                class="nav-link {% if 'board' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-chalkboard"></i> Investigation Board
+            </a>
+
+            <div class="nav-category">Investigation</div>
+            <a href="/case/{{ active_case.case_id }}/investigation"
+                class="nav-link {% if 'investigation' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-search"></i> Trace Analysis
+            </a>
+            <a href="/case/{{ active_case.case_id }}/monitoring"
+                class="nav-link {% if 'monitoring' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-satellite-dish"></i> Real-time Monitoring
+            </a>
+
+            <div class="nav-category">Tools</div>
+            <a href="/case/{{ active_case.case_id }}/clustering"
+                class="nav-link {% if 'clustering' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-project-diagram"></i> Clustering
+            </a>
+            <a href="/case/{{ active_case.case_id }}/visualizations"
+                class="nav-link {% if 'visualizations' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-chart-network"></i> Visualizations
+            </a>
+            <a href="/case/{{ active_case.case_id }}/threat-intel"
+                class="nav-link {% if 'threat' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-shield-alt"></i> Threat Intel
+            </a>
+
+            <div class="nav-category">Reports</div>
+            <a href="/case/{{ active_case.case_id }}/reports"
+                class="nav-link {% if 'reports' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-file-pdf"></i> Generate Reports
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="p-3 border-top border-secondary">
+            <small class="text-light d-block text-center fw-bold">Version 4.1 - Multi-Chain</small>
+            <small class="text-muted d-block text-center" style="font-size: 0.7rem;">Live Forensics Enabled</small>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div>
+                <h5 class="mb-0">{% block header_title %}Dashboard{% endblock %}</h5>
+            </div>
+
+            <div class="d-flex align-items-center gap-3">
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button"
+                        data-bs-toggle="dropdown">
+                        <i class="fas fa-user-shield me-2"></i>Admin
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+                        <li><a class="dropdown-item" href="#">Settings</a></li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li><a class="dropdown-item" href="#">Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="content-wrapper">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show"
+                role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

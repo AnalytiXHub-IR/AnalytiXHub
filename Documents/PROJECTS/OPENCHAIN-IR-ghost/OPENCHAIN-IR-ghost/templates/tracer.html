@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OPENCHAIN TRACER - {{ active_case.name }}</title>
+
+    <!-- Bootstrap 5 Dark (Morph) -->
+    <link href="https://bootswatch.com/5/cyborg/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Cytoscape.js & Extensions -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.23.0/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/webcola/WebCola/cola.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-cola/cytoscape-cola.js"></script>
+    <script src="https://unpkg.com/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-popper/cytoscape-popper.js"></script>
+    <script src="https://unpkg.com/tippy.js@6.3.7/dist/tippy-bundle.umd.min.js"></script>
+
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-green: #00ff41;
+            --neon-red: #ff003c;
+            --dark-bg: #050505;
+            --panel-bg: rgba(10, 10, 10, 0.85);
+            --border-color: #222;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: #ddd;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Background Grid Animation */
+        .bg-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image:
+                linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #cy {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            z-index: 1;
+        }
+
+        /* HUD Panels */
+        .hud-panel {
+            position: absolute;
+            z-index: 10;
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            border-left: 2px solid var(--neon-blue);
+        }
+
+        /* Top Left Info */
+        .info-panel {
+            top: 20px;
+            left: 20px;
+            width: 320px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .info-panel h4 {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--neon-blue);
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+        }
+
+        /* Bottom Right Controls */
+        .controls-panel {
+            bottom: 20px;
+            right: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: flex;
+            gap: 10px;
+            border-left: none;
+            border-bottom: 2px solid var(--neon-blue);
+        }
+
+        /* Right Side Detail Drawer */
+        .detail-drawer {
+            top: 0;
+            right: -400px;
+            width: 380px;
+            height: 100vh;
+            transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid var(--neon-blue);
+            border-bottom: none;
+            background: rgba(5, 5, 5, 0.95);
+        }
+
+        .detail-drawer.open {
+            right: 0;
+        }
+
+        /* Stats in Detail Drawer */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #222;
+            padding-bottom: 4px;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .stat-value {
+            font-family: 'Share Tech Mono', monospace;
+            color: #fff;
+        }
+
+        /* Risk Badge */
+        .risk-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 2px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .risk-high {
+            background: rgba(255, 0, 60, 0.2);
+            color: var(--neon-red);
+            border: 1px solid var(--neon-red);
+        }
+
+        .risk-med {
+            background: rgba(255, 165, 0, 0.2);
+            color: orange;
+            border: 1px solid orange;
+        }
+
+        .risk-low {
+            background: rgba(0, 255, 65, 0.2);
+            color: var(--neon-green);
+            border: 1px solid var(--neon-green);
+        }
+
+        /* Custom Buttons */
+        .btn-cyber {
+            background: transparent;
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            font-family: 'Share Tech Mono', monospace;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            padding: 5px 15px;
+            font-size: 0.9rem;
+        }
+
+        .btn-cyber:hover {
+            background: rgba(0, 243, 255, 0.1);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+            color: #fff;
+        }
+
+        .btn-cyber-danger {
+            border-color: var(--neon-red);
+            color: var(--neon-red);
+        }
+
+        .btn-cyber-danger:hover {
+            background: rgba(255, 0, 60, 0.1);
+            box-shadow: 0 0 10px rgba(255, 0, 60, 0.3);
+        }
+
+        /* Context Menu */
+        .context-menu {
+            display: none;
+            position: absolute;
+            z-index: 2000;
+            background: #111;
+            border: 1px solid #444;
+            min-width: 180px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+        }
+
+        .context-menu-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            color: #ddd;
+            border-bottom: 1px solid #222;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .context-menu-item:hover {
+            background: var(--neon-blue);
+            color: #000;
+        }
+
+        .context-menu-item i {
+            width: 25px;
+        }
+
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            transition: opacity 0.5s;
+        }
+
+        .cyber-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid transparent;
+            border-top: 3px solid var(--neon-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transformations: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Tooltip Styles */
+        .tippy-box[data-theme~='cyber'] {
+            background-color: rgba(10, 10, 10, 0.9);
+            color: var(--neon-blue);
+            border: 1px solid var(--neon-blue);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Background Grid -->
+    <div class="bg-grid"></div>
+
+    <!-- Loading Screen -->
+    <div id="loading-overlay">
+        <div class="cyber-spinner"></div>
+        <div style="font-family: 'Share Tech Mono'; color: var(--neon-blue); letter-spacing: 2px;">INITIALIZING TRACE
+            PROTOCOLS...</div>
+    </div>
+
+    <!-- Top Left Panel -->
+    <div class="hud-panel info-panel">
+        <h4><i class="fas fa-network-wired me-2"></i>Crypto Trace V4</h4>
+        <div class="mb-3">
+            <small class="text-muted d-block" style="font-size: 0.7rem;">ACTIVE INVESTIGATION</small>
+            <span class="text-light fw-bold">{{ active_case.name }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-3">
+            <div>
+                <small class="text-muted d-block text-center" style="font-size: 0.7rem;">NODES</small>
+                <span id="node-count" class="h4 m-0 text-info">0</span>
+            </div>
+            <div>
+                <small class="text-muted d-block text-center" style="font-size: 0.7rem;">EDGES</small>
+                <span id="edge-count" class="h4 m-0 text-info">0</span>
+            </div>
+            <div>
+                <small class="text-muted d-block text-center" style="font-size: 0.7rem;">RISK LVL</small>
+                <span id="max-risk" class="h4 m-0 text-danger">0</span>
+            </div>
+        </div>
+
+        <div class="mb-2">
+            <small class="text-muted" style="font-size: 0.7rem;">LEGEND</small>
+            <div class="d-flex flex-wrap gap-2 mt-1" style="font-size: 0.75rem;">
+                <span class="d-flex align-items-center"><i class="fas fa-circle text-light me-1"
+                        style="font-size: 8px;"></i> Wallet</span>
+                <span class="d-flex align-items-center"><i class="fas fa-circle text-danger me-1"
+                        style="font-size: 8px;"></i> High Risk</span>
+                <span class="d-flex align-items-center"><i class="fas fa-circle text-success me-1"
+                        style="font-size: 8px;"></i> Exchange</span>
+                <span class="d-flex align-items-center"><i class="fas fa-circle text-secondary me-1"
+                        style="font-size: 8px;"></i> Contract</span>
+            </div>
+        </div>
+
+        <a href="/case/{{ active_case.case_id }}/investigation" class="btn btn-sm btn-outline-secondary w-100 mt-2"
+            style="font-size: 0.8rem;">
+            <i class="fas fa-arrow-left me-2"></i>RETURN TO DASHBOARD
+        </a>
+    </div>
+
+    <!-- Bottom Controls -->
+    <div class="hud-panel controls-panel">
+        <button onclick="layoutGraph()" class="btn btn-cyber" title="Organize Graph"><i class="fas fa-sync"></i>
+            RE-LAYOUT</button>
+        <button onclick="cy.fit()" class="btn btn-cyber" title="Fit to Screen"><i class="fas fa-compress"></i>
+            FIT</button>
+        <button onclick="togglePhysics()" class="btn btn-cyber" id="physics-btn" title="Toggle Physics"><i
+                class="fas fa-pause"></i> PAUSE</button>
+        <div class="vr bg-secondary mx-2"></div>
+        <button onclick="exportImage()" class="btn btn-cyber" title="Screenshot"><i class="fas fa-camera"></i></button>
+    </div>
+
+    <!-- Detail Drawer (Right) -->
+    <div id="detail-drawer" class="hud-panel detail-drawer">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="m-0 text-info" style="font-family: 'Share Tech Mono';">NODE INSPECTOR</h5>
+            <button onclick="closeDrawer()" class="btn btn-sm btn-outline-light"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div id="inspector-content">
+            <p class="text-muted text-center py-5">Select a node to inspect data.</p>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="ctxMenu" class="context-menu">
+        <div class="context-menu-item" onclick="expandNode()"><i class="fas fa-expand-arrows-alt text-info"></i> Expand
+            Neighbors</div>
+        <div class="context-menu-item" onclick="analyzeAI()"><i class="fas fa-brain text-warning"></i> AI Risk Scan
+        </div>
+        <div class="context-menu-item" onclick="tagNode('suspect')"><i class="fas fa-tag text-danger"></i> Tag as
+            Suspect</div>
+        <div class="context-menu-item" onclick="copyAddress()"><i class="fas fa-copy text-light"></i> Copy Address</div>
+    </div>
+
+    <!-- Graph Container -->
+    <div id="cy"></div>
+
+    <script>
+        const caseId = "{{ active_case.case_id }}";
+        let cy;
+        let selectedNode = null;
+        let layout;
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', function () {
+            initCy();
+            loadGraphData();
+        });
+
+        function initCy() {
+            cy = cytoscape({
+                container: document.getElementById('cy'),
+                style: [
+                    // CORE NODES
+                    {
+                        selector: 'node',
+                        style: {
+                            'background-color': '#444',
+                            'label': 'data(label)',
+                            'color': '#fff',
+                            'text-valign': 'bottom',
+                            'text-margin-y': 6,
+                            'font-size': '10px',
+                            'font-family': 'Rajdhani',
+                            'text-outline-width': 2,
+                            'text-outline-color': '#000',
+                            'width': 30, 'height': 30,
+                            'border-width': 1, 'border-color': '#888'
+                        }
+                    },
+                    // RISK STYLES (Breadcrumbs Logic)
+                    {
+                        selector: 'node[risk > 75]',
+                        style: {
+                            'background-color': '#ff003c', // Neon Red
+                            'border-color': '#ff003c',
+                            'border-width': 2,
+                            'width': 50, 'height': 50,
+                            'shadow-blur': 25, 'shadow-color': '#ff003c'
+                        }
+                    },
+                    {
+                        selector: 'node[risk > 25][risk <= 75]',
+                        style: {
+                            'background-color': '#ffbb33', // Orange
+                            'border-color': '#ffbb33',
+                            'width': 40, 'height': 40,
+                            'shadow-blur': 15, 'shadow-color': '#ffbb33'
+                        }
+                    },
+                    {
+                        selector: 'node[risk <= 25]',
+                        style: {
+                            'background-color': '#00C851', // Green
+                            'border-color': '#00C851',
+                            'width': 30, 'height': 30
+                        }
+                    },
+                    // ENTITY TYPES
+                    {
+                        selector: 'node[type = "exchange"]',
+                        style: {
+                            'shape': 'diamond',
+                            'border-width': 2,
+                            'border-color': '#fff'
+                        }
+                    },
+                    {
+                        selector: 'node[type = "mixer"]',
+                        style: {
+                            'shape': 'hexagon',
+                            'background-color': '#CC0000',
+                            'border-style': 'dashed'
+                        }
+                    },
+                    {
+                        selector: 'node[type = "enriched"]',
+                        style: {
+                            'border-width': 4,
+                            'border-color': '#00f3ff', // Cyan Glow
+                            'overlay-color': '#00f3ff',
+                            'overlay-padding': 5,
+                            'overlay-opacity': 0.3
+                        }
+                    },
+                    // SELECTED STATE
+                    {
+                        selector: ':selected',
+                        style: {
+                            'border-width': 3,
+                            'border-color': '#fff',
+                            'shadow-blur': 30,
+                            'shadow-color': '#fff',
+                            'overlay-opacity': 0
+                        }
+                    },
+                    // EDGES
+                    {
+                        selector: 'edge',
+                        style: {
+                            'width': 2,
+                            'line-color': '#444',
+                            'target-arrow-color': '#444',
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier',
+                            'opacity': 0.5
+                        }
+                    },
+                    {
+                        selector: 'edge[weight > 0]',
+                        style: {
+                            'label': 'data(formatted_val)',
+                            'font-size': '8px',
+                            'color': '#aaa',
+                            'text-background-opacity': 1,
+                            'text-background-color': '#000',
+                            'text-background-padding': 2,
+                            'text-rotation': 'autorotate'
+                        }
+                    },
+                    // HIGH VOLUME FLOWS
+                    {
+                        selector: 'edge[weight > 10]',
+                        style: {
+                            'width': 4,
+                            'line-color': '#00f3ff',
+                            'target-arrow-color': '#00f3ff',
+                            'shadow-blur': 10,
+                            'shadow-color': '#00f3ff'
+                        }
+                    }
+                ]
+            });
+
+            // Event Listeners
+            cy.on('tap', 'node', function (evt) {
+                showNodeDetails(evt.target);
+            });
+
+            cy.on('tap', function (evt) {
+                if (evt.target === cy) {
+                    closeDrawer();
+                    document.getElementById('ctxMenu').style.display = 'none';
+                }
+            });
+
+            cy.on('cxttap', 'node', function (evt) {
+                showContextMenu(evt.target, evt.originalEvent.clientX, evt.originalEvent.clientY);
+            });
+
+            // Tooltips used Tippy
+            cy.on('mouseover', 'node', function (event) {
+                let node = event.target;
+                let ref = node.popperRef();
+                let dummyDomEle = document.createElement('div');
+                let riskClass = node.data('risk') > 50 ? 'text-danger' : 'text-success';
+
+                let tippyInstance = tippy(dummyDomEle, {
+                    getReferenceClientRect: ref.getBoundingClientRect,
+                    trigger: 'manual',
+                    content: `
+                        <div class="text-left">
+                            <strong class="text-info">${node.data('label')}</strong><br>
+                            <span class="${riskClass}">Risk: ${node.data('risk') || 0}%</span><br>
+                            <span class="text-muted">${node.data('type') || 'Unknown'}</span>
+                        </div>
+                    `,
+                    allowHTML: true,
+                    placement: 'top',
+                    theme: 'cyber',
+                    animation: 'scale',
+                    appendTo: document.body
+                });
+                tippyInstance.show();
+                node.tippy = tippyInstance;
+            });
+
+            cy.on('mouseout', 'node', function (event) {
+                let node = event.target;
+                if (node.tippy) node.tippy.destroy();
+            });
+        }
+
+        // --- Data Loading & Layout ---
+        function loadGraphData() {
+            fetch(`/api/graph/visualize/${caseId}`)
+                .then(r => r.json())
+                .then(data => {
+                    cy.add(data);
+
+                    // Update Stats
+                    document.getElementById('node-count').innerText = cy.nodes().length;
+                    document.getElementById('edge-count').innerText = cy.edges().length;
+
+                    let maxRisk = 0;
+                    cy.nodes().forEach(n => {
+                        let r = n.data('risk') || 0;
+                        if (r > maxRisk) maxRisk = r;
+                    });
+                    document.getElementById('max-risk').innerText = maxRisk;
+
+                    layoutGraph();
+
+                    // Hide loading
+                    setTimeout(() => {
+                        document.getElementById('loading-overlay').style.opacity = 0;
+                        setTimeout(() => document.getElementById('loading-overlay').style.display = 'none', 500);
+                    }, 800);
+                })
+                .catch(err => {
+                    alert("Failed to load graph data: " + err);
+                    document.getElementById('loading-overlay').style.display = 'none';
+                });
+        }
+
+        function layoutGraph() {
+            if (layout) layout.stop();
+
+            layout = cy.layout({
+                name: 'cola',
+                animate: true,
+                refresh: 1,
+                maxSimulationTime: 4000,
+                ungrabifyWhileSimulating: false,
+                fit: true,
+                padding: 50,
+                randomize: false,
+                nodeSpacing: function (node) { return 40; },
+                edgeLengthVal: 40,
+                axis: 'y' // flow downwards if possible, or undefined for organic
+            });
+
+            layout.run();
+        }
+
+        function togglePhysics() {
+            if (layout && layout.running) {
+                layout.stop();
+                document.getElementById('physics-btn').innerHTML = '<i class="fas fa-play"></i> RESUME';
+            } else {
+                layoutGraph();
+                document.getElementById('physics-btn').innerHTML = '<i class="fas fa-pause"></i> PAUSE';
+            }
+        }
+
+        // --- Drawer & Details ---
+        function showNodeDetails(node) {
+            selectedNode = node;
+            const d = node.data();
+            const drawer = document.getElementById('detail-drawer');
+            const content = document.getElementById('inspector-content');
+
+            // Risk Badge Logic
+            let riskClass = 'risk-low';
+            if (d.risk > 75) riskClass = 'risk-high';
+            else if (d.risk > 30) riskClass = 'risk-med';
+
+            content.innerHTML = `
+                <div class="text-center mb-4">
+                    <div style="font-size: 3rem; color: ${d.risk > 50 ? 'var(--neon-red)' : 'var(--neon-blue)'}">
+                        <i class="fas fa-cube"></i>
+                    </div>
+                    <h5 class="text-light mt-2 mb-1">${d.label}</h5>
+                    <span class="risk-badge ${riskClass}">RISK: ${d.risk || 0}%</span>
+                </div>
+
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-muted border-bottom border-dark pb-2 mb-3">Entity Details</h6>
+                    <div class="stat-row">
+                        <span class="stat-label">Address</span>
+                        <span class="stat-value text-info small text-break text-end" style="width: 70%">${d.full_address || d.id}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Type</span>
+                        <span class="stat-value text-uppercase">${d.type || 'Unknown'}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Connections</span>
+                        <span class="stat-value">${d.degree || node.degree()}</span>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button onclick="expandNode()" class="btn btn-cyber">EXPAND NEIGHBORS</button>
+                    <button onclick="analyzeAI()" class="btn btn-cyber">RUN AI ANALYSIS</button>
+                    <a href="https://etherscan.io/address/${d.full_address || d.id}" target="_blank" class="btn btn-outline-secondary btn-sm">VIEW ON BLOCKCHAIN</a>
+                </div>
+            `;
+
+            drawer.classList.add('open');
+        }
+
+        function closeDrawer() {
+            document.getElementById('detail-drawer').classList.remove('open');
+            if (selectedNode) {
+                selectedNode.unselect();
+                selectedNode = null;
+            }
+        }
+
+        // --- Context Menu Actions ---
+        function showContextMenu(node, x, y) {
+            selectedNode = node;
+            const menu = document.getElementById('ctxMenu');
+            menu.style.display = 'block';
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+        }
+
+        function expandNode() {
+            if (!selectedNode) return;
+            const id = selectedNode.id();
+
+            fetch(`/api/graph/expand/${id}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        alert("No new connections found.");
+                        return;
+                    }
+                    cy.add(data);
+                    layoutGraph();
+                    closeDrawer();
+                    document.getElementById('ctxMenu').style.display = 'none';
+
+                    // Update stats
+                    document.getElementById('node-count').innerText = cy.nodes().length;
+                    document.getElementById('edge-count').innerText = cy.edges().length;
+                })
+                .catch(e => alert("Expansion failed: " + e));
+        }
+
+        function analyzeAI() {
+            if (!selectedNode) return;
+            const id = selectedNode.id();
+
+            // Show loading state in button if drawer open
+            // alert("Running AI Analysis on " + id.substring(0, 10) + "...");
+
+            fetch(`/api/ai/analyze/${id}`)
+                .then(r => r.json())
+                .then(d => {
+                    alert(`AI REPORT:\nRisk Score: ${d.risk_score}\nPrediction: ${d.predicted_type}`);
+                    // Update graph data
+                    if (d.risk_score !== undefined) {
+                        selectedNode.data('risk', d.risk_score);
+                        // Refresh style
+                        // selectedNode.style('background-color', ... logic handled by selector ... )
+                    }
+                });
+
+            document.getElementById('ctxMenu').style.display = 'none';
+        }
+
+        function tagNode(tag) {
+            if (!selectedNode) return;
+            // Send to backend
+            alert("Tagged " + selectedNode.id().substring(0, 8) + "... as " + tag);
+            document.getElementById('ctxMenu').style.display = 'none';
+        }
+
+        function copyAddress() {
+            if (!selectedNode) return;
+            navigator.clipboard.writeText(selectedNode.id());
+            document.getElementById('ctxMenu').style.display = 'none';
+        }
+
+        function exportImage() {
+            var jpg64 = cy.jpg();
+            var link = document.createElement("a");
+            link.download = `Trace_Graph_${caseId}.jpg`;
+            link.href = jpg64;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+    </script>
+</body>
+
+</html>

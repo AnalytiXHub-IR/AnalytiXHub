@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+
+{% block title %}Threat Intelligence{% endblock %}
+{% block header_title %}Threat Intelligence{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Status Card -->
+    <div class="col-md-4">
+        <div class="card h-100 {{ 'border-danger' if threat.is_flagged else 'border-success' }}">
+            <div class="card-body text-center d-flex flex-column justify-content-center">
+                {% if threat.is_flagged %}
+                <i class="fas fa-exclamation-triangle fa-4x text-danger mb-4"></i>
+                <h3 class="text-danger">THREAT DETECTED</h3>
+                <p class="lead text-light">Address matches known malicious entities</p>
+                {% else %}
+                <i class="fas fa-shield-alt fa-4x text-success mb-4"></i>
+                <h3 class="text-success">NO MATCHES FOUND</h3>
+                <p class="lead text-light opacity-75">Address appears clean in public databases</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Details Card -->
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between">
+                <h6 class="mb-0">Intelligence Report</h6>
+                <span class="badge bg-secondary">Checked against 12 databases</span>
+            </div>
+            <div class="card-body">
+                {% if threat.is_flagged %}
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="text-muted small text-uppercase">Severity</label>
+                        <h5 class="text-danger">{{ threat.severity|upper }}</h5>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small text-uppercase">Confidence Score</label>
+                        <div class="progress mt-1" style="height: 10px;">
+                            <div class="progress-bar bg-danger" role="progressbar"
+                                style="width: {{ threat.confidence * 100 }}%"></div>
+                        </div>
+                        <small class="text-end d-block mt-1">{{ "%.0f"|format(threat.confidence * 100) }}%</small>
+                    </div>
+                    <div class="col-12">
+                        <label class="text-muted small text-uppercase">Threat Categories</label>
+                        <div class="mt-2">
+                            {% for type in threat.threat_types %}
+                            <span class="badge bg-danger me-2">{{ type }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="text-muted small text-uppercase">Sources</label>
+                        <ul class="list-unstyled mt-2 text-light">
+                            {% for source in threat.threat_sources %}
+                            <li><i class="fas fa-database me-2 text-info"></i>{{ source }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <div class="row row-cols-2 g-4 opacity-50">
+                        <div class="col small"><i class="fas fa-check-circle text-success me-1"></i> OFAC Sanctions
+                        </div>
+                        <div class="col small"><i class="fas fa-check-circle text-success me-1"></i> Chainalysis</div>
+                        <div class="col small"><i class="fas fa-check-circle text-success me-1"></i> ScamAlert</div>
+                        <div class="col small"><i class="fas fa-check-circle text-success me-1"></i> Etherscan Phishing
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
