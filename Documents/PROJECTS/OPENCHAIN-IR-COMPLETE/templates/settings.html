@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="text-light"><i class="bi bi-gear-fill me-2 text-primary"></i> System Settings</h2>
+        <p class="text-muted">Configure API keys, system preferences, and enabled modules.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- API Configuration -->
+    <div class="col-lg-6">
+        <div class="card cyber-card h-100">
+            <div class="card-header bg-transparent border-bottom border-secondary">
+                <h5 class="card-title text-light mb-0">API Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form action="/settings/update" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Etherscan API Key</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-secondary"><i
+                                    class="bi bi-key"></i></span>
+                            <input type="password" class="form-control bg-dark text-light border-secondary"
+                                name="etherscan_key" value="{{ config.get('ETHERSCAN_API_KEY', '') }}"
+                                placeholder="Enter API Key">
+                        </div>
+                        <div class="form-text text-secondary">Required for Ethereum, BSC, Polygon, etc.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Solana API Key (Solscan)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-secondary"><i
+                                    class="bi bi-sun"></i></span>
+                            <input type="password" class="form-control bg-dark text-light border-secondary"
+                                name="solana_key" value="{{ config.get('SOLANA_API_KEY', '') }}"
+                                placeholder="Enter API Key">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted">TronGrid API Key</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-secondary"><i
+                                    class="bi bi-triangle"></i></span>
+                            <input type="password" class="form-control bg-dark text-light border-secondary"
+                                name="tron_key" value="{{ config.get('TRON_API_KEY', '') }}"
+                                placeholder="Enter API Key">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted">AbuseIPDB Key</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-secondary"><i
+                                    class="bi bi-shield-lock"></i></span>
+                            <input type="password" class="form-control bg-dark text-light border-secondary"
+                                name="abuseipdb_key" value="{{ config.get('ABUSEIPDB_API_KEY', '') }}"
+                                placeholder="Enter API Key">
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Save Configuration</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="col-lg-6">
+        <div class="card cyber-card h-100">
+            <div class="card-header bg-transparent border-bottom border-secondary">
+                <h5 class="card-title text-light mb-0">System Modules</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush bg-transparent">
+                    <li
+                        class="list-group-item bg-transparent text-light border-secondary d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-diagram-3 me-2 text-info"></i> Multi-Chain Support
+                        </div>
+                        <span class="badge bg-success">Active</span>
+                    </li>
+                    <li
+                        class="list-group-item bg-transparent text-light border-secondary d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-robot me-2 text-warning"></i> AI Analysis (Gemini)
+                        </div>
+                        <span class="badge bg-success">Active</span>
+                    </li>
+                    <li
+                        class="list-group-item bg-transparent text-light border-secondary d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-shield-check me-2 text-danger"></i> Threat Intelligence
+                        </div>
+                        <span
+                            class="badge bg-{{ 'success' if config.get('THREAT_INTEL_V2_AVAILABLE') else 'secondary' }}">
+                            {{ 'Active' if config.get('THREAT_INTEL_V2_AVAILABLE') else 'Inactive' }}
+                        </span>
+                    </li>
+                    <li
+                        class="list-group-item bg-transparent text-light border-secondary d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-hdd-network me-2 text-primary"></i> Database Storage
+                        </div>
+                        <span class="badge bg-{{ 'success' if config.get('DB_AVAILABLE') else 'secondary' }}">
+                            {{ 'Connected' if config.get('DB_AVAILABLE') else 'Disconnected' }}
+                        </span>
+                    </li>
+                </ul>
+
+                <div class="mt-4">
+                    <h6 class="text-muted mb-2">Database Maintenance</h6>
+                    <button class="btn btn-outline-danger btn-sm w-100" onclick="confirmReset()">
+                        <i class="bi bi-trash me-1"></i> Clear All Case Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function confirmReset() {
+        if (confirm("DANGER: This will delete ALL cases and investigation data. Are you sure?")) {
+            // Implementation for data clear
+            alert("Feature disabled for safety in this demo.");
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row h-100">
+    <div class="col-12">
+        <div class="card cyber-card h-100"
+            style="min-height: 85vh; border: 1px solid #00f3ff; box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);">
+            <!-- Toolbar -->
+            <div
+                class="card-header bg-black border-bottom border-info d-flex justify-content-between align-items-center p-3">
+                <div class="d-flex align-items-center">
+                    <h5 class="card-title text-info mb-0 fw-bold me-3">
+                        <i class="bi bi-diagram-3-fill me-2"></i>ISOTOPE TRACER v2.0
+                    </h5>
+                    <span class="badge bg-dark border border-secondary text-muted font-monospace">PHYSICS_ENGINE:
+                        ACTIVE</span>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <!-- Mode Switch -->
+                    <div class="btn-group btn-group-sm me-2" role="group">
+                        <input type="radio" class="btn-check" name="traceMode" id="modeTrace" autocomplete="off" checked
+                            onclick="toggleMode('trace')">
+                        <label class="btn btn-outline-info" for="modeTrace"><i class="bi bi-search"></i> EXPLORE</label>
+
+                        <input type="radio" class="btn-check" name="traceMode" id="modePath" autocomplete="off"
+                            onclick="toggleMode('path')">
+                        <label class="btn btn-outline-warning" for="modePath"><i class="bi bi-signpost-2"></i>
+                            PATHFINDER</label>
+                    </div>
+
+                    <select id="chainSelect" class="form-select form-select-sm bg-black text-info border-info"
+                        style="width: 120px;">
+                        <option value="1">Ethereum</option>
+                        <option value="bitcoin">Bitcoin</option>
+                        <option value="solana">Solana</option>
+                        <option value="56">BSC</option>
+                        <option value="137">Polygon</option>
+                        <option value="10">Optimism</option>
+                        <option value="42161">Arbitrum</option>
+                    </select>
+
+                    <!-- TRACE INPUTS -->
+                    <div id="traceInputs" class="d-flex gap-2">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-black text-info border-info"><i
+                                    class="bi bi-hash"></i></span>
+                            <input type="text" id="traceAddress"
+                                class="form-control bg-black text-light border-info font-monospace"
+                                placeholder="Target Address (0x...)"
+                                value="{{ current_address if current_address else '' }}">
+                        </div>
+
+                        <div class="form-check form-switch d-flex align-items-center gap-2">
+                            <input class="form-check-input bg-dark border-info" type="checkbox" id="autoScanToggle">
+                            <label class="form-check-label text-info small fw-bold"
+                                for="autoScanToggle">AUTO-SCAN</label>
+                        </div>
+
+                        <button class="btn btn-sm btn-info fw-bold" onclick="startTrace()">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+
+                    <!-- PATHFINDER INPUTS -->
+                    <div id="pathInputs" class="d-none gap-2">
+                        <input type="text" id="pathSource"
+                            class="form-control form-control-sm bg-black text-light border-warning font-monospace"
+                            placeholder="Source Address" style="width: 200px;">
+                        <i class="bi bi-arrow-right text-warning align-self-center"></i>
+                        <input type="text" id="pathTarget"
+                            class="form-control form-control-sm bg-black text-light border-warning font-monospace"
+                            placeholder="Destination Address" style="width: 200px;">
+
+                        <button class="btn btn-sm btn-warning fw-bold" onclick="startPathFinder()">
+                            <i class="bi bi-play-fill"></i> FIND PATH
+                        </button>
+                    </div>
+
+                    <div class="btn-group btn-group-sm ms-2">
+                        <button class="btn btn-outline-secondary" onclick="runLayout()" title="Re-arrange"><i
+                                class="bi bi-cpu"></i></button>
+                        <button class="btn btn-outline-secondary" onclick="fitGraph()" title="Fit View"><i
+                                class="bi bi-arrows-fullscreen"></i></button>
+                        <button class="btn btn-outline-secondary" onclick="clearGraph()" title="Clear"><i
+                                class="bi bi-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Canvas Area -->
+            <div class="card-body p-0 position-relative bg-black" style="overflow: hidden;">
+                <!-- Grid Background -->
+                <div style="position: absolute; width: 100%; height: 100%; background: 
+                    linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+                    background-size: 40px 40px; pointer-events: none;">
+                </div>
+
+                <div id="cy" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;"></div>
+
+                <!-- HUD Overlay (Top Right) -->
+                <div id="nodeDetails" class="position-absolute end-0 top-0 m-3 p-3 cyber-glass"
+                    style="width: 320px; display: none; border-left: 2px solid #00f3ff; background: rgba(0,0,0,0.85);">
+                    <h6 class="text-info font-monospace mb-3 border-bottom border-secondary pb-2">TARGET_ANALYSIS</h6>
+
+                    <div id="nodeInfo" class="mb-3"></div>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-sm btn-outline-warning" onclick="expandNode()">
+                            <i class="bi bi-share me-2"></i>EXPAND CONNECTIONS
+                        </button>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-light" onclick="viewEtherscan()">Explorer</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="flagAddress()">Report</button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-sm btn-link text-muted w-100 mt-2 text-decoration-none"
+                        onclick="closeDetails()">
+                        [ DISMISS ]
+                    </button>
+                </div>
+
+                <!-- Status HUD (Bottom Left) -->
+                <div class="position-absolute bottom-0 start-0 m-3 p-2 font-monospace small text-muted"
+                    style="pointer-events: none;">
+                    <div>NODES: <span id="nodeCount" class="text-info">0</span></div>
+                    <div>EDGES: <span id="edgeCount" class="text-info">0</span></div>
+                </div>
+
+                <!-- Loading Overlay -->
+                <div id="loadingOverlay"
+                    class="position-absolute top-50 start-50 translate-middle text-center cyber-loader"
+                    style="display: none; background: rgba(0,0,0,0.9); padding: 2rem; border-radius: 10px; border: 1px solid #00f3ff; z-index: 9999;">
+                    <div class="spinner-border text-info mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+                    <div class="text-info font-monospace blink fs-5">SCANNING BLOCKCHAIN...</div>
+                    <div class="text-secondary small mt-2" id="loadingText"> querying remote nodes </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .cyber-glass {
+        backdrop-filter: blur(10px);
+        box-shadow: -5px 5px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .blink {
+        animation: blinker 1.5s linear infinite;
+    }
+
+    @keyframes blinker {
+        50% {
+            opacity: 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.23.0/cytoscape.min.js"></script>
+<script>
+    var cy;
+    var selectedNode = null;
+
+    // Cyber Color Palette
+    const COLORS = {
+        bg: '#000000',
+        node: '#444444',
+        root: '#00f3ff',     // Cyan
+        entity: '#00ff41',   // Hacker Green
+        risk: '#ff0055',     // Cyber Red
+        edge: '#005577',     // Dim Cyan
+        text: '#ffffff'
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+        initCy();
+
+        // Auto-load if address provided
+        const initialAddress = document.getElementById('traceAddress').value;
+        if (initialAddress) {
+            // Default to Auto-Scan for "Breadcrumbs" feel if it's the first load
+            document.getElementById('autoScanToggle').checked = true;
+            fetchData(initialAddress, true);
+        }
+
+        // Double click handler
+        cy.on('dbltap', 'node', function (evt) {
+            let node = evt.target;
+            expandNode(node);
+        });
+    });
+
+    function initCy() {
+        cy = cytoscape({
+            container: document.getElementById('cy'),
+            style: [
+                // CORE NODE STYLE
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': 'rgba(0,0,0,0.5)', // Transparent for icon
+                        'background-image': 'data(icon)',
+                        'background-fit': 'cover',
+                        'border-width': 2,
+                        'border-color': COLORS.root,
+                        'label': 'data(label)',
+                        'color': COLORS.text,
+                        'font-size': '10px',
+                        'font-family': 'monospace',
+                        'text-valign': 'bottom',
+                        'text-halign': 'center',
+                        'text-margin-y': 5,
+                        'width': 40,
+                        'height': 40,
+                        'text-outline-width': 2,
+                        'text-outline-color': '#000',
+                    }
+                },
+                // ROOT NODE (The Target)
+                {
+                    selector: 'node.root',
+                    style: {
+                        'border-width': 3,
+                        'border-color': COLORS.root,
+                        'width': 60,
+                        'height': 60,
+                        'font-size': '12px',
+                        'font-weight': 'bold',
+                        'shadow-blur': 25,
+                        'shadow-color': COLORS.root
+                    }
+                },
+                // SELECTED STATE
+                {
+                    selector: 'node:selected',
+                    style: {
+                        'border-width': 4,
+                        'border-color': '#fff',
+                        'shadow-blur': 30,
+                        'shadow-color': '#fff'
+                    }
+                },
+                // EDGE STYLE
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 2,
+                        'line-color': COLORS.edge,
+                        'target-arrow-color': COLORS.edge,
+                        'target-arrow-shape': 'triangle',
+                        'curve-style': 'bezier',
+                        'arrow-scale': 1.5,
+                        'opacity': 0.5
+                    }
+                },
+                // HIGH VALUE EDGES
+                {
+                    selector: 'edge[amount > 1.0]',
+                    style: {
+                        'width': 4,
+                        'line-color': '#00ff41',
+                        'target-arrow-color': '#00ff41',
+                        'opacity': 0.8
+                    }
+                }
+            ],
+            layout: {
+                name: 'grid' // Initial placeholder
+            }
+        });
+
+        // Event Listeners
+        cy.on('tap', 'node', function (evt) {
+            selectedNode = evt.target;
+            showDetails(selectedNode.data());
+
+            // Highlight neighbors
+            cy.elements().removeClass('active');
+            selectedNode.connectedEdges().animate({
+                style: { 'line-color': '#fff', 'width': 4 }
+            }, { duration: 200 });
+        });
+
+        cy.on('tap', function (evt) {
+            if (evt.target === cy) {
+                closeDetails();
+                selectedNode = null;
+            }
+        });
+    }
+
+    function startTrace() {
+        const address = document.getElementById('traceAddress').value;
+        if (address) {
+            fetchData(address, true); // true = reset graph
+        }
+    }
+
+    function toggleMode(mode) {
+        if (mode === 'trace') {
+            document.getElementById('traceInputs').classList.remove('d-none');
+            document.getElementById('traceInputs').classList.add('d-flex');
+            document.getElementById('pathInputs').classList.add('d-none');
+            document.getElementById('pathInputs').classList.remove('d-flex');
+        } else {
+            document.getElementById('traceInputs').classList.add('d-none');
+            document.getElementById('traceInputs').classList.remove('d-flex');
+            document.getElementById('pathInputs').classList.remove('d-none');
+            document.getElementById('pathInputs').classList.add('d-flex');
+        }
+    }
+
+    function startPathFinder() {
+        const source = document.getElementById('pathSource').value;
+        const target = document.getElementById('pathTarget').value;
+        const chain = document.getElementById('chainSelect').value;
+
+        if (!source || !target) {
+            alert("Please enter both Source and Destination addresses.");
+            return;
+        }
+
+        showLoader(true);
+        document.getElementById('loadingText').innerText = "Calculating path (Top 5 breadth)...";
+
+        fetch(`/api/pathfinder?source=${source}&target=${target}&chain=${chain}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+
+                cy.elements().remove();
+                cy.add(data);
+                updateStats();
+
+                // Use breadthfirst layout for path
+                const layout = cy.layout({
+                    name: 'breadthfirst',
+                    directed: true,
+                    padding: 50,
+                    spacingFactor: 1.5,
+                    animate: true
+                });
+                layout.run();
+
+                showLoader(false);
+            })
+            .catch(err => {
+                console.error(err);
+                alert("PathFinder Failed: " + err.message);
+                showLoader(false);
+            });
+    }
+
+    function fetchData(address, reset = false) {
+        showLoader(true);
+        const chainId = document.getElementById('chainSelect').value;
+        const autoScan = document.getElementById('autoScanToggle').checked;
+
+        let url = `/api/trace/${address}?chain=${chainId}`;
+        if (autoScan) {
+            url += `&auto=true`;
+            document.getElementById('loadingText').innerText = "Scanning Ethereum, BSC, Polygon, Optimism & Arbitrum...";
+        } else {
+            document.getElementById('loadingText').innerText = `Scanning chain ${chainId}...`;
+        }
+
+        console.log(`[Trace] Fetching ${url}...`);
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+
+                if (reset) cy.elements().remove();
+
+                cy.add(data);
+                updateStats();
+                runLayout();
+
+                // Auto-Explosion Effect if reset
+                if (reset && cy.nodes().length > 1) {
+                    setTimeout(() => {
+                        const root = cy.nodes('.root');
+                        flashNode(root);
+                    }, 1000);
+                }
+
+                showLoader(false);
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Trace Failed: " + err.message);
+                showLoader(false);
+            });
+    }
+
+    // PHYSICS LAYOUT ENGINE
+    function runLayout() {
+        const layout = cy.layout({
+            name: 'cose',
+            animate: true,
+            animationDuration: 1500,
+            animationEasing: 'ease-out-cubic',
+            fit: true,
+            padding: 50,
+            randomize: true, // Randomize start for explosive effect
+            componentSpacing: 100,
+            nodeRepulsion: function (node) { return 600000; }, // Higher repulsion
+            nodeOverlap: 20,
+            idealEdgeLength: function (edge) { return 150; },
+            edgeElasticity: function (edge) { return 100; },
+            nestingFactor: 5,
+            gravity: 50,
+            numIter: 1000,
+            initialTemp: 200,
+            coolingFactor: 0.95,
+            minTemp: 1.0
+        });
+        layout.run();
+    }
+
+    function flashNode(node) {
+        node.animation({
+            style: { 'width': 80, 'height': 80, 'border-width': 10, 'border-color': '#fff' },
+            duration: 300
+        }).play().promise().then(() => {
+            node.animation({
+                style: { 'width': 60, 'height': 60, 'border-width': 3, 'border-color': COLORS.root },
+                duration: 500
+            }).play();
+        });
+    }
+
+    function expandNode(node = selectedNode) {
+        if (!node) return;
+        flashNode(node);
+        const address = node.data('full_address');
+        fetchData(address, false); // false = append
+    }
+
+    function showDetails(data) {
+        const info = document.getElementById('nodeInfo');
+        info.innerHTML = `
+            <div class="row g-2 small">
+                <div class="col-12 text-center mb-3">
+                    <img src="${data.icon}" width="64" height="64" class="rounded-circle border border-info p-1">
+                </div>
+                <div class="col-4 text-muted">ADDRESS:</div>
+                <div class="col-8 text-light text-break font-monospace">${data.full_address}</div>
+                
+                <div class="col-4 text-muted">TYPE:</div>
+                <div class="col-8"><span class="badge bg-secondary border border-secondary text-light">${data.type ? data.type.toUpperCase() : 'UNKNOWN'}</span></div>
+                
+                <div class="col-4 text-muted">RISK:</div>
+                <div class="col-8">
+                    <div class="progress" style="height: 10px; background: #333;">
+                        <div class="progress-bar ${data.risk > 50 ? 'bg-danger' : 'bg-success'}" 
+                             role="progressbar" style="width: ${data.risk}%"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('nodeDetails').style.display = 'block';
+    }
+
+    function closeDetails() {
+        document.getElementById('nodeDetails').style.display = 'none';
+        selectedNode = null;
+    }
+
+    function updateStats() {
+        document.getElementById('nodeCount').innerText = cy.nodes().length;
+        document.getElementById('edgeCount').innerText = cy.edges().length;
+    }
+
+    function showLoader(show) {
+        document.getElementById('loadingOverlay').style.display = show ? 'block' : 'none';
+    }
+
+    function fitGraph() { cy.fit(50); }
+    function clearGraph() { cy.elements().remove(); updateStats(); }
+
+    function viewEtherscan() {
+        if (selectedNode) window.open(`https://etherscan.io/address/${selectedNode.data('full_address')}`, '_blank');
+    }
+
+    function flagAddress() {
+        alert("Report submitted to Threat Intel module.");
+    }
+</script>
+{% endblock %}

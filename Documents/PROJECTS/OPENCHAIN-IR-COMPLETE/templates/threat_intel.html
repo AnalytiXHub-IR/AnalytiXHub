@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="text-light"><i class="bi bi-shield-exclamation me-2 text-danger"></i> Threat Intelligence</h2>
+        <p class="text-muted">Real-time threat detection and known entity matching.</p>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card cyber-card border-danger h-100">
+            <div class="card-body text-center">
+                <h6 class="text-danger mb-2">High Risk Entities</h6>
+                <div class="display-4 fw-bold text-light">{{ threat.high_risk_count|default(0) }}</div>
+                <div class="small text-muted">Detected in active case</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card cyber-card border-warning h-100">
+            <div class="card-body text-center">
+                <h6 class="text-warning mb-2">Suspicious Activities</h6>
+                <div class="display-4 fw-bold text-light">{{ anomalies|length|default(0) }}</div>
+                <div class="small text-muted">ML detected anomalies</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card cyber-card border-info h-100">
+            <div class="card-body text-center">
+                <h6 class="text-info mb-2">Intelligence Sources</h6>
+                <div class="display-4 fw-bold text-light">4</div>
+                <div class="small text-muted">AbuseIPDB, Etherscan, OFAC, Cryptoscamdb</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="row g-4">
+    <!-- Threat List -->
+    <div class="col-lg-8">
+        <div class="card cyber-card h-100">
+            <div class="card-header bg-transparent border-bottom border-secondary">
+                <h5 class="card-title text-light mb-0">Detected Threats</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0" style="background: transparent;">
+                        <thead>
+                            <tr>
+                                <th class="border-secondary">Entity / Address</th>
+                                <th class="border-secondary">Risk Type</th>
+                                <th class="border-secondary">Score</th>
+                                <th class="border-secondary">Source</th>
+                                <th class="border-secondary">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if threat.data %}
+                            {% for item in threat.data %}
+                            <tr>
+                                <td class="font-monospace text-light">{{ item.address[:10] }}...</td>
+                                <td><span class="badge bg-danger">{{ item.type }}</span></td>
+                                <td>
+                                    <div class="progress" style="height: 6px; width: 60px;">
+                                        <div class="progress-bar bg-danger" role="progressbar"
+                                            style="width: {{ item.score }}%"></div>
+                                    </div>
+                                </td>
+                                <td class="text-muted small">{{ item.source }}</td>
+                                <td><button class="btn btn-xs btn-outline-light">Details</button></td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    No threats detected in current scope.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Anomaly Feed -->
+    <div class="col-lg-4">
+        <div class="card cyber-card h-100">
+            <div class="card-header bg-transparent border-bottom border-secondary">
+                <h5 class="card-title text-light mb-0">Anomaly Feed</h5>
+            </div>
+            <div class="card-body">
+                {% if anomalies %}
+                <div class="timeline">
+                    {% for anomaly in anomalies %}
+                    <div class="mb-3 pb-3 border-bottom border-secondary">
+                        <div class="d-flex justify-content-between">
+                            <span class="badge bg-warning text-dark mb-1">{{ anomaly.type }}</span>
+                            <small class="text-muted">{{ anomaly.timestamp }}</small>
+                        </div>
+                        <p class="text-light small mb-1">{{ anomaly.description }}</p>
+                        <small class="text-muted font-monospace">{{ anomaly.address[:8] }}...</small>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-activity p-3 rounded-circle bg-dark fs-2 text-secondary mb-3 d-inline-block"></i>
+                    <p>No anomalies detected</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenChain IR | Cyber Investigation Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+</head>
+
+<body class="cyber-theme">
+
+    <div class="d-flex" id="wrapper">
+        <!-- Sidebar -->
+        <div class="bg-dark border-end border-secondary" id="sidebar-wrapper">
+            <div class="sidebar-heading border-bottom border-secondary bg-black">
+                <div class="brand-text">OPENCHAIN <span class="text-primary">IR</span></div>
+                <div class="small text-muted mt-1">v4.0 Cyber Intelligence</div>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="/"
+                    class="list-group-item list-group-item-action bg-dark text-light p-3 border-secondary {% if active_page == 'dashboard' %}active{% endif %}">
+                    <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                </a>
+                <a href="/cases"
+                    class="list-group-item list-group-item-action bg-dark text-light p-3 border-secondary {% if active_page == 'cases' %}active{% endif %}">
+                    <i class="bi bi-folder2-open me-2"></i> Case Management
+                </a>
+                <a href="/investigation"
+                    class="list-group-item list-group-item-action bg-dark text-light p-3 border-secondary {% if active_page == 'investigation' %}active{% endif %}">
+                    <i class="bi bi-search me-2"></i> Investigation
+                </a>
+                <a href="/tracing"
+                    class="list-group-item list-group-item-action bg-dark text-light p-3 border-secondary {% if active_page == 'tracing' %}active{% endif %}">
+                    <i class="bi bi-share me-2"></i> Visual Tracing
+                </a>
+                <a href="/threat-intel"
+                    class="list-group-item list-group-item-action bg-dark text-light p-3 border-secondary {% if active_page == 'threat' %}active{% endif %}">
+                    <i class="bi bi-shield-exclamation me-2"></i> Threat Intel
+                </a>
+                <a href="/monitoring"
+                    class="list-group-item list-group-item-action bg-dark text-light p-3 border-secondary {% if active_page == 'monitoring' %}active{% endif %}">
+                    <i class="bi bi-eye me-2"></i> Monitoring
+                </a>
+                <a href="/settings"
+                    class="list-group-item list-group-item-action bg-dark text-light p-3 border-secondary {% if active_page == 'settings' %}active{% endif %}">
+                    <i class="bi bi-gear me-2"></i> Settings
+                </a>
+            </div>
+
+            <div class="sidebar-footer p-3 border-top border-secondary">
+                <div class="d-flex align-items-center">
+                    <div class="avatar bg-primary text-white rounded-circle me-2 d-flex align-items-center justify-content-center"
+                        style="width: 32px; height: 32px;">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <div>
+                        <div class="small fw-bold">Investigator</div>
+                        <div class="small text-muted" style="font-size: 0.75rem;">Online</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page Content -->
+        <div id="page-content-wrapper" class="w-100">
+            <nav class="navbar navbar-expand-lg navbar-dark bg-black border-bottom border-secondary mb-4">
+                <div class="container-fluid">
+                    <button class="btn btn-outline-secondary" id="menu-toggle"><i class="bi bi-list"></i></button>
+
+                    <div class="ms-auto d-flex align-items-center">
+                        <div class="dropdown me-3">
+                            <button class="btn btn-outline-warning btn-sm dropdown-toggle" type="button"
+                                id="activeCaseDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-briefcase-fill me-1"></i>
+                                {% if current_case_context %}
+                                {{ current_case_context.name }}
+                                {% else %}
+                                No Active Case
+                                {% endif %}
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end"
+                                aria-labelledby="activeCaseDropdown">
+                                <li>
+                                    <h6 class="dropdown-header">Active Case</h6>
+                                </li>
+                                {% if current_case_context %}
+                                <li><a class="dropdown-item" href="/cases/{{ current_case_context.id }}">View
+                                        Details</a></li>
+                                <li><a class="dropdown-item text-warning" href="/cases/close">Close Case</a></li>
+                                {% else %}
+                                <li><a class="dropdown-item" href="/cases/create">Create New Case</a></li>
+                                {% endif %}
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item" href="/cases">Switch Case...</a></li>
+                            </ul>
+                        </div>
+                        <span class="badge bg-secondary me-2">ETH: $2,450.00</span>
+                        <span class="badge bg-success">System: Operational</span>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="container-fluid px-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show"
+                    role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        var el = document.getElementById("wrapper");
+        var toggleButton = document.getElementById("menu-toggle");
+
+        toggleButton.onclick = function () {
+            el.classList.toggle("toggled");
+        };
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>
