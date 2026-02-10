@@ -203,59 +203,74 @@
                 {
                     selector: 'node',
                     style: {
-                        'background-color': 'rgba(0,0,0,0.5)', // Transparent for icon
+                        'background-color': 'rgba(0,0,0,0.8)',
                         'background-image': 'data(icon)',
-                        'background-fit': 'cover',
+                        'background-fit': 'contain', // Better icon fit
                         'border-width': 2,
-                        'border-color': COLORS.root,
+                        // Dynamic Border Color based on Risk
+                        'border-color': function (ele) {
+                            const risk = ele.data('risk') || 0;
+                            if (risk >= 90) return '#ff0000'; // Critical (Red)
+                            if (risk >= 70) return '#ff5e00'; // High (Orange)
+                            if (risk >= 50) return '#ffcc00'; // Suspicious (Yellow)
+                            return '#00f3ff'; // Clean (Cyan)
+                        },
                         'label': 'data(label)',
-                        'color': COLORS.text,
-                        'font-size': '10px',
-                        'font-family': 'monospace',
+                        'color': '#ffffff',
+                        'font-size': '11px',
+                        'font-family': 'Consolas, monospace',
                         'text-valign': 'bottom',
                         'text-halign': 'center',
-                        'text-margin-y': 5,
-                        'width': 40,
-                        'height': 40,
-                        'text-outline-width': 2,
-                        'text-outline-color': '#000',
+                        'text-margin-y': 6,
+                        'text-background-color': '#000000',
+                        'text-background-opacity': 0.7,
+                        'text-background-padding': 2,
+                        'text-background-shape': 'roundrectangle',
+                        'width': 45,
+                        'height': 45,
+                        'transition-property': 'background-color, border-color, width, height',
+                        'transition-duration': '0.3s'
                     }
                 },
                 // ROOT NODE (The Target)
                 {
                     selector: 'node.root',
                     style: {
-                        'border-width': 3,
-                        'border-color': COLORS.root,
-                        'width': 60,
-                        'height': 60,
-                        'font-size': '12px',
+                        'border-width': 4,
+                        'border-color': '#fff', // White highlight
+                        'width': 65,
+                        'height': 65,
+                        'font-size': '13px',
                         'font-weight': 'bold',
-                        'shadow-blur': 25,
-                        'shadow-color': COLORS.root
+                        'shadow-blur': 30,
+                        'shadow-color': '#00f3ff',
+                        'background-color': 'rgba(0, 243, 255, 0.2)'
                     }
                 },
-                // SELECTED STATE
+                // HIGH RISK NODES (Pulse effect via style class if possible, or just visual pop)
                 {
-                    selector: 'node:selected',
+                    selector: 'node[risk >= 90]',
                     style: {
-                        'border-width': 4,
-                        'border-color': '#fff',
-                        'shadow-blur': 30,
-                        'shadow-color': '#fff'
+                        'shadow-blur': 20,
+                        'shadow-color': '#ff0000',
+                        'border-width': 3
                     }
                 },
                 // EDGE STYLE
                 {
                     selector: 'edge',
                     style: {
-                        'width': 2,
-                        'line-color': COLORS.edge,
-                        'target-arrow-color': COLORS.edge,
+                        'width': 1.5,
+                        'line-color': '#005577',
+                        'target-arrow-color': '#005577',
                         'target-arrow-shape': 'triangle',
                         'curve-style': 'bezier',
-                        'arrow-scale': 1.5,
-                        'opacity': 0.5
+                        'arrow-scale': 1.2,
+                        'label': 'data(label)',
+                        'color': '#aaaaaa',
+                        'font-size': '9px',
+                        'text-background-color': '#000',
+                        'text-background-opacity': 0.8
                     }
                 },
                 // HIGH VALUE EDGES

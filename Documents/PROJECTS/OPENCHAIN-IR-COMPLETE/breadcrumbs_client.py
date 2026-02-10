@@ -113,18 +113,20 @@ class BreadcrumbsClient:
             else: continue
             
             if neighbor in nodes: continue
-            
             # Add Node
-            elements.append({
-                "data": {
-                    "id": neighbor,
-                    "label": f"{neighbor[:6]}...",
-                    "full_address": neighbor,
-                    "type": "entity",
-                    "risk": random.randint(0, 100) # Placeholder until ThreatIntel lookup
-                }
-            })
-            nodes.add(neighbor)
+            if neighbor not in nodes:
+                meta = self._enrich_node(neighbor)
+                elements.append({
+                    "data": {
+                        "id": neighbor,
+                        "label": meta['label'],
+                        "full_address": neighbor,
+                        "type": meta['type'],
+                        "risk": meta['risk'],
+                        "icon": meta['icon']
+                    }
+                })
+                nodes.add(neighbor)
             
             # Add Edge
             edge_id = f"{hash_}_{frm}_{to}"
@@ -203,3 +205,44 @@ class BreadcrumbsClient:
                     print(f"Chain scan error: {e}")
                     
         return all_elements
+
+    def _enrich_node(self, address):
+        """
+        Return metadata (icon, type, risk) for an address.
+        Includes HARDCODED intelligence for the Wannacry demo.
+        """
+        address = address.lower()
+        
+        # WANNACRY KNOWN ADDRESSES
+        wannacry_list = [
+            '13am4vw2dhxygxeqepohkhsquy6ngaeb94',
+            '12t9ydpgwuez9nymgw519p7aa8isjr6smw',
+            '115p7ummngoj1pmvkphijcrdfjnxj6lrln'
+        ]
+        
+        if address in wannacry_list:
+            return {
+                'type': 'ransomware',
+                'risk': 100,
+                'icon': 'https://img.icons8.com/fluency/48/hacker.png',
+                'label': f"WANNACRY ACTOR {address[:4]}"
+            }
+            
+        # KNOWN EXCHANGES (Simulation)
+        if address.startswith('1ndy') or address.startswith('0xbinance'):
+            return {
+                'type': 'exchange',
+                'risk': 10,
+                'icon': 'https://img.icons8.com/fluency/48/bank-building.png',
+                'label': "Binance Hot Wallet"
+            }
+            
+        # Default
+        return {
+            'type': 'wallet',
+            'risk': random.randint(0, 40), # Random low risk
+            'icon': 'https://img.icons8.com/fluency/48/user-location.png',
+            'label': f"{address[:6]}...{address[-4:]}"
+        }
+
+    # ... (Update get_graph_data to use _enrich_node) ...
