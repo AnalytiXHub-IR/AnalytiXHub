@@ -1,0 +1,3 @@
+DEBUG: MultiChainFetcher file: C:\Users\kollu\Documents\PROJECTS\OPENCHAIN-IR-COMPLETE\modules\fetchers\multi_chain.py
+DEBUG: BlockCypher Token: ba0c6f917baf4f5186ac1e5e62acc475
+Testing Backend Integration for: DH5yaieqoZN36fDVciNyRueRGvGLR3mr7L

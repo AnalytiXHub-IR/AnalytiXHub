@@ -38,6 +38,7 @@
                         <option value="137">Polygon</option>
                         <option value="10">Optimism</option>
                         <option value="42161">Arbitrum</option>
+                        <option value="dogecoin">Dogecoin</option>
                     </select>
 
                     <!-- TRACE INPUTS -->
@@ -548,6 +549,8 @@
             url = `https://bscscan.com/address/${address}`;
         } else if (chain === '137') {
             url = `https://polygonscan.com/address/${address}`;
+        } else if (chain === 'dogecoin' || chain === 'doge') {
+            url = `https://dogechain.info/address/${address}`;
         }
 
         window.open(url, '_blank');

@@ -229,7 +229,7 @@ def analyze_live_eth(txlist, root_address, start_date=None, end_date=None, chain
         chain_id: Blockchain chain ID (1=Ethereum, 56=BSC, etc.)
         chain_name: Human-readable chain name
     """
-    G = nx.DiGraph()
+    G = nx.MultiDiGraph()
     filtered_txs = []
     
     start_ts = get_safe_timestamp(start_date, 0.0)

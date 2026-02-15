@@ -915,7 +915,50 @@ def api_trace(address):
     from modules.utils.pathfinder import PathFinder
     
     # Get chain_id from query (default to 1 'Ethereum')
-    chain_id = request.args.get('chain', 1)
+    chain_arg = request.args.get('chain', '1')
+    
+    # Check for Dogecoin
+    if str(chain_arg).lower() in ['dogecoin', 'doge']:
+        try:
+            from modules.fetchers.multi_chain import MultiChainFetcher
+            txs, _ = MultiChainFetcher.fetch_by_chain('dogecoin', address)
+            
+            # Convert to Cytoscape Elements
+            elements = []
+            # Add Root
+            elements.append({
+                'data': {'id': address, 'label': address[:8], 'full_address': address, 'type': 'root', 'risk': 0, 'icon': '/static/images/doge_icon.png'}
+            })
+            
+            for tx in txs:
+                sender = tx.get('from')
+                receiver = tx.get('to')
+                val = tx.get('value', 0)
+                
+                # Add Nodes
+                if sender and sender != address:
+                     elements.append({'data': {'id': sender, 'label': sender[:8], 'full_address': sender, 'type': 'wallet', 'risk': 0}})
+                if receiver and receiver != address:
+                     elements.append({'data': {'id': receiver, 'label': receiver[:8], 'full_address': receiver, 'type': 'wallet', 'risk': 0}})
+                     
+                # Add Edge
+                edge_id = f"{sender}_{receiver}_{tx.get('hash')}"
+                elements.append({
+                    'data': {
+                        'id': edge_id,
+                        'source': sender,
+                        'target': receiver,
+                        'label': f"{val:.2f} DOGE",
+                        'amount': val,
+                        'hash': tx.get('hash')
+                    }
+                })
+            
+            return jsonify(elements)
+        except Exception as e:
+             return jsonify({"error": str(e)}), 500
+
+    chain_id = chain_arg
     auto_mode = request.args.get('auto', 'false').lower() == 'true'
     
     client = BreadcrumbsClient(ETHERSCAN_KEY)
@@ -1193,11 +1236,46 @@ def api_graph_data():
         client = BreadcrumbsClient(etherscan_key=ETHERSCAN_KEY, breadcrumbs_key=BREADCRUMBS_KEY)
         
         # Determine chain_id for MultiChain fallback if needed in Client
+        # Determine chain_id for MultiChain fallback if needed in Client
         from modules.fetchers.eth_live import SUPPORTED_CHAINS
         chain_id = SUPPORTED_CHAINS.get(chain.lower(), 1)
         if chain.lower() == 'bitcoin': chain_id = 0 # Dummy ID for non-EVM
         if chain.lower() == 'solana': chain_id = -1
         if chain.lower() == 'tron': chain_id = -2
+        
+        # DOGECOIN HANDLER
+        if chain.lower() in ['dogecoin', 'doge']:
+             print(f"[Investigator] Fetching Dogecoin graph for {address}...")
+             from modules.fetchers.multi_chain import MultiChainFetcher
+             txs, _ = MultiChainFetcher.fetch_by_chain('dogecoin', address)
+             
+             # Convert to Cytoscape (Investigator format)
+             elements = []
+             # Root
+             elements.append({'data': {'id': address, 'label': address[:6], 'full_address': address, 'type': 'root', 'chain': 'dogecoin', 'risk': 0}, 'classes': 'root'})
+             
+             for tx in txs:
+                 sender = tx.get('from', 'Unknown')
+                 receiver = tx.get('to', 'Unknown')
+                 val = tx.get('value', 0)
+                 
+                 # Add Nodes
+                 if sender != address:
+                     elements.append({'data': {'id': sender, 'label': sender[:6], 'full_address': sender, 'type': 'wallet', 'chain': 'dogecoin', 'risk': 10}})
+                 if receiver != address:
+                     elements.append({'data': {'id': receiver, 'label': receiver[:6], 'full_address': receiver, 'type': 'wallet', 'chain': 'dogecoin', 'risk': 10}})
+                     
+                 # Add Edge
+                 elements.append({
+                     'data': {
+                         'id': f"{sender}_{receiver}_{tx.get('hash', '')[:5]}", 
+                         'source': sender, 
+                         'target': receiver,
+                         'label': f"{val:.1f} DOGE",
+                         'value': val
+                     }
+                 })
+             return jsonify({"elements": elements})
         
         print(f"[Investigator] Fetching graph for {address} on {chain}...")
         elements = client.get_graph_data(address, chain_id=chain_id)

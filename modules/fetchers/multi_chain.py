@@ -70,6 +70,181 @@ class BlockScoutFetcher:
             print(f"❌ BlockScout {chain} error: {e}")
             return [], counts
 
+# ==================== BLOCKCYPHER API (Dogecoin) ====================
+
+class BlockCypherFetcher:
+    """Fetch Dogecoin transactions via BlockCypher API"""
+    
+    BASE_URL = "https://api.blockcypher.com/v1/doge/main"
+    # Token provided by user: Limit 3 req/sec, 100/hr, 1000/day
+    API_TOKEN =  os.getenv('BLOCKCYPHER_TOKEN', "ba0c6f917baf4f5186ac1e5e62acc475")
+    
+    @staticmethod
+    def fetch_transactions(address: str) -> Tuple[List[Dict], Dict]:
+        transactions = []
+        counts = {'normal': 0}
+        
+        try:
+            print(f"[+] Fetching Dogecoin data from BlockCypher for {address[:8]}...")
+            
+            # Pagination loop
+            has_more = True
+            before_bh = None
+            total_fetched = 0
+            MAX_FETCH = 5000 # Capture everything for the user's "1600-1700 txs" case
+            
+            while has_more and total_fetched < MAX_FETCH:
+                # Construct URL - Try to fetch MAX in one go to save API calls
+                # BlockCypher allows high limits with key
+                # We use 2000 as it's a safe high limit common in APIs
+                base = f"{BlockCypherFetcher.BASE_URL}/addrs/{address}/full?token={BlockCypherFetcher.API_TOKEN}&limit=2000"
+                if before_bh:
+                    base += f"&before={before_bh}"
+                    
+                print(f"[DEBUG] Fetching Batch: {base}")
+                
+                # Retry Logic
+                max_retries = 3
+                response = None
+                
+                for attempt in range(max_retries):
+                    try:
+                        # Rate limit (be conservative)
+                        time.sleep(1.1) 
+                        response = requests.get(base, timeout=30)
+                        
+                        if response.status_code == 429:
+                            wait_time = (attempt + 1) * 3 # 3s, 6s, 9s
+                            print(f"⚠️ BlockCypher Rate Limit (429). Waiting {wait_time}s...")
+                            time.sleep(wait_time)
+                            continue # Retry
+                        
+                        if response.status_code == 200:
+                            break # Success
+                        else:
+                            print(f"❌ BlockCypher Error: {response.status_code}")
+                            response = None # Mark as failed
+                            break # Don't retry other errors
+                            
+                    except Exception as e:
+                        print(f"⚠️ Network Error: {e}")
+                        time.sleep(2)
+                
+                # If failed after retries
+                if not response or response.status_code != 200:
+                    print("❌ Failed to fetch batch after retries.")
+                    break
+                    
+                data = response.json()
+                batch = data.get('txs', [])
+                
+                if not batch:
+                    has_more = False
+                    break
+                    
+                for tx in batch:
+                    # BlockCypher Time Format: 2021-04-16T14:45:04Z
+                    tx_time_str = tx.get('confirmed', datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'))
+                    try:
+                        dt = datetime.strptime(tx_time_str, '%Y-%m-%dT%H:%M:%SZ')
+                        formatted_time = dt.strftime('%Y-%m-%d %H:%M:%S')
+                    except:
+                        formatted_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        
+                    # Calculate value flow and identify counterparty
+                    total_input = 0
+                    total_output = 0
+                    flow = 'unknown'
+                    
+                    inputs = tx.get('inputs', [])
+                    outputs = tx.get('outputs', [])
+                    
+                    # Check inputs (did we send?)
+                    for curr_input in inputs:
+                         if address in curr_input.get('addresses', []):
+                             total_input += curr_input.get('output_value', 0)
+                             
+                    # Check outputs (did we receive?)
+                    for curr_output in outputs:
+                        if address in curr_output.get('addresses', []):
+                            total_output += curr_output.get('value', 0)
+                            
+                    net_change = total_output - total_input
+                    
+                    sender = "Unknown"
+                    receiver = "Unknown"
+                    
+                    if net_change > 0:
+                        val = net_change / 1e8 # Satoshis to DOGE
+                        flow = 'in'
+                        # Sender is NOT us (inputs)
+                        other_addresses = []
+                        for inp in inputs:
+                            for addr in inp.get('addresses', []):
+                                if addr != address:
+                                    other_addresses.append(addr)
+                        sender = other_addresses[0] if other_addresses else "Unknown" # Take first for simplicity
+                        receiver = address
+                        
+                    else:
+                        val = abs(net_change) / 1e8
+                        flow = 'out'
+                        # Receiver is NOT us (outputs)
+                        other_addresses = []
+                        for out in outputs:
+                            for addr in out.get('addresses', []):
+                                if addr != address:
+                                    other_addresses.append(addr)
+                        receiver = other_addresses[0] if other_addresses else "Unknown"
+                        sender = address
+                        
+                    transactions.append({
+                        'hash': tx.get('hash'),
+                        'timestamp': formatted_time,
+                        'value': val,
+                        'from': sender,
+                        'to': receiver,
+                        'chain': 'dogecoin',
+                        'type': 'doge',
+                        'block': tx.get('block_height')
+                    })
+                
+                total_fetched += len(batch)
+                
+                # PAGINATION FIX:
+                # API might return fewer than 'limit' if its internal max is lower (e.g. 50 vs 2000).
+                # We should only stop if we got 0 results.
+                if len(batch) == 0:
+                    print("[-] Batch empty. Stopping.")
+                    has_more = False
+                else:
+                    # Logic to determine next 'before'
+                    # Get lowest block height in this batch
+                    min_block = min([t.get('block_height', 999999999) for t in batch])
+                    
+                    # If we aren't making progress (min_block is same as before), we might be stuck or at end
+                    if before_bh and min_block >= before_bh:
+                         print("[-] Pagination stuck at block height. Stopping.")
+                         has_more = False
+                    else:     
+                        before_bh = min_block
+                        # Also check if we've fetched everything predicted by n_tx? 
+                        # No, rely on clean batch end.
+                        
+                    # Also stop if batch is significantly small (e.g. < 5) AND likely end?
+                    # No, let's keep going until 0 or limit.
+                    # But if API returns 10 items every time, we need to keep going.
+                    pass
+                    
+            counts['normal'] = len(transactions)
+            print(f"✅ Dogecoin (BlockCypher): {counts['normal']} transactions (Paginated)")
+                
+            return transactions, counts
+            
+        except Exception as e:
+            print(f"❌ Dogecoin fetch error: {e}")
+            return [], counts
+
 # ==================== ETHERSCAN v2 API (All EVM Chains) ====================
 
 class EtherscanMultiChainFetcher:
@@ -657,6 +832,9 @@ class MultiChainFetcher:
             return TronFetcher.fetch_transactions(address)
         elif chain in ['xrp', 'ripple']:
             return XRPLFetcher.fetch_transactions(address)
+        elif chain in ['dogecoin', 'doge']:
+            # Use BlockCypher with Pagination (Free Tier friendly)
+            return BlockCypherFetcher.fetch_transactions(address)
             
         else:
             print(f"⚠️ Unsupported chain '{chain}', defaulting to empty")
@@ -671,6 +849,7 @@ class MultiChainFetcher:
             'solana': f'https://solscan.io/account/{address}',
             'tron': f'https://tronscan.org/#/address/{address}',
             'xrp': f'https://xrpscan.com/account/{address}',
+            'dogecoin': f'https://dogechain.info/address/{address}',
         }
         return explorers.get(chain, '#')
 
