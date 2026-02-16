@@ -271,6 +271,7 @@
         cy.on('tap', 'node', function (evt) {
             var node = evt.target;
             var data = node.data();
+            var isRoot = data.type === 'root';
 
             // Cyber-styled details panel
             var riskColor = data.risk > 70 ? 'text-danger' : (data.risk > 30 ? 'text-warning' : 'text-success');
@@ -286,6 +287,13 @@
                     <div class="mb-2"><span class="text-muted small text-uppercase">Address</span><br><span class="font-monospace small">${data.full_address}</span></div>
                     <div class="mb-2"><span class="text-muted small text-uppercase">Type</span><br><span class="badge border border-secondary text-light">${data.type.toUpperCase()}</span></div>
                     <div><span class="text-muted small text-uppercase">Risk Score</span> <span class="${riskColor} fw-bold float-end">${data.risk}/100</span>${riskBar}</div>
+                    ${!isRoot ? `
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-info w-100" onclick="showRelations('${data.full_address}')">
+                            <i class="bi bi-diagram-3"></i> See Relation with Target
+                        </button>
+                    </div>
+                    ` : ''}
                 </div>
             `;
             document.getElementById('nodeDetails').innerHTML = details;
@@ -331,10 +339,63 @@
 
                 })
                 .catch(err => {
-                    document.getElementById('loading').classList.add('d-none');
+                    document.getElementById('loadingSpinner').style.display = 'none';
                     console.error(err);
                 });
         });
+
+        // Show relations function
+        window.showRelations = function (nodeAddress) {
+            const targetAddress = document.getElementById('targetAddress').value;
+            const chain = document.getElementById('targetChain').value;
+
+            if (!targetAddress) {
+                alert('No target address set. Please run an investigation first.');
+                return;
+            }
+
+            fetch(`/api/relations?source=${encodeURIComponent(nodeAddress)}&target=${encodeURIComponent(targetAddress)}&chain=${chain}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+
+                    document.getElementById('relationInfo').innerHTML = `
+                        <div class="alert alert-info">
+                            <strong>${data.count}</strong> transaction(s) between<br>
+                            <code class="text-light small">${nodeAddress}</code> and <code class="text-light small">${targetAddress}</code>
+                        </div>
+                    `;
+
+                    const tbody = document.getElementById('relationTableBody');
+                    tbody.innerHTML = '';
+
+                    if (data.transactions.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No direct transactions found</td></tr>';
+                    } else {
+                        data.transactions.forEach(tx => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td><code class="small">${tx.hash}</code></td>
+                                <td><code class="small">${tx.from}</code></td>
+                                <td><code class="small">${tx.to}</code></td>
+                                <td>${tx.value}</td>
+                                <td><span class="badge ${tx.direction === 'outgoing' ? 'bg-danger' : 'bg-success'}">${tx.direction}</span></td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    }
+
+                    const modal = new bootstrap.Modal(document.getElementById('relationModal'));
+                    modal.show();
+                })
+                .catch(err => {
+                    console.error('Error fetching relations:', err);
+                    alert('Failed to fetch relations. Check console for details.');
+                });
+        };
     });
 </script>
 {% endblock %}

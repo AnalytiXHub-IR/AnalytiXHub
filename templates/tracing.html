@@ -147,6 +147,37 @@
     </div>
 </div>
 
+<!-- Relation Modal -->
+<div class="modal fade" id="relationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">
+                    <i class="bi bi-diagram-3"></i> Transactions with Target
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="relationInfo" class="mb-3"></div>
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>Hash</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Value</th>
+                                <th>Direction</th>
+                            </tr>
+                        </thead>
+                        <tbody id="relationTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     .cyber-glass {
         backdrop-filter: blur(10px);
@@ -491,6 +522,7 @@
 
     function showDetails(data) {
         const info = document.getElementById('nodeInfo');
+        const isRoot = data.type === 'root';
         info.innerHTML = `
             <div class="row g-2 small">
                 <div class="col-12 text-center mb-3">
@@ -509,6 +541,13 @@
                              role="progressbar" style="width: ${data.risk}%"></div>
                     </div>
                 </div>
+                ${!isRoot ? `
+                <div class="col-12 mt-2">
+                    <button class="btn btn-sm btn-outline-info w-100" onclick="showRelations('${data.full_address}')">
+                        <i class="bi bi-diagram-3"></i> See Relation with Target
+                    </button>
+                </div>
+                ` : ''}
             </div>
         `;
         document.getElementById('nodeDetails').style.display = 'block';
@@ -530,6 +569,62 @@
 
     function fitGraph() { cy.fit(50); }
     function clearGraph() { cy.elements().remove(); updateStats(); }
+
+    function showRelations(nodeAddress) {
+        const targetAddress = document.getElementById('traceAddress').value;
+        const chain = document.getElementById('chainSelect').value;
+
+        if (!targetAddress) {
+            alert('No target address set. Please run an investigation first.');
+            return;
+        }
+
+        // Fetch relations from API
+        fetch(`/api/relations?source=${encodeURIComponent(nodeAddress)}&target=${encodeURIComponent(targetAddress)}&chain=${chain}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                // Update modal info
+                document.getElementById('relationInfo').innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>${data.count}</strong> transaction(s) between<br>
+                        <code class="text-light small">${nodeAddress}</code> and <code class="text-light small">${targetAddress}</code>
+                    </div>
+                `;
+
+                // Populate table
+                const tbody = document.getElementById('relationTableBody');
+                tbody.innerHTML = '';
+
+                if (data.transactions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No direct transactions found</td></tr>';
+                } else {
+                    data.transactions.forEach(tx => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><code class="small">${tx.hash}</code></td>
+                            <td><code class="small">${tx.from}</code></td>
+                            <td><code class="small">${tx.to}</code></td>
+                            <td>${tx.value}</td>
+                            <td><span class="badge ${tx.direction === 'outgoing' ? 'bg-danger' : 'bg-success'}">${tx.direction}</span></td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('relationModal'));
+                modal.show();
+            })
+            .catch(err => {
+                console.error('Error fetching relations:', err);
+                alert('Failed to fetch relations. Check console for details.');
+            });
+    }
 
     function viewEtherscan() {
         if (!selectedNode) return;

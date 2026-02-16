@@ -77,7 +77,7 @@ class BlockCypherFetcher:
     
     BASE_URL = "https://api.blockcypher.com/v1/doge/main"
     # Token provided by user: Limit 3 req/sec, 100/hr, 1000/day
-    API_TOKEN =  os.getenv('BLOCKCYPHER_TOKEN', "ba0c6f917baf4f5186ac1e5e62acc475")
+    API_TOKEN =  os.getenv('BLOCKCYPHER_TOKEN', "280c03c6f8f34afb9d6f5e1b1fb1ab59")
     
     @staticmethod
     def fetch_transactions(address: str) -> Tuple[List[Dict], Dict]:
@@ -361,6 +361,24 @@ class MempoolFetcher:
     """Fetch Bitcoin transactions via Mempool.space (Free, No Key)"""
     
     BASE_URL = "https://mempool.space/api"
+    
+    @staticmethod
+    def _fetch_via_getblock(address: str) -> Tuple[List[Dict], Dict]:
+        """Fallback: GetBlock.io RPC (Limited functionality without full node access)"""
+        transactions = []
+        counts = {'normal': 0, 'internal': 0, 'token': 0}
+        
+        print(f"[GetBlock.io] Attempting fallback for {address}...")
+        print("⚠️ GetBlock.io RPC has limited address query capabilities")
+        print("💡 GetBlock.io is best for full node operations, not address lookups")
+        print("🔄 Recommendation: Wait 30-60 minutes for BlockCypher rate limit to reset")
+        print("📊 BlockCypher provides comprehensive transaction history for Dogecoin")
+        
+        # GetBlock.io RPC doesn't support address-based transaction queries
+        # without the address being in a wallet. This is a limitation of
+        # standard Dogecoin RPC, not GetBlock.io specifically.
+        
+        return [], counts
     
     @staticmethod
     def fetch_transactions(address: str) -> Tuple[List[Dict], Dict]:

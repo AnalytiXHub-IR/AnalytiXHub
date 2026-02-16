@@ -41,17 +41,27 @@ class AddressClustering:
             'amount_clusters': [],
         }
         
+        # Build address mapping (normalized -> original)
+        address_mapping = {}
+        for tx in transactions:
+            frm = tx.get('from', '')
+            to = tx.get('to', '')
+            if frm:
+                address_mapping[normalize_address(frm, chain_id)] = frm
+            if to:
+                address_mapping[normalize_address(to, chain_id)] = to
+        
         # Build address graph
         graph = AddressClustering._build_address_graph(transactions, chain_id)
         
         # 1. Frequent counterparties (>5 interactions)
         clusters['suspicious_counterparties'] = AddressClustering._find_frequent_counterparties(
-            graph, main_address, chain_id, min_interactions=5
+            graph, main_address, chain_id, address_mapping, min_interactions=5
         )
         
         # 2. Dust attack detection (many small amounts sent out)
         clusters['dust_attacks'] = AddressClustering._find_dust_attacks(
-            transactions, main_address, chain_id
+            transactions, main_address, chain_id, address_mapping
         )
         
         # 3. Circular patterns
@@ -81,7 +91,7 @@ class AddressClustering:
     
     @staticmethod
     def _find_frequent_counterparties(graph: Dict, address: str, chain_id: int,
-                                     min_interactions: int = 5) -> List[Dict]:
+                                     address_mapping: Dict, min_interactions: int = 5) -> List[Dict]:
         """Find addresses with frequent interactions"""
         address = normalize_address(address, chain_id)
         if address not in graph:
@@ -92,16 +102,17 @@ class AddressClustering:
         for tx in []:  # Would need full tx list for counting
             pass
         
-        # Simplified: return top connected addresses
+        # Simplified: return top connected addresses with original casing
         counterparties = list(graph.get(address, set()))
         return [
-            {'address': addr, 'connection_type': 'frequent_interaction', 
+            {'address': address_mapping.get(addr, addr), 'connection_type': 'frequent_interaction', 
              'risk_score': 0.6 if len(counterparties) > 10 else 0.3}
             for addr in counterparties[:10]
         ]
     
     @staticmethod
-    def _find_dust_attacks(transactions: List[Dict], main_address: str, chain_id: int) -> List[Dict]:
+    def _find_dust_attacks(transactions: List[Dict], main_address: str, chain_id: int, 
+                          address_mapping: Dict) -> List[Dict]:
         """Detect dust attacks: many small amounts sent to different addresses"""
         main_address = normalize_address(main_address, chain_id)
         
@@ -119,7 +130,7 @@ class AddressClustering:
                           if any(amt < dust_threshold for amt in amounts)]
         
         return [
-            {'address': addr, 'pattern': 'dust_attack', 'risk_score': 0.7, 'is_suspicious': True}
+            {'address': address_mapping.get(addr, addr), 'pattern': 'dust_attack', 'risk_score': 0.7, 'is_suspicious': True}
             for addr in dust_recipients[:20]
         ]
     

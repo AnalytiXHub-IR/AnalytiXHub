@@ -231,6 +231,7 @@ def analyze_live_eth(txlist, root_address, start_date=None, end_date=None, chain
     """
     G = nx.MultiDiGraph()
     filtered_txs = []
+    address_mapping = {}  # Maps normalized address -> original address
     
     start_ts = get_safe_timestamp(start_date, 0.0)
     end_ts = get_safe_timestamp(end_date, 4102444800.0)
@@ -292,10 +293,29 @@ def analyze_live_eth(txlist, root_address, start_date=None, end_date=None, chain
         
         transaction_values.append(val)
         
+        # Store original addresses before normalization
+        frm_original = tx.get("from", "")
+        to_original = tx.get("to", "")
+        
+        # Build address mapping (normalized -> original)
+        if frm and frm_original:
+            address_mapping[frm] = frm_original
+        if to and to_original:
+            address_mapping[to] = to_original
+        
         frm_label = KNOWN_ENTITIES.get(frm, frm)
         to_label = KNOWN_ENTITIES.get(to, to)
 
+        # Add edge with normalized addresses as IDs, but store original addresses in node data
         G.add_edge(frm, to, value=val, label=f"{val:.2f} ETH")
+        
+        # Ensure nodes have original_address attribute
+        if frm and frm in G.nodes():
+            if 'original_address' not in G.nodes[frm]:
+                G.nodes[frm]['original_address'] = frm_original
+        if to and to in G.nodes():
+            if 'original_address' not in G.nodes[to]:
+                G.nodes[to]['original_address'] = to_original
 
         root_norm = normalize_address(root_address, chain_id)
 
@@ -315,9 +335,15 @@ def analyze_live_eth(txlist, root_address, start_date=None, end_date=None, chain
     top_victims = [v for v, _ in Counter(all_victims).most_common(5)]
     top_suspects = [s for s, _ in Counter(all_suspects).most_common(5)]
     
-    # Top by value
-    top_victims_by_value = sorted(incoming_addresses.items(), key=lambda x: x[1], reverse=True)[:5]
-    top_suspects_by_value = sorted(outgoing_addresses.items(), key=lambda x: x[1], reverse=True)[:5]
+    # Top by value - with original addresses
+    top_victims_by_value = [
+        (address_mapping.get(addr, addr), val) 
+        for addr, val in sorted(incoming_addresses.items(), key=lambda x: x[1], reverse=True)[:5]
+    ]
+    top_suspects_by_value = [
+        (address_mapping.get(addr, addr), val) 
+        for addr, val in sorted(outgoing_addresses.items(), key=lambda x: x[1], reverse=True)[:5]
+    ]
 
     # Detect patterns
     patterns = detect_patterns(filtered_txs, root_address)
