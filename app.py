@@ -971,6 +971,13 @@ def api_trace(address):
         # Fetch transactions using MultiChainFetcher
         txs, counts = MultiChainFetcher.fetch_by_chain(chain_name, address)
         
+        # Update global current_case for Relation Checker
+        global current_case
+        current_case["transactions"] = txs
+        current_case["address"] = address
+        current_case["chain"] = chain_name
+        current_case["chain_id"] = chain_map.get(chain_name, 1) # Approximate ID
+        
         if not txs:
             return jsonify([{
                 'data': {
