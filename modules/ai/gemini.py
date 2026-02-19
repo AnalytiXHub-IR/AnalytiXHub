@@ -135,7 +135,7 @@ def generate_with_retry(client, prompt_text, max_retries=2):
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-1.5-flash-latest",
                 contents=prompt_text,
             )
             return response.text if response.text else None

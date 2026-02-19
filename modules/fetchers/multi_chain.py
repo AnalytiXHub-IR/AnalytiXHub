@@ -263,6 +263,14 @@ class EtherscanMultiChainFetcher:
         'arbitrum': {'chainid': 42161, 'name': 'Arbitrum One'},
         'avalanche': {'chainid': 43114, 'name': 'Avalanche'},
         'fantom': {'chainid': 250, 'name': 'Fantom'},
+        'base': {'chainid': 8453, 'name': 'Base'},
+        'cronos': {'chainid': 25, 'name': 'Cronos'},
+        'moonbeam': {'chainid': 1284, 'name': 'Moonbeam'},
+        'gnosis': {'chainid': 100, 'name': 'Gnosis'},
+        'celo': {'chainid': 42220, 'name': 'Celo'},
+        'blast': {'chainid': 81457, 'name': 'Blast'},
+        'linea': {'chainid': 59144, 'name': 'Linea'},
+        'sepolia': {'chainid': 11155111, 'name': 'Sepolia (Testnet)'},
     }
     
     @staticmethod
@@ -711,41 +719,34 @@ class SolanaFetcher:
 # ==================== TRON (TronGrid / TronScan) ====================
 
 class TronFetcher:
-    """Fetch Tron transactions via TronGrid"""
+    """Fetch Tron transactions via TronGrid (Official) or TronScan (Public Fallback)"""
     
-    BASE_URL = "https://api.trongrid.io"
+    GRID_BASE_URL = "https://api.trongrid.io"
+    SCAN_BASE_URL = "https://apilist.tronscan.org/api/transaction"
     
     @staticmethod
     def fetch_transactions(address: str) -> Tuple[List[Dict], Dict]:
         transactions = []
         counts = {'normal': 0}
         
-        headers = {
-            "TRON-PRO-API-KEY": TRON_API_KEY
-        }
-        
+        # 1. Try TronGrid (Needs Key)
         try:
-            print(f"[+] Fetching Tron data for {address[:8]}...")
-            
-            # TronGrid /v1/accounts/{address}/transactions
-            url = f"{TronFetcher.BASE_URL}/v1/accounts/{address}/transactions"
+            print(f"[+] [TronGrid] Fetching transactions for {address[:8]}...")
+            headers = {"TRON-PRO-API-KEY": TRON_API_KEY}
+            url = f"{TronFetcher.GRID_BASE_URL}/v1/accounts/{address}/transactions"
             params = {'limit': 200}
             
-            response = requests.get(url, headers=headers, params=params, timeout=15)
+            response = requests.get(url, headers=headers, params=params, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
                 if data.get('success') and data.get('data'):
                     for tx in data['data']:
-                        # Parse Tron Data
+                        # Parse TronGrid Data
                         raw_data = tx.get('raw_data', {}).get('contract', [])[0]
                         params = raw_data.get('parameter', {}).get('value', {})
                         
                         amount = float(params.get('amount', 0)) / 1e6 # Sun to TRX
-                        if amount == 0 and 'asset_name' in params:
-                             # TRC10 token maybe?
-                             pass
-                             
                         timestamp = tx.get('block_timestamp', 0) / 1000
                         
                         transactions.append({
@@ -760,14 +761,84 @@ class TronFetcher:
                         
                     counts['normal'] = len(transactions)
                     print(f"✅ Tron (TronGrid): {counts['normal']} transactions")
-            else:
-                print(f"❌ TronGrid API error: {response.status_code}")
-                
-            return transactions, counts
+                    return transactions, counts
+            
+            print(f"⚠️ TronGrid Failed ({response.status_code}). Trying TronScan fallback...")
             
         except Exception as e:
-            print(f"❌ Tron fetch error: {e}")
-            return [], counts
+            print(f"⚠️ TronGrid Error: {e}")
+
+        # 2. Try TronScan (Public API)
+        try:
+            print(f"[+] [TronScan] Fetching transactions for {address[:8]}...")
+            
+            # Pagination Logic
+            start = 0
+            limit = 50
+            total_fetched = 0
+            MAX_FETCH = 1000 # Safety limit
+            has_more = True
+            
+            while has_more and total_fetched < MAX_FETCH:
+                params = {
+                    'sort': '-timestamp',
+                    'count': 'true',
+                    'limit': str(limit),
+                    'start': str(start),
+                    'address': address
+                }
+                
+                # Rate limit protection
+                if start > 0: time.sleep(0.5)
+                
+                response = requests.get(TronFetcher.SCAN_BASE_URL, params=params, timeout=15)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    tx_list = data.get('data', [])
+                    
+                    if not tx_list:
+                        has_more = False
+                        break
+                        
+                    for tx in tx_list:
+                        # Parse TronScan Data
+                        amount = float(tx.get('amount', 0)) / 1e6 # Sun to TRX
+                        timestamp = tx.get('timestamp', 0) / 1000
+                        
+                        transactions.append({
+                            'hash': tx.get('hash'),
+                            'timestamp': datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
+                            'value': amount,
+                            'from': tx.get('ownerAddress'),
+                            'to': tx.get('toAddress'),
+                            'chain': 'tron',
+                            'type': 'Transfer'
+                        })
+                    
+                    fetched_count = len(tx_list)
+                    total_fetched += fetched_count
+                    start += fetched_count
+                    print(f"    - Batch: {fetched_count} txs (Total: {len(transactions)})")
+                    
+                    # Stop if we got fewer than limit (end of list)
+                    if fetched_count < limit:
+                        has_more = False
+                        
+                else:
+                    print(f"❌ TronScan Error: {response.status_code}")
+                    has_more = False # Stop on error
+                    
+            counts['normal'] = len(transactions)
+            print(f"✅ Tron (TronScan): {counts['normal']} transactions")
+            return transactions, counts
+                
+        except Exception as e:
+            print(f"❌ TronScan Exception: {e}")
+
+
+
+        return transactions, counts
 
 
 # ==================== XRP LEDGER ====================

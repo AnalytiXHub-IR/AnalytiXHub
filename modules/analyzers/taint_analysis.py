@@ -146,7 +146,7 @@ class TaintAnalyzer:
         
         traces['analysis']['total_paths'] = len(traces['paths'])
         traces['analysis']['max_depth'] = max([len(p['path']) for p in traces['paths']], default=0)
-        traces['analysis']['total_amount_traced'] = sum([p['final_amount'] for p in traces['paths']], default=0)
+        traces['analysis']['total_amount_traced'] = sum([p['final_amount'] for p in traces['paths']])
         
         return traces
     

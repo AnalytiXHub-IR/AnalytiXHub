@@ -922,22 +922,45 @@ def api_trace(address):
     chain_arg = request.args.get('chain', 'ethereum')
     
     # Normalize chain name
+    # Normalize chain name
     chain_map = {
         '1': 'ethereum',
         '56': 'bsc',
         '137': 'polygon',
         '10': 'optimism',
         '42161': 'arbitrum',
+        '8453': 'base',
+        '43114': 'avalanche',
+        '250': 'fantom',
+        '25': 'cronos',
+        '1284': 'moonbeam',
+        '100': 'gnosis',
+        '42220': 'celo',
+        '81457': 'blast',
+        '59144': 'linea',
+        '11155111': 'sepolia',
+        # String mappings
         'ethereum': 'ethereum',
         'bitcoin': 'bitcoin',
         'solana': 'solana',
         'tron': 'tron',
         'dogecoin': 'dogecoin',
         'doge': 'dogecoin',
+        'xrp': 'xrp',
         'bsc': 'bsc',
         'polygon': 'polygon',
         'optimism': 'optimism',
-        'arbitrum': 'arbitrum'
+        'arbitrum': 'arbitrum',
+        'base': 'base',
+        'avalanche': 'avalanche',
+        'fantom': 'fantom',
+        'cronos': 'cronos',
+        'moonbeam': 'moonbeam',
+        'gnosis': 'gnosis',
+        'celo': 'celo',
+        'blast': 'blast',
+        'linea': 'linea',
+        'sepolia': 'sepolia'
     }
     
     chain_name = chain_map.get(str(chain_arg).lower(), 'ethereum')
@@ -968,14 +991,18 @@ def api_trace(address):
         currency_map = {
             'ethereum': 'ETH', 'bitcoin': 'BTC', 'solana': 'SOL',
             'tron': 'TRX', 'dogecoin': 'DOGE', 'bsc': 'BNB',
-            'polygon': 'MATIC', 'optimism': 'OP', 'arbitrum': 'ARB'
+            'polygon': 'MATIC', 'optimism': 'OP', 'arbitrum': 'ARB',
+            'base': 'ETH', 'avalanche': 'AVAX', 'fantom': 'FTM',
+            'cronos': 'CRO', 'moonbeam': 'GLMR', 'gnosis': 'GNO',
+            'celo': 'CELO', 'blast': 'BLAST', 'linea': 'ETH', 'sepolia': 'ETH', 'xrp': 'XRP'
         }
         currency = currency_map.get(chain_name, 'UNIT')
         
         # Add Root Node
+        evm_chains = ['ethereum', 'bsc', 'polygon', 'optimism', 'arbitrum', 'base', 'avalanche', 'fantom', 'cronos', 'moonbeam', 'gnosis', 'celo', 'blast', 'linea', 'sepolia']
         elements.append({
             'data': {
-                'id': address.lower() if chain_name in ['ethereum', 'bsc', 'polygon', 'optimism', 'arbitrum'] else address,
+                'id': address.lower() if chain_name in evm_chains else address,
                 'label': address[:8] + '...',
                 'full_address': address,
                 'type': 'root',
@@ -984,7 +1011,7 @@ def api_trace(address):
             },
             'classes': 'root'
         })
-        node_set.add(address.lower() if chain_name in ['ethereum', 'bsc', 'polygon', 'optimism', 'arbitrum'] else address)
+        node_set.add(address.lower() if chain_name in evm_chains else address)
         
         # Process transactions
         for tx in txs[:200]:  # Limit to 200 for performance
@@ -994,7 +1021,7 @@ def api_trace(address):
             tx_hash = tx.get('hash', '')
             
             # Normalize addresses for EVM chains
-            if chain_name in ['ethereum', 'bsc', 'polygon', 'optimism', 'arbitrum']:
+            if chain_name in evm_chains:
                 sender = sender.lower() if sender != 'Unknown' else sender
                 receiver = receiver.lower() if receiver != 'Unknown' else receiver
             
@@ -1077,12 +1104,16 @@ def api_graph_data():
         currency_map = {
             'ethereum': 'ETH', 'bitcoin': 'BTC', 'solana': 'SOL',
             'tron': 'TRX', 'dogecoin': 'DOGE', 'bsc': 'BNB',
-            'polygon': 'MATIC', 'optimism': 'OP', 'arbitrum': 'ARB'
+            'polygon': 'MATIC', 'optimism': 'OP', 'arbitrum': 'ARB',
+            'base': 'ETH', 'avalanche': 'AVAX', 'fantom': 'FTM',
+            'cronos': 'CRO', 'moonbeam': 'GLMR', 'gnosis': 'GNO',
+            'celo': 'CELO', 'blast': 'BLAST', 'linea': 'ETH', 'sepolia': 'ETH', 'xrp': 'XRP'
         }
         currency = currency_map.get(chain.lower(), 'UNIT')
         
         # Normalize address for EVM chains
-        is_evm = chain.lower() in ['ethereum', 'bsc', 'polygon', 'optimism', 'arbitrum']
+        evm_chains = ['ethereum', 'bsc', 'polygon', 'optimism', 'arbitrum', 'base', 'avalanche', 'fantom', 'cronos', 'moonbeam', 'gnosis', 'celo', 'blast', 'linea', 'sepolia']
+        is_evm = chain.lower() in evm_chains
         root_id = address.lower() if is_evm else address
         
         # Add root node
