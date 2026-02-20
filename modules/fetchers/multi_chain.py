@@ -70,6 +70,36 @@ class BlockScoutFetcher:
             print(f"❌ BlockScout {chain} error: {e}")
             return [], counts
 
+    @staticmethod
+    def fetch_by_tx_hash(chain: str, tx_hash: str) -> Optional[Dict]:
+        """Fetch single transaction by hash via BlockScout"""
+        chain = chain.lower()
+        if chain not in BlockScoutFetcher.BLOCKSCOUT_URLS:
+            return None
+            
+        base_url = BlockScoutFetcher.BLOCKSCOUT_URLS[chain]
+        
+        try:
+            tx_url = f"{base_url}/transactions/{tx_hash}"
+            tx_response = requests.get(tx_url, timeout=15)
+            
+            if tx_response.status_code == 200:
+                tx = tx_response.json()
+                if tx and tx.get('hash'):
+                    return {
+                        'hash': tx.get('hash'),
+                        'from': tx.get('from', {}).get('hash') if isinstance(tx.get('from'), dict) else tx.get('from'),
+                        'to': tx.get('to', {}).get('hash') if isinstance(tx.get('to'), dict) else tx.get('to'),
+                        'value': float(tx.get('value', 0)) / 1e18 if tx.get('value') else 0.0,
+                        'timestamp': tx.get('timestamp') or datetime.now().isoformat(),
+                        'block': tx.get('block', 0),
+                        'chain': chain
+                    }
+            return None
+        except Exception as e:
+            print(f"❌ BlockScout Tx details Error: {e}")
+            return None
+
 # ==================== BLOCKCYPHER API (Dogecoin) ====================
 
 class BlockCypherFetcher:
@@ -103,36 +133,39 @@ class BlockCypherFetcher:
                     
                 print(f"[DEBUG] Fetching Batch: {base}")
                 
-                # Retry Logic
-                max_retries = 3
+                # Retry Logic (Exponential Backoff for Enterprise Reliability)
+                max_retries = 5
                 response = None
                 
                 for attempt in range(max_retries):
                     try:
-                        # Rate limit (be conservative)
-                        time.sleep(1.1) 
+                        # Rate limit protection (base delay)
+                        time.sleep(2.0) 
                         response = requests.get(base, timeout=30)
                         
                         if response.status_code == 429:
-                            wait_time = (attempt + 1) * 3 # 3s, 6s, 9s
-                            print(f"⚠️ BlockCypher Rate Limit (429). Waiting {wait_time}s...")
+                            # Exponential backoff: 5s, 10s, 20s, 40s, 80s
+                            wait_time = (2 ** attempt) * 5 
+                            print(f"⚠️ BlockCypher Rate Limit (429). Waiting {wait_time}s (Attempt {attempt+1}/{max_retries})...")
                             time.sleep(wait_time)
                             continue # Retry
                         
                         if response.status_code == 200:
                             break # Success
                         else:
-                            print(f"❌ BlockCypher Error: {response.status_code}")
-                            response = None # Mark as failed
-                            break # Don't retry other errors
+                            print(f"❌ BlockCypher Error: {response.status_code} - {response.text[:100]}")
+                            response = None
+                            break # Don't retry other errors immediately
                             
+                    except requests.exceptions.Timeout:
+                        print(f"⚠️ Timeout. Retrying...")
                     except Exception as e:
                         print(f"⚠️ Network Error: {e}")
-                        time.sleep(2)
+                        time.sleep(5)
                 
-                # If failed after retries
+                # If failed after all retries, break pagination loop
                 if not response or response.status_code != 200:
-                    print("❌ Failed to fetch batch after retries.")
+                    print("❌ Failed to fetch BlockCypher batch after retries.")
                     break
                     
                 data = response.json()
@@ -218,9 +251,11 @@ class BlockCypherFetcher:
                     print("[-] Batch empty. Stopping.")
                     has_more = False
                 else:
-                    # Logic to determine next 'before'
-                    # Get lowest block height in this batch
-                    min_block = min([t.get('block_height', 999999999) for t in batch])
+                    valid_blocks = [t.get('block_height', 999999999) for t in batch if isinstance(t, dict) and t.get('block_height')]
+                    if not valid_blocks:
+                        print("[-] No valid blocks in batch. Stopping.")
+                        break
+                    min_block = min(valid_blocks)
                     
                     # If we aren't making progress (min_block is same as before), we might be stuck or at end
                     if before_bh and min_block >= before_bh:
@@ -239,11 +274,54 @@ class BlockCypherFetcher:
             counts['normal'] = len(transactions)
             print(f"✅ Dogecoin (BlockCypher): {counts['normal']} transactions (Paginated)")
                 
+            # Fallback to GetBlock.io if BlockCypher failed totally
+            if len(transactions) == 0:
+                 return MempoolFetcher._fetch_via_getblock(address)
+                 
             return transactions, counts
             
         except Exception as e:
             print(f"❌ Dogecoin fetch error: {e}")
-            return [], counts
+            return MempoolFetcher._fetch_via_getblock(address)
+
+    @staticmethod
+    def fetch_by_tx_hash(tx_hash: str) -> Optional[Dict]:
+        """Fetch single transaction by hash via BlockCypher"""
+        try:
+            base_url = f"{BlockCypherFetcher.BASE_URL}/txs/{tx_hash}?token={BlockCypherFetcher.API_TOKEN}"
+            resp = requests.get(base_url, timeout=15)
+            
+            if resp.status_code == 200:
+                tx = resp.json()
+                
+                total_input = sum([inp.get('output_value', 0) for inp in tx.get('inputs', [])])
+                total_output = sum([out.get('value', 0) for out in tx.get('outputs', [])])
+                fee = tx.get('fees', 0)
+                
+                # Try to determine generic from/to
+                sender = tx.get('inputs', [{}])[0].get('addresses', ['Unknown'])[0] if tx.get('inputs') else 'Unknown'
+                receiver = tx.get('outputs', [{}])[0].get('addresses', ['Unknown'])[0] if tx.get('outputs') else 'Unknown'
+                
+                tx_time_str = tx.get('confirmed', datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'))
+                try:
+                    dt = datetime.strptime(tx_time_str, '%Y-%m-%dT%H:%M:%SZ')
+                    formatted_time = dt.strftime('%Y-%m-%d %H:%M:%S')
+                except:
+                    formatted_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                return {
+                    'hash': tx.get('hash'),
+                    'timestamp': formatted_time,
+                    'value': total_output / 1e8, # Satoshis to DOGE
+                    'from': sender,
+                    'to': receiver,
+                    'chain': 'dogecoin',
+                    'block': tx.get('block_height')
+                }
+            return None
+        except Exception as e:
+            print(f"❌ BlockCypher Tx details Error: {e}")
+            return None
 
 # ==================== ETHERSCAN v2 API (All EVM Chains) ====================
 
@@ -319,6 +397,12 @@ class EtherscanMultiChainFetcher:
             print(f"❌ {config['name']} fetch error: {e}")
             print(f"   Falling back to BlockScout...")
             return BlockScoutFetcher.fetch_transactions(chain, address)
+            
+    @staticmethod
+    def fetch_by_tx_hash(chain: str, tx_hash: str) -> Optional[Dict]:
+         """Fetch transaction by hash on EVM chains. Relies on BlockScout fallback for generic tx queries"""
+         print(f"[+] Proxying Etherscan TxHash to BlockScout...")
+         return BlockScoutFetcher.fetch_by_tx_hash(chain, tx_hash)
     
     @staticmethod
     def _fetch_page(chain: str, address: str, action: str, page: int = 1, offset: int = 5000) -> List[Dict]:
@@ -376,16 +460,49 @@ class MempoolFetcher:
         transactions = []
         counts = {'normal': 0, 'internal': 0, 'token': 0}
         
+        getblock_key = os.getenv('GETBLOCK_DOGE_KEY')
+        if not getblock_key:
+            print("⚠️ No GETBLOCK_DOGE_KEY in .env. Falling back to empty response.")
+            return [], counts
+            
         print(f"[GetBlock.io] Attempting fallback for {address}...")
-        print("⚠️ GetBlock.io RPC has limited address query capabilities")
-        print("💡 GetBlock.io is best for full node operations, not address lookups")
-        print("🔄 Recommendation: Wait 30-60 minutes for BlockCypher rate limit to reset")
-        print("📊 BlockCypher provides comprehensive transaction history for Dogecoin")
+        url = f"https://go.getblock.io/{getblock_key}/"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "doge_bb_getAddress",
+            "params": [address, {"details": "txs"}],
+            "id": "getblock.io"
+        }
         
-        # GetBlock.io RPC doesn't support address-based transaction queries
-        # without the address being in a wallet. This is a limitation of
-        # standard Dogecoin RPC, not GetBlock.io specifically.
-        
+        try:
+            resp = requests.post(url, json=payload, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                data = resp.json()
+                if 'result' in data and 'transactions' in data['result']:
+                    raw_txs = data['result']['transactions']
+                    for tx in raw_txs:
+                        # Parse Blockbook format
+                        timestamp = tx.get('blockTime', int(time.time()))
+                        val = abs(float(tx.get('value', 0))) / 1e8 # Satoshis to DOGE
+                        
+                        transactions.append({
+                            'hash': tx.get('txid'),
+                            'timestamp': datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S'),
+                            'value': val,
+                            'from': 'Unknown' if float(tx.get('value', 0)) > 0 else address, 
+                            'to': address if float(tx.get('value', 0)) > 0 else 'Unknown',
+                            'chain': 'dogecoin',
+                            'type': 'doge'
+                        })
+                    counts['normal'] = len(transactions)
+                    print(f"✅ Dogecoin (GetBlock): {counts['normal']} transactions")
+                    return transactions, counts
+            else:
+                 print(f"❌ GetBlock.io returned status {resp.status_code}")
+        except Exception as e:
+             print(f"❌ GetBlock.io Error: {e}")
+             
         return [], counts
     
     @staticmethod
@@ -448,6 +565,40 @@ class MempoolFetcher:
         except Exception as e:
             print(f"❌ Bitcoin fetch error: {e}")
             return [], counts
+
+    @staticmethod
+    def fetch_by_tx_hash(tx_hash: str) -> Optional[Dict]:
+        """Fetch single transaction by hash via Mempool.space"""
+        try:
+            url = f"{MempoolFetcher.BASE_URL}/tx/{tx_hash}"
+            response = requests.get(url, timeout=15)
+            
+            if response.status_code == 200:
+                tx = response.json()
+                status = tx.get('status', {})
+                block_time = status.get('block_time', int(time.time()))
+                
+                # Mempool gives us inputs and outputs. We can try to sum them.
+                total_input = sum(inp.get('prevout', {}).get('value', 0) for inp in tx.get('vin', []))
+                total_output = sum(out.get('value', 0) for out in tx.get('vout', []))
+                
+                # Guess sender/receiver (first input/output)
+                sender = tx.get('vin', [{}])[0].get('prevout', {}).get('scriptpubkey_address', 'Unknown')
+                receiver = tx.get('vout', [{}])[0].get('scriptpubkey_address', 'Unknown')
+
+                return {
+                    'hash': tx.get('txid'),
+                    'timestamp': datetime.fromtimestamp(block_time).strftime('%Y-%m-%d %H:%M:%S'),
+                    'value': total_output / 1e8, # Satoshis to BTC
+                    'from': sender,
+                    'to': receiver,
+                    'chain': 'bitcoin',
+                    'block': status.get('block_height', 'Pending')
+                }
+            return None
+        except Exception as e:
+            print(f"❌ Bitcoin Tx details Error: {e}")
+            return None
 
 
 # ==================== SOLANA (Solscan v2) ====================
@@ -599,7 +750,7 @@ class SolanaFetcher:
             "method": "getSignaturesForAddress",
             "params": [
                 address,
-                {"limit": 50} # Increased limit for better utility
+                {"limit": 100} # Increased limit for better utility, but safe for initial fetch
             ]
         }
         
@@ -629,7 +780,7 @@ class SolanaFetcher:
 
                 # 2. Try to enrich with details (Best Effort)
                 try:
-                    sigs_to_fetch = [x['signature'] for x in signatures_raw][:10] # Increase to 10
+                    sigs_to_fetch = [x['signature'] for x in signatures_raw][:25] # Increased to 25
                     
                     if sigs_to_fetch:
                         print(f"[+] Fetching details for {len(sigs_to_fetch)} txs (Sequential with Retry)...")
@@ -654,7 +805,7 @@ class SolanaFetcher:
                                     resp = requests.post("https://api.mainnet-beta.solana.com", json=payload, headers=headers, timeout=10)
                                     
                                     if resp.status_code == 429:
-                                        wait_time = (attempt + 1) * 2 + 1 # 3s, 5s, 7s...
+                                        wait_time = (2 ** attempt) * 3 # Exponential: 3s, 6s, 12s, 24s...
                                         print(f"⚠️ Rate limited (429) for {sig[:8]}... attempt {attempt+1}/{max_retries}, waiting {wait_time}s...")
                                         time.sleep(wait_time)
                                         continue
@@ -714,6 +865,68 @@ class SolanaFetcher:
         except Exception as e:
             print(f"❌ Solana RPC Exception: {e}")
             return [], counts
+
+    @staticmethod
+    def fetch_by_tx_hash(tx_hash: str) -> Optional[Dict]:
+        """Fetch single transaction by hash via Solana RPC"""
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0"
+        }
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getTransaction",
+            "params": [
+                tx_hash,
+                {"encoding": "json", "maxSupportedTransactionVersion": 0}
+            ]
+        }
+        
+        try:
+            resp = requests.post("https://api.mainnet-beta.solana.com", json=payload, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                item = resp.json()
+                if 'result' in item and item['result']:
+                    tx_res = item['result']
+                    meta = tx_res.get('meta', {})
+                    
+                    # Parse Account Keys
+                    keys = []
+                    tx_data = tx_res.get('transaction', {})
+                    if 'message' in tx_data:
+                        msg = tx_data['message']
+                        if 'accountKeys' in msg:
+                            raw_keys = msg['accountKeys']
+                            if len(raw_keys) > 0:
+                                if isinstance(raw_keys[0], str):
+                                    keys = raw_keys
+                                elif isinstance(raw_keys[0], dict):
+                                    keys = [k.get('pubkey') for k in raw_keys]
+                                    
+                    sender = keys[0] if len(keys) > 0 else "Unknown"
+                    receiver = keys[1] if len(keys) > 1 else "Interaction"
+                    
+                    # Calculate Value
+                    pre_bal = meta.get('preBalances', [0])[0] if meta.get('preBalances') else 0
+                    post_bal = meta.get('postBalances', [0])[0] if meta.get('postBalances') else 0
+                    val = abs(pre_bal - post_bal) / 1e9
+                    
+                    block_time = tx_res.get('blockTime', int(time.time()))
+                    
+                    return {
+                        'hash': tx_hash,
+                        'timestamp': datetime.fromtimestamp(block_time).strftime('%Y-%m-%d %H:%M:%S'),
+                        'value': val,
+                        'from': sender,
+                        'to': receiver,
+                        'chain': 'solana',
+                        'block': tx_res.get('slot', 'Unknown')
+                    }
+            return None
+        except Exception as e:
+            print(f"❌ Solana Tx details Error: {e}")
+            return None
 
 
 # ==================== TRON (TronGrid / TronScan) ====================
@@ -835,10 +1048,38 @@ class TronFetcher:
                 
         except Exception as e:
             print(f"❌ TronScan Exception: {e}")
+            return [], counts
 
-
-
-        return transactions, counts
+    @staticmethod
+    def fetch_by_tx_hash(tx_hash: str) -> Optional[Dict]:
+        """Fetch single transaction by hash via TronScan"""
+        try:
+            url = f"https://apilist.tronscanapi.com/api/transaction-info?hash={tx_hash}"
+            response = requests.get(url, timeout=15)
+            
+            if response.status_code == 200:
+                tx = response.json()
+                if tx and tx.get('hash'):
+                    # Tron data is complex, pull basic info wrapper
+                    amount = 0
+                    if 'contractData' in tx and 'amount' in tx['contractData']:
+                        amount = float(tx['contractData']['amount']) / 1e6 # Sun to TRX
+                    elif 'trigger_info' in tx and 'parameter' in tx['trigger_info'] and '_value' in tx['trigger_info']['parameter']:
+                         amount = float(tx['trigger_info']['parameter']['_value']) / 1e6
+                         
+                    return {
+                        'hash': tx.get('hash'),
+                        'timestamp': datetime.fromtimestamp(tx.get('timestamp', 0) / 1000).strftime('%Y-%m-%d %H:%M:%S'),
+                        'value': amount,
+                        'from': tx.get('ownerAddress', ''),
+                        'to': tx.get('toAddress', ''),
+                        'chain': 'tron',
+                        'block': tx.get('block', '')
+                    }
+            return None
+        except Exception as e:
+            print(f"❌ Tron Tx details Error: {e}")
+            return None
 
 
 # ==================== XRP LEDGER ====================
@@ -928,6 +1169,29 @@ class MultiChainFetcher:
         else:
             print(f"⚠️ Unsupported chain '{chain}', defaulting to empty")
             return [], {}
+            
+    @staticmethod
+    def fetch_tx_by_hash(chain: str, tx_hash: str) -> Optional[Dict]:
+        """Universal fetch method for a single transaction hash"""
+        chain = chain.lower()
+        
+        # EVM Chains
+        if chain in ['ethereum', 'eth', 'polygon', 'matic', 'arbitrum', 'arb', 'optimism', 'op', 'bsc', 'binance', 'bnb', 'base', 'avalanche', 'fantom', 'cronos', 'moonbeam', 'gnosis', 'celo', 'blast', 'linea', 'sepolia']:
+            return EtherscanMultiChainFetcher.fetch_by_tx_hash(chain, tx_hash)
+            
+        # Non-EVM Chains
+        elif chain in ['bitcoin', 'btc']:
+            return MempoolFetcher.fetch_by_tx_hash(tx_hash)
+        elif chain in ['solana', 'sol']:
+            return SolanaFetcher.fetch_by_tx_hash(tx_hash)
+        elif chain in ['tron', 'trx']:
+            return TronFetcher.fetch_by_tx_hash(tx_hash)
+        elif chain in ['dogecoin', 'doge']:
+            return BlockCypherFetcher.fetch_by_tx_hash(tx_hash)
+        
+        else:
+            print(f"⚠️ Unsupported chain '{chain}' for hash lookup")
+            return None
     
     @staticmethod
     def get_explorer_url(chain: str, address: str) -> str:

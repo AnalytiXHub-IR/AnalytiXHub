@@ -14,7 +14,7 @@
                 <div class="col-md-12">
                     <div class="alert alert-dark border border-secondary">
                         <strong class="text-muted">TRANSACTION HASH:</strong><br>
-                        <span class="font-monospace text-warning fs-5">{{ tx.hash }}</span>
+                        <span class="font-monospace text-warning fs-5 text-break">{{ tx.hash }}</span>
                     </div>
                 </div>
 
@@ -22,12 +22,11 @@
                     <div class="card bg-dark border-secondary h-100">
                         <div class="card-body">
                             <h6 class="text-muted mb-3">SENDER (FROM)</h6>
-                            <div class="d-flex align-items-center mb-2">
+                            <div class="d-flex align-items-center mb-2 text-break">
                                 <img src="https://img.icons8.com/fluency/48/user-location.png" width="32" class="me-2">
-                                <a href="https://etherscan.io/address/{{ tx.from }}" target="_blank"
-                                    class="text-info font-monospace text-decoration-none">
-                                    {{ tx.from }}
-                                </a>
+                                <span class="text-info font-monospace">
+                                    {{ tx.from|default('Unknown') }}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -37,12 +36,11 @@
                     <div class="card bg-dark border-secondary h-100">
                         <div class="card-body">
                             <h6 class="text-muted mb-3">RECEIVER (TO)</h6>
-                            <div class="d-flex align-items-center mb-2">
+                            <div class="d-flex align-items-center mb-2 text-break">
                                 <img src="https://img.icons8.com/fluency/48/target.png" width="32" class="me-2">
-                                <a href="https://etherscan.io/address/{{ tx.to }}" target="_blank"
-                                    class="text-warning font-monospace text-decoration-none">
-                                    {{ tx.to }}
-                                </a>
+                                <span class="text-warning font-monospace">
+                                    {{ tx.to|default('Multiple/Unknown') }}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -53,27 +51,22 @@
                         <table class="table table-dark table-striped border-secondary">
                             <tbody>
                                 <tr>
-                                    <th class="text-secondary w-25">Value</th>
-                                    <td class="font-monospace text-light">{{ (tx.value|float / 10**18)|round(6) }} ETH
+                                    <th class="text-secondary w-25">Network</th>
+                                    <td class="text-light text-uppercase fw-bold">{{
+                                        tx.chain|default(chain_name|default('Unknown')) }}
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th class="text-secondary">Block Number</th>
-                                    <td class="font-monospace">{{ tx.blockNumber|int }}</td>
+                                    <th class="text-secondary">Value Transferred</th>
+                                    <td class="font-monospace text-light fs-5">{{ tx.value }}</td>
                                 </tr>
                                 <tr>
-                                    <th class="text-secondary">Gas Price</th>
-                                    <td class="font-monospace">{{ (tx.gasPrice|float / 10**9)|round(2) }} Gwei</td>
+                                    <th class="text-secondary">Timestamp</th>
+                                    <td class="font-monospace">{{ tx.timestamp|default('Unknown') }}</td>
                                 </tr>
                                 <tr>
-                                    <th class="text-secondary">Nonce</th>
-                                    <td class="font-monospace">{{ tx.nonce|int }}</td>
-                                </tr>
-                                <tr>
-                                    <th class="text-secondary">Input Data</th>
-                                    <td class="font-monospace text-break text-muted small">
-                                        {{ tx.input[:100] }}...
-                                    </td>
+                                    <th class="text-secondary">Block / Slot</th>
+                                    <td class="font-monospace">{{ tx.block|default('Unknown') }}</td>
                                 </tr>
                             </tbody>
                         </table>

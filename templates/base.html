@@ -15,6 +15,7 @@
 <body class="cyber-theme">
 
     <div class="d-flex" id="wrapper">
+        {% if current_user.is_authenticated %}
         <!-- Sidebar -->
         <div class="bg-dark border-end border-secondary" id="sidebar-wrapper">
             <div class="sidebar-heading border-bottom border-secondary bg-black">
@@ -54,6 +55,10 @@
                     class="list-group-item list-group-item-action bg-dark text-light p-3 border-secondary {% if active_page == 'settings' %}active{% endif %}">
                     <i class="bi bi-gear me-2"></i> Settings
                 </a>
+                <a href="{{ url_for('auth.logout') }}"
+                    class="list-group-item list-group-item-action bg-dark text-danger p-3 border-secondary">
+                    <i class="bi bi-box-arrow-right me-2"></i> Logout
+                </a>
             </div>
 
             <div class="sidebar-footer p-3 border-top border-secondary">
@@ -63,15 +68,17 @@
                         <i class="bi bi-person-fill"></i>
                     </div>
                     <div>
-                        <div class="small fw-bold">Investigator</div>
+                        <div class="small fw-bold">{{ current_user.username }}</div>
                         <div class="small text-muted" style="font-size: 0.75rem;">Online</div>
                     </div>
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- Page Content -->
         <div id="page-content-wrapper" class="w-100">
+            {% if current_user.is_authenticated %}
             <nav class="navbar navbar-expand-lg navbar-dark bg-black border-bottom border-secondary mb-4">
                 <div class="container-fluid">
                     <button class="btn btn-outline-secondary" id="menu-toggle"><i class="bi bi-list"></i></button>
@@ -93,16 +100,15 @@
                                     <h6 class="dropdown-header">Active Case</h6>
                                 </li>
                                 {% if current_case_context %}
-                                <li><a class="dropdown-item" href="/cases/{{ current_case_context.id }}">View
+                                <li><a class="dropdown-item" href="/cases/{{ current_case_context.id }}">View Case
                                         Details</a></li>
-                                <li><a class="dropdown-item text-warning" href="/cases/close">Close Case</a></li>
-                                {% else %}
-                                <li><a class="dropdown-item" href="/cases/create">Create New Case</a></li>
                                 {% endif %}
+                                <li><a class="dropdown-item" href="/dashboard">Switch Case</a></li>
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>
-                                <li><a class="dropdown-item" href="/cases">Switch Case...</a></li>
+                                <li><a class="dropdown-item" href="/cases/new"><i
+                                            class="bi bi-plus-circle me-2"></i>Create New Case</a></li>
                             </ul>
                         </div>
                         <span class="badge bg-secondary me-2">ETH: $2,450.00</span>
@@ -110,6 +116,7 @@
                     </div>
                 </div>
             </nav>
+            {% endif %}
 
             <div class="container-fluid px-4">
                 {% with messages = get_flashed_messages(with_categories=true) %}

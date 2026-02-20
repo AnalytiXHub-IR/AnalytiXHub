@@ -49,9 +49,9 @@
                 <small class="text-muted d-block mt-1">💡 All chains use one API key from Etherscan.io</small>
             </div>
             <div class="col-md-4">
-                <label class="form-label text-muted">📍 Address</label>
+                <label class="form-label text-muted">📍 Address or Tx Hash (Any Supported Chain)</label>
                 <input type="text" name="address" class="form-control form-control-lg"
-                    placeholder="0x... / 0x1f9840a85... / rN7n7otQDd..."
+                    placeholder="0x... / rN7n7otQDd... / 3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy"
                     value="{{ current_address if current_address else '' }}" required>
             </div>
             <div class="col-md-2">
@@ -83,6 +83,13 @@
 </div>
 
 {% if summary %}
+{% if summary.total_transactions == 0 %}
+<div class="alert alert-warning mb-4 shadow-sm border-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i> <strong>No Data Available.</strong>
+    There are 0 transactions for this address. This could mean the address has never been used on this chain, or the
+    upstream API is temporarily rate-limited. Please verify the network and try again.
+</div>
+{% endif %}
 <div class="card cyber-card">
     <div class="card-header border-bottom border-secondary">
         <ul class="nav nav-tabs card-header-tabs" id="irTabs" role="tablist">
@@ -332,7 +339,7 @@
             <div class="tab-pane fade" id="transactions" role="tabpanel">
                 <h4 class="card-title text-light mb-4">📜 Transaction History</h4>
 
-                {% if recent_activity and recent_activity|length > 0 %}
+                {% if current_case.transactions and current_case.transactions|length > 0 %}
                 <div class="table-responsive">
                     <table class="table table-dark table-striped table-sm">
                         <thead>
@@ -345,7 +352,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for tx in recent_activity %}
+                            {% for tx in current_case.transactions %}
                             <tr>
                                 <td>{{ tx.timestamp }}</td>
                                 <td><small class="font-monospace"><a href="{{ explorer_tx }}{{ tx.hash }}"

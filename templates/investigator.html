@@ -74,13 +74,30 @@
                 <div class="mb-4">
                     <label class="form-label small text-muted text-uppercase fw-bold">Blockchain</label>
                     <select class="form-select form-select-sm cyber-input" id="targetChain">
-                        <option value="ethereum">Ethereum (ETH)</option>
-                        <option value="bitcoin">Bitcoin (BTC)</option>
-                        <option value="solana">Solana (SOL)</option>
-                        <option value="tron">Tron (TRX)</option>
-                        <option value="polygon">Polygon (MATIC)</option>
-                        <option value="bsc">Binance Smart Chain</option>
-                        <option value="dogecoin">Dogecoin (DOGE)</option>
+                        <optgroup label="EVM Chains">
+                            <option value="ethereum">Ethereum (ETH)</option>
+                            <option value="bsc">Binance Smart Chain (BSC)</option>
+                            <option value="polygon">Polygon (MATIC)</option>
+                            <option value="optimism">Optimism (OP)</option>
+                            <option value="arbitrum">Arbitrum (ARB)</option>
+                            <option value="base">Base</option>
+                            <option value="avalanche">Avalanche (AVAX)</option>
+                            <option value="fantom">Fantom (FTM)</option>
+                            <option value="cronos">Cronos (CRO)</option>
+                            <option value="moonbeam">Moonbeam (GLMR)</option>
+                            <option value="gnosis">Gnosis (GNO)</option>
+                            <option value="celo">Celo</option>
+                            <option value="blast">Blast</option>
+                            <option value="linea">Linea</option>
+                            <option value="sepolia">Sepolia Testnet</option>
+                        </optgroup>
+                        <optgroup label="Non-EVM">
+                            <option value="bitcoin">Bitcoin (BTC)</option>
+                            <option value="solana">Solana (SOL)</option>
+                            <option value="tron">Tron (TRX)</option>
+                            <option value="dogecoin">Dogecoin (DOGE)</option>
+                            <option value="xrp">XRP Ledger (XRP)</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="d-grid">

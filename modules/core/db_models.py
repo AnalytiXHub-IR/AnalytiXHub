@@ -20,12 +20,35 @@ Base = declarative_base()
 
 # ==================== DATABASE MODELS ====================
 
+class User(Base):
+    """System User/Investigator"""
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True)
+    password_hash = Column(String)
+    role = Column(String, default="officer")  # admin, officer
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    cases = relationship("Case", back_populates="owner")
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "username": self.username,
+            "email": self.email,
+            "role": self.role
+        }
+
 class Case(Base):
     """Forensic investigation case"""
     __tablename__ = "cases"
     
     id = Column(Integer, primary_key=True, index=True)
     case_id = Column(String, unique=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))  # Link to User
     case_name = Column(String)
     description = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -38,10 +61,12 @@ class Case(Base):
     case_type = Column(String)  # fraud, theft, money_laundering, etc.
     
     # Relationships
+    owner = relationship("User", back_populates="cases")
     addresses = relationship("Address", back_populates="case", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="case", cascade="all, delete-orphan")
     clusters = relationship("AddressCluster", back_populates="case", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="case", cascade="all, delete-orphan")
+    notes = relationship("CaseNote", back_populates="case", cascade="all, delete-orphan")
     
     def to_dict(self):
         return {
@@ -53,6 +78,18 @@ class Case(Base):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'status': self.status,
         }
+
+class CaseNote(Base):
+    """Notes for a case"""
+    __tablename__ = "case_notes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), index=True)
+    content = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    author = Column(String)  # Username
+    
+    case = relationship("Case", back_populates="notes")
 
 
 class Chain(Base):
@@ -80,6 +117,7 @@ class Address(Base):
     id = Column(Integer, primary_key=True, index=True)
     case_id = Column(Integer, ForeignKey("cases.id"), index=True)
     chain_id = Column(Integer, ForeignKey("chains.id"), index=True)
+    cluster_id = Column(Integer, ForeignKey("address_clusters.id"), nullable=True) # Added for relationship
     
     address = Column(String, index=True)
     alias = Column(String)  # Human-readable name
@@ -104,7 +142,9 @@ class Address(Base):
     # Relationships
     case = relationship("Case", back_populates="addresses")
     chain = relationship("Chain", back_populates="addresses")
-    transactions = relationship("Transaction", back_populates="address")
+    # transactions = relationship("Transaction", back_populates="address")
+    sent_txs = relationship("Transaction", foreign_keys="[Transaction.from_address_id]", back_populates="sender")
+    received_txs = relationship("Transaction", foreign_keys="[Transaction.to_address_id]", back_populates="receiver")
     cluster = relationship("AddressCluster", back_populates="addresses")
     
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -159,7 +199,9 @@ class Transaction(Base):
     # Relationships
     case = relationship("Case", back_populates="transactions")
     chain = relationship("Chain", back_populates="transactions")
-    address = relationship("Address", back_populates="transactions")
+    # address = relationship("Address", back_populates="transactions")
+    sender = relationship("Address", foreign_keys=[from_address_id], back_populates="sent_txs")
+    receiver = relationship("Address", foreign_keys=[to_address_id], back_populates="received_txs")
     
     def to_dict(self):
         return {
@@ -349,7 +391,9 @@ class DeFiActivity(Base):
     case_id = Column(Integer, ForeignKey("cases.id"), index=True)
     
     address = Column(String, index=True)
-    chain = Column(String)
+    chain_id = Column(Integer, ForeignKey("chains.id"), index=True) # Added to fix relationship
+    
+    # chain = Column(String) # Removed to fix ambiguity and use relation
     
     activity_type = Column(String)  # swap, liquidity_add, liquidity_remove, yield_farming, borrowing, lending
     protocol = Column(String)  # uniswap, aave, curve, compound, etc.
@@ -375,6 +419,8 @@ class DeFiActivity(Base):
     recorded_at = Column(DateTime, default=datetime.utcnow)
     
     case = relationship("Case", back_populates="defi_activities")
+    # chain_rel = relationship("Chain", back_populates="defi", foreign_keys=[chain_id])
+    chain_rel = relationship("Chain", foreign_keys=[chain_id])
 
 
 class TaintTrace(Base):
@@ -480,7 +526,7 @@ Case.monitoring_jobs = relationship("MonitoringJob", back_populates="case", casc
 Case.batch_jobs = relationship("BatchJob", back_populates="case", cascade="all, delete-orphan")
 
 Chain.contracts = relationship("SmartContract", back_populates="chain")
-Chain.defi = relationship("DeFiActivity", foreign_keys='DeFiActivity.chain_id')
+# Chain.defi = relationship("DeFiActivity", back_populates="chain_rel", foreign_keys=[DeFiActivity.chain_id])
 
 
 if __name__ == '__main__':
