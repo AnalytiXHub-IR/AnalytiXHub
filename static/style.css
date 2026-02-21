@@ -1,18 +1,19 @@
 /* ================== OPENCHAIN IR Custom Styles ================== */
 
 :root {
-    --bg-dark: #0f0f0f;
-    --card-bg: #1a1a1a;
-    --accent: #0d6efd;
-    --accent-hover: #0b5ed7;
-    --text-primary: #ffffff;
-    --text-secondary: #aaa;
-    --text-muted: #666;
-    --border-color: #333;
+    --bg-dark: transparent; /* Changed to transparent since canvas will be behind */
+    --card-bg: rgba(15, 20, 25, 0.75);
+    --accent: #00ffcc; /* Neon Cyan */
+    --accent-hover: #00e6b8;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --border-color: rgba(0, 255, 204, 0.2);
     --success: #10b981;
     --danger: #ef4444;
     --warning: #f59e0b;
     --info: #06b6d4;
+    --panel-bg: rgba(5, 5, 5, 0.85);
 }
 
 * {
@@ -20,10 +21,13 @@
 }
 
 body {
-    background-color: var(--bg-dark);
+    background-color: #050505; /* Fallback */
     color: var(--text-primary);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
+    margin: 0;
+    position: relative;
+    min-height: 100vh;
 }
 
 /* ================== CHAIN SELECTOR STYLES ================== */
@@ -84,15 +88,18 @@ body {
 
 .card {
     background-color: var(--card-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border-color);
     margin-bottom: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    transition: box-shadow 0.3s ease;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
 }
 
 .card:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 32px rgba(0, 255, 204, 0.15);
+    border-color: rgba(0, 255, 204, 0.4);
 }
 
 .card-header {
@@ -110,16 +117,18 @@ body {
 /* ================== FORM STYLES ================== */
 
 .form-control {
-    background-color: #252525;
-    border: 1px solid var(--border-color);
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    border-radius: 6px;
+    transition: all 0.3s ease;
 }
 
 .form-control:focus {
-    background-color: #252525;
+    background-color: rgba(0, 0, 0, 0.7);
     color: var(--text-primary);
-    box-shadow: none;
+    box-shadow: 0 0 0 0.25rem rgba(0, 255, 204, 0.25);
     border-color: var(--accent);
 }
 
@@ -160,22 +169,27 @@ input[type="datetime-local"] {
 /* ================== BUTTON STYLES ================== */
 
 .btn-primary {
-    background: var(--accent);
-    border: none;
-    color: var(--text-primary);
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.2), rgba(0, 200, 150, 0.1));
+    border: 1px solid var(--accent);
+    color: var(--accent);
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-radius: 6px;
     transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(0, 255, 204, 0.1);
 }
 
 .btn-primary:hover {
-    background: var(--accent-hover);
-    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
-    transform: translateY(-1px);
+    background: var(--accent);
+    color: #000;
+    box-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
+    transform: translateY(-2px);
 }
 
 .btn-primary:active {
     transform: translateY(0);
-    box-shadow: 0 2px 4px rgba(13, 110, 253, 0.3);
+    box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
 }
 
 .btn-secondary {
@@ -299,15 +313,17 @@ table tbody tr:hover {
 .stat-box {
     padding: 1.5rem;
     text-align: center;
-    border-radius: 8px;
-    background: #252525;
-    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     transition: all 0.3s ease;
 }
 
 .stat-box:hover {
-    border-color: var(--accent);
-    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.2);
+    border-color: var(--border-color);
+    box-shadow: 0 8px 24px rgba(0, 255, 204, 0.1);
+    transform: translateY(-2px);
 }
 
 .stat-val {
@@ -339,7 +355,9 @@ table tbody tr:hover {
 /* ================== NAVIGATION STYLES ================== */
 
 .navbar {
-    background-color: #000 !important;
+    background-color: var(--panel-bg) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border-color);
     padding: 1rem 0;
 }
@@ -539,11 +557,17 @@ table tbody tr:hover {
     width: 15rem;
     position: fixed;
     z-index: 1000;
+    background-color: var(--panel-bg) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-right: 1px solid var(--border-color) !important;
 }
 
 #sidebar-wrapper .sidebar-heading {
-    padding: 1rem 1.25rem;
+    padding: 1.25rem;
     font-size: 1.2rem;
+    background: transparent !important;
+    border-bottom: 1px solid var(--border-color) !important;
 }
 
 #sidebar-wrapper .list-group {
@@ -600,25 +624,31 @@ table tbody tr:hover {
 
 .list-group-item {
     border-left: 3px solid transparent;
+    background-color: transparent !important;
+    border-color: rgba(255,255,255,0.05) !important;
+    transition: all 0.2s ease;
 }
 
 .list-group-item.active {
-    background-color: #1a1a1a !important;
-    border-left: 3px solid var(--accent);
+    background-color: rgba(0, 255, 204, 0.1) !important;
+    border-left: 3px solid var(--accent) !important;
     color: var(--accent) !important;
     font-weight: 600;
 }
 
-.list-group-item:hover {
-    background-color: #222 !important;
+.list-group-item:hover:not(.active) {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-left-color: rgba(0, 255, 204, 0.3);
 }
 
 .cyber-card {
-    background: #111;
-    border: 1px solid #333;
-    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    background: rgba(10, 10, 12, 0.6);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 0 20px rgba(0, 255, 204, 0.05);
     position: relative;
     overflow: hidden;
+    border-radius: 12px;
 }
 
 .cyber-card::before {
@@ -629,4 +659,8 @@ table tbody tr:hover {
     width: 100%;
     height: 2px;
     background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+/* Disable background on html to let vanta show */
+html {
+    background-color: transparent !important;
 }

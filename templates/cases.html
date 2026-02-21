@@ -18,25 +18,25 @@
     {% for case in cases %}
     <div class="col-md-6 col-xl-4">
         <div
-            class="card cyber-card h-100 {% if current_case_context and current_case_context.id == case.case_id %}border-warning{% endif %}">
+            class="card cyber-card h-100 {% if current_case_context and current_case_context.id == case.id %}border-warning{% endif %}">
             <div
                 class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-start">
                 <div>
-                    <h5 class="card-title text-light mb-1">{{ case.name }}</h5>
+                    <h5 class="card-title text-light mb-1">{{ case.case_name }}</h5>
                     <small class="text-muted font-monospace">{{ case.case_id }}</small>
                 </div>
-                {% if current_case_context and current_case_context.id == case.case_id %}
+                {% if current_case_context and current_case_context.id == case.id %}
                 <span class="badge bg-warning text-dark">ACTIVE</span>
                 {% else %}
                 <span class="badge bg-secondary">Saved</span>
                 {% endif %}
             </div>
             <div class="card-body">
-                <p class="card-text text-secondary small mb-3">{{ case.description }}</p>
+                <p class="card-text text-secondary small mb-3">{{ case.description or 'No description provided.' }}</p>
 
                 <div class="d-flex justify-content-between mb-2">
                     <span class="text-muted small">Investigator:</span>
-                    <span class="text-light small">{{ case.investigator }}</span>
+                    <span class="text-light small">{{ case.investigator or 'Unknown' }}</span>
                 </div>
                 <div class="d-flex justify-content-between mb-2">
                     <span class="text-muted small">Created:</span>
@@ -44,7 +44,7 @@
                 </div>
                 <div class="d-flex justify-content-between mb-3">
                     <span class="text-muted small">Subjects:</span>
-                    <span class="badge bg-dark border border-secondary">{{ case.addresses|length }}</span>
+                    <span class="badge bg-dark border border-secondary">{{ case.address_count }}</span>
                 </div>
 
                 <div class="d-flex gap-2 mt-auto">

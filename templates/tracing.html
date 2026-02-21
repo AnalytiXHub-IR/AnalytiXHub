@@ -235,9 +235,8 @@
         // Auto-load if address provided
         const initialAddress = document.getElementById('traceAddress').value;
         if (initialAddress) {
-            // Default to Auto-Scan for "Breadcrumbs" feel if it's the first load
-            document.getElementById('autoScanToggle').checked = true;
-            fetchData(initialAddress, true);
+            // Setup UI but don't auto-fetch. User must click Trace manually.
+            document.getElementById('autoScanToggle').checked = false;
         }
 
         // Double click handler

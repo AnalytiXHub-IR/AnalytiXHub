@@ -4,7 +4,7 @@
 <div class="row mb-4">
     <div class="col-md-8">
         <h2 class="text-light"><i class="bi bi-eye me-2 text-info"></i> Case Details</h2>
-        <p class="text-muted">{{ case.name }} ({{ case.case_id }})</p>
+        <p class="text-muted">{{ case.case_name }} ({{ case.case_id }})</p>
     </div>
     <div class="col-md-4 text-end">
         <a href="/cases" class="btn btn-secondary">
@@ -66,26 +66,26 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for addr, data in case.addresses.items() %}
+                            {% for data in case.addresses %}
                             <tr>
-                                <td class="font-monospace text-warning">{{ addr }}</td>
-                                <td><span class="badge bg-secondary">{{ data.tag }}</span></td>
+                                <td class="font-monospace text-warning">{{ data.address }}</td>
+                                <td><span class="badge bg-secondary">{{ data.type or 'unknown' }}</span></td>
                                 <td>
-                                    {% if data.risk_level > 80 %}
+                                    {% if (data.risk_score or 0) > 80 %}
                                     <span class="text-danger fw-bold">CRITICAL</span>
-                                    {% elif data.risk_level > 50 %}
+                                    {% elif (data.risk_score or 0) > 50 %}
                                     <span class="text-warning">HIGH</span>
                                     {% else %}
                                     <span class="text-success">LOW</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <a href="/tracing?address={{ addr }}" class="btn btn-sm btn-outline-info"
+                                    <a href="/tracing?address={{ data.address }}" class="btn btn-sm btn-outline-info"
                                         title="Trace Path">
                                         <i class="bi bi-share"></i>
                                     </a>
-                                    <a href="/investigation?address={{ addr }}" class="btn btn-sm btn-outline-primary"
-                                        title="Deep Analysis">
+                                    <a href="/investigation?address={{ data.address }}"
+                                        class="btn btn-sm btn-outline-primary" title="Deep Analysis">
                                         <i class="bi bi-search"></i>
                                     </a>
                                 </td>

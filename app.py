@@ -130,11 +130,54 @@ def dashboard():
     else:
         cases = db.query(DBCase).filter(DBCase.user_id == current_user.id).order_by(DBCase.updated_at.desc()).all()
     
-    # Simple alert count (mock for now or query Alert table)
+    # Calculate stats
+    total_cases = len(cases)
+    active_cases = sum(1 for c in cases if c.status == 'active')
+    
+    # Chart Data: Cases created per day (last 7 days)
+    from datetime import datetime, timedelta
+    chart_labels = []
+    chart_data = []
+    today = datetime.now()
+    
+    for i in range(6, -1, -1):
+        target_date = today - timedelta(days=i)
+        date_str = target_date.strftime('%Y-%m-%d')
+        chart_labels.append(date_str)
+        # Count cases created on this day
+        count = sum(1 for c in cases if c.created_at and c.created_at.strftime('%Y-%m-%d') == date_str)
+        chart_data.append(count)
+        
+    # Total entities tracked (across user's cases)
+    total_addresses = 0
+    entity_chart_labels = ["Safe", "Suspicious", "Malicious / Known Threat"]
+    entity_chart_data = [0, 0, 0]
+    
+    if cases:
+        case_ids = [c.id for c in cases]
+        total_addresses = db.query(Address).filter(Address.case_id.in_(case_ids)).count()
+        
+        safe_entities = db.query(Address).filter(Address.case_id.in_(case_ids), Address.is_suspicious == False, Address.threat_intel_flag == False).count()
+        suspicious_entities = db.query(Address).filter(Address.case_id.in_(case_ids), Address.is_suspicious == True, Address.threat_intel_flag == False).count()
+        malicious_entities = db.query(Address).filter(Address.case_id.in_(case_ids), Address.threat_intel_flag == True).count()
+        entity_chart_data = [safe_entities, suspicious_entities, malicious_entities]
+        
     alerts_count = db.query(Alert).filter(Alert.is_acknowledged == False).count()
     db.close()
     
-    return render_template("dashboard.html", cases=cases, alerts_count=alerts_count)
+    return render_template(
+        "dashboard.html", 
+        cases=cases, 
+        active_page="dashboard",
+        alerts_count=alerts_count,
+        total_cases=total_cases,
+        active_cases=active_cases,
+        total_addresses=total_addresses,
+        chart_labels=chart_labels,
+        chart_data=chart_data,
+        entity_chart_labels=entity_chart_labels,
+        entity_chart_data=entity_chart_data
+    )
 
 # Context Processor for Global Template Variables
 @app.context_processor
@@ -181,6 +224,68 @@ def load_case(case_id):
         return redirect(url_for('investigation'))
     flash("Case not found or access denied.", "error")
     return redirect(url_for('dashboard'))
+
+# --- ADMIN PANEL ROUTES ---
+from functools import wraps
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            flash("Administrator access required.", "error")
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route("/admin/users", methods=["GET", "POST"])
+@login_required
+@admin_required
+def admin_users():
+    db = SessionLocal()
+    
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "add":
+            username = request.form.get("username")
+            email = request.form.get("email")
+            password = request.form.get("password")
+            role = request.form.get("role", "officer")
+            
+            if db.query(User).filter((User.username == username) | (User.email == email)).first():
+                flash("Username or Email already exists.", "error")
+            else:
+                new_user = User(
+                    username=username,
+                    email=email,
+                    password_hash=generate_password_hash(password),
+                    role=role
+                )
+                db.add(new_user)
+                db.commit()
+                flash(f"User {username} created successfully.", "success")
+                
+        elif action == "edit":
+            user_id = request.form.get("user_id")
+            user = db.query(User).get(user_id)
+            if user:
+                user.email = request.form.get("email")
+                user.role = request.form.get("role")
+                if request.form.get("password"):
+                    user.password_hash = generate_password_hash(request.form.get("password"))
+                db.commit()
+                flash(f"User {user.username} updated.", "success")
+                
+        elif action == "delete":
+            user_id = request.form.get("user_id")
+            user = db.query(User).get(user_id)
+            if user and user.username != "admin": # prevent deleting main admin
+                db.delete(user)
+                db.commit()
+                flash("User deleted.", "success")
+                
+    users = db.query(User).order_by(User.id).all()
+    db.close()
+    return render_template("admin_users.html", users=users)
 
 @app.route("/investigation", methods=["GET", "POST"])
 @login_required
@@ -381,6 +486,7 @@ def investigation():
     if focus and focus.get("address"):
         address = focus["address"]
         chain_name = focus.get("chain", "ethereum")
+        chain_id = focus.get("chain_id", 1)
         
         # Data Loading Strategy: DB First, then API Fallback
         txs = []
@@ -447,8 +553,28 @@ def investigation():
         
         # Advanced features
         if ADVANCED_FEATURES_AVAILABLE:
-             # Load or re-run logic... kept simple for now to ensures basic equivalence
-             pass
+            try:
+                from modules.analyzers.advanced_analysis import AddressClustering, ThreatIntelligence
+                from modules.analyzers.ml_engine import ml_engine
+                
+                # 1. Clustering
+                context_case["clustering_results"] = AddressClustering.cluster_addresses(txs, address, chain_id=chain_id)
+                
+                # 2. Threat Intel
+                threat_data = ThreatIntelligence.load_threat_data()
+                context_case["threat_intel_results"] = ThreatIntelligence.check_address(address, threat_data)
+                
+                # 3. Anomaly Detection (using ml_engine)
+                context_case["anomalies"] = ml_engine.detect_anomalies(txs)
+                
+                # 4. ML Patterns
+                context_case["patterns"] = ml_engine.detect_patterns(txs, address)
+                
+            except Exception as e:
+                print(f"[ADVANCED FEATURES ERROR]: {e}")
+                
+                import traceback
+                traceback.print_exc()
 
     db.close()
     
@@ -460,7 +586,11 @@ def investigation():
                          current_chain=context_case.get('chain', 'ethereum'),
                          current_address=context_case.get('address'),
                          fetch_options={'include_internal': True, 'include_token_transfers': True}, # Default options
-                         recent_activity=context_case.get('transactions', [])[:5])
+                         recent_activity=context_case.get('transactions', [])[:5],
+                         clustering_results=context_case.get('clustering_results'),
+                         threat_intel=context_case.get('threat_intel_results'),
+                         anomalies=context_case.get('anomalies'),
+                         patterns=context_case.get('patterns'))
 
 
 # Helper to load case context
@@ -764,9 +894,9 @@ def delete_case_route(case_id):
     db = SessionLocal()
     # Check permissions
     if current_user.role == 'admin':
-        case = db.query(DBCase).filter(DBCase.id == case_id).first()
+        case = db.query(DBCase).filter(DBCase.case_id == case_id).first()
     else:
-        case = db.query(DBCase).filter(DBCase.id == case_id, DBCase.user_id == current_user.id).first()
+        case = db.query(DBCase).filter(DBCase.case_id == case_id, DBCase.user_id == current_user.id).first()
         
     if case:
         db.delete(case)
@@ -785,7 +915,7 @@ def delete_case_route(case_id):
 def switch_case(case_id):
     """Set active case context"""
     db = SessionLocal()
-    case = db.query(DBCase).filter(DBCase.id == case_id).first()
+    case = db.query(DBCase).filter(DBCase.case_id == case_id).first()
     
     # Check permissions
     if case and (case.user_id == current_user.id or current_user.role == 'admin'):
@@ -810,12 +940,15 @@ def close_active_case():
 def case_detail(case_id):
     """View case details"""
     db = SessionLocal()
-    case = db.query(DBCase).filter(DBCase.id == case_id).first()
+    case = db.query(DBCase).filter(DBCase.case_id == case_id).first()
     
     if not case or (case.user_id != current_user.id and current_user.role != 'admin'):
         db.close()
         flash("Case not found or permission denied", "error")
         return redirect(url_for('list_cases'))
+    
+    # Auto-activate the case when viewed so sidebar features display
+    session['active_case_id'] = case.id
     
     # helper for template
     case_dict = case.to_dict()
@@ -886,6 +1019,48 @@ def add_note_to_case(case_id):
     db.close()
     
     return jsonify({'success': True, 'message': "Note added"})
+
+@app.route("/case/<case_id>/delete_note/<note_id>", methods=["POST"])
+@login_required
+def delete_note_from_case(case_id, note_id):
+    """Delete note from case"""
+    db = SessionLocal()
+    case = db.query(DBCase).filter(DBCase.id == case_id).first()
+    
+    if not case or (case.user_id != current_user.id and current_user.role != 'admin'):
+        db.close()
+        return jsonify({'success': False, 'error': 'Case not found'}), 404
+        
+    note = db.query(CaseNote).filter(CaseNote.id == note_id, CaseNote.case_id == case.id).first()
+    if note:
+        db.delete(note)
+        db.commit()
+        
+    db.close()
+    return jsonify({'success': True, 'message': "Note deleted"})
+
+@app.route("/case_board")
+@login_required
+def case_board():
+    """Investigation Board - Sticky Notes and Case Details"""
+    active_case_db = get_active_case()
+    if not active_case_db:
+        flash("Please select a case to view its board.", "warning")
+        return redirect(url_for('dashboard'))
+        
+    db = SessionLocal()
+    notes = db.query(CaseNote).filter(CaseNote.case_id == active_case_db.id).order_by(CaseNote.created_at.desc()).all()
+    
+    notes_data = [{
+        "id": n.id,
+        "content": n.content,
+        "author": n.author,
+        "created_at": n.created_at.strftime('%m/%d %H:%M') if n.created_at else ''
+    } for n in notes]
+    
+    db.close()
+    
+    return render_template("board.html", active_page="board", current_case=active_case_db, notes=notes_data)
 
 @app.route("/case/<case_id>/report", methods=["GET"])
 @login_required
@@ -1540,26 +1715,50 @@ def update_settings():
 
 # ==================== SUPPORTED CHAINS ROUTE ====================
 
-@app.route("/api/pathfinder")
-def api_pathfinder():
-    """Find path between two addresses"""
-    import os
-    source = request.args.get('source')
-    target = request.args.get('target')
-    chain_id = request.args.get('chain', 1)
-    
-    if not source or not target:
-        return jsonify({"error": "Missing source or target address"}), 400
-        
+@app.route("/pathfinder", methods=["GET", "POST"])
+@login_required
+def pathfinder():
+    """Cross-Wallet Pathfinder UI and Engine"""
     from modules.utils.pathfinder import PathFinder
-    pf = PathFinder()
-    try:
-        result = pf.find_path(source, target, chain_id)
-        return jsonify(result)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+    
+    result = None
+    if request.method == "POST":
+        source = request.form.get("source")
+        target = request.form.get("target")
+        chain = request.form.get("chain", "ethereum")
+        
+        if source and target:
+            try:
+                result = PathFinder.find_path(source, target, chain)
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                result = {"error": str(e)}
+        else:
+            result = {"error": "Both Source and Target addresses are required."}
+            
+    # Need to fetch the global SUPPORTED_CHAINS since this is in app.py
+    from modules.fetchers.multi_chain import MultiChainFetcher
+    _supported_chains = {
+        "EVM Chains (MultiChain)": [
+            ("ethereum", "Ethereum Mainnet (ETH)"),
+            ("bsc", "BNB Smart Chain (BSC)"),
+            ("polygon", "Polygon (MATIC)"),
+            ("optimism", "Optimism (OP)"),
+            ("arbitrum", "Arbitrum One (ARB)"),
+            ("base", "Base (BASE)"),
+            ("avalanche", "Avalanche C-Chain (AVAX)"),
+            ("fantom", "Fantom (FTM)")
+        ],
+        "Non-EVM Chains": [
+            ("bitcoin", "Bitcoin (BTC)"),
+            ("solana", "Solana (SOL)"),
+            ("tron", "Tron (TRX)"),
+            ("dogecoin", "Dogecoin (DOGE)")
+        ]
+    }
+            
+    return render_template("pathfinder.html", active_page="pathfinder", result=result, supported_chains=_supported_chains)
 
 # ==================== MONITORING ROUTES ====================
 @app.route("/monitoring")
@@ -1656,6 +1855,83 @@ def api_address_details(address):
         return jsonify({"error": str(e)}), 500
     finally:
         db.close()
+
+@app.route("/export/csv")
+@login_required
+def export_csv():
+    """Export current case transactions to CSV"""
+    active_case_db = get_active_case()
+    if not active_case_db:
+        flash("No active case to export.", "warning")
+        return redirect(url_for('dashboard'))
+        
+    try:
+        import pandas as pd
+        from io import BytesIO
+        
+        data = []
+        
+        # 1. Get DB Transactions (explicitly saved)
+        db = SessionLocal()
+        transactions = db.query(Transaction).filter_by(case_id=active_case_db.id).all()
+        for tx in transactions:
+            data.append({
+                "Tx Hash": tx.tx_hash,
+                "From": tx.from_address,
+                "To": tx.to_address,
+                "Amount": tx.amount,
+                "Fee": tx.fee,
+                "Timestamp": tx.timestamp.strftime('%Y-%m-%d %H:%M:%S') if tx.timestamp else '',
+                "Block": tx.block_number,
+                "Suspicious": "Yes" if tx.is_suspicious else "No",
+                "Anomaly Score": tx.anomaly_score
+            })
+        db.close()
+        
+        # 2. Add Live Context History (if investigating an address)
+        focus_key = f"case_focus_{active_case_db.id}"
+        focus = session.get(focus_key)
+        if focus and focus.get('address'):
+            from modules.fetchers.multi_chain import MultiChainFetcher
+            live_txs, _ = MultiChainFetcher.fetch_by_chain(focus['chain'], focus['address'])
+            existing_hashes = set(d["Tx Hash"] for d in data)
+            
+            for tx in live_txs:
+                target_hash = tx.get('hash', tx.get('txid', ''))
+                if target_hash and target_hash not in existing_hashes:
+                    data.append({
+                        "Tx Hash": target_hash,
+                        "From": tx.get('from', ''),
+                        "To": tx.get('to', ''),
+                        "Amount": tx.get('value', 0),
+                        "Fee": tx.get('fee', 0),
+                        "Timestamp": tx.get('timestamp', ''),
+                        "Block": tx.get('blockNumber', ''),
+                        "Suspicious": "Unknown",
+                        "Anomaly Score": 0
+                    })
+                    existing_hashes.add(target_hash)
+            
+        df = pd.DataFrame(data)
+        
+        # Write to BytesIO
+        output = BytesIO()
+        csv_string = df.to_csv(index=False)
+        output.write(csv_string.encode('utf-8'))
+        output.seek(0)
+        
+        filename = f"transactions_{active_case_db.case_id}.csv"
+        db.close()
+        
+        return send_file(
+            output,
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        flash(f"Error exporting CSV: {str(e)}", "error")
+        return redirect(url_for('investigation'))
 
 
 @app.route("/api/case/<case_id>/export")

@@ -74,9 +74,11 @@ class Case(Base):
             'case_id': self.case_id,
             'case_name': self.case_name,
             'description': self.description,
+            'investigator': self.investigator,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'status': self.status,
+            'address_count': len(self.addresses) if self.addresses else 0
         }
 
 class CaseNote(Base):

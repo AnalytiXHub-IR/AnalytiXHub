@@ -1,11 +1,1 @@
-{
-    "0x098b716b8aaf21512996dc57eb0615e2383e2f96": {
-        "address": "0x098b716b8aaf21512996dc57eb0615e2383e2f96",
-        "chain": "ethereum",
-        "tag": "suspect",
-        "added_at": "2026-02-11T07:42:15.052095",
-        "last_check": null,
-        "status": "active",
-        "alerts": []
-    }
-}
+{}

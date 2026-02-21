@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    #caseBoard {
+        position: relative;
+        width: 100%;
+        height: 75vh;
+        background-color: #0b0f19;
+        background-image:
+            linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+        background-size: 30px 30px;
+        border: 2px solid #00f3ff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: inset 0 0 50px rgba(0, 243, 255, 0.1);
+        cursor: crosshair;
+    }
+
+    .draggable-item {
+        position: absolute;
+        cursor: grab;
+        z-index: 10;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .draggable-item:active {
+        cursor: grabbing;
+        z-index: 100;
+        box-shadow: 0 8px 25px rgba(0, 243, 255, 0.3);
+    }
+
+    .sticky-note {
+        width: 220px;
+        background: #1a1a2e;
+        border-left: 4px solid #00f3ff;
+    }
+
+    .custom-sticker {
+        max-width: 200px;
+        max-height: 200px;
+        border: 2px solid #333;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 5px;
+    }
+
+    .custom-sticker img {
+        width: 100%;
+        height: auto;
+    }
+
+    .draw-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        /* Below items, so we can drag items over lines */
+        pointer-events: auto;
+        /* Handle drawing */
+    }
+
+    /* When moving items, canvas should ignore pointer events */
+    .mode-move .draw-canvas {
+        pointer-events: none;
+    }
+
+    .mode-draw .draggable-item {
+        pointer-events: none;
+        /* Ignore item dragging while drawing */
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="text-light mb-0"><i class="fas fa-project-diagram me-2 text-info"></i>Investigation Board</h3>
+        <p class="text-muted small mb-0">Workspace: {{ current_case.case_name }} ({{ current_case.case_id }})</p>
+    </div>
+
+    <div class="btn-group" role="group">
+        <input type="radio" class="btn-check" name="boardMode" id="modeMove" autocomplete="off" checked
+            onchange="setMode('move')">
+        <label class="btn btn-outline-info" for="modeMove"><i class="bi bi-arrows-move me-1"></i> Move Items</label>
+
+        <input type="radio" class="btn-check" name="boardMode" id="modeDraw" autocomplete="off"
+            onchange="setMode('draw')">
+        <label class="btn btn-outline-danger" for="modeDraw"><i class="bi bi-pen me-1"></i> Draw Line</label>
+    </div>
+
+    <div>
+        <button class="btn btn-sm btn-info me-2" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+            <i class="bi bi-sticky me-1"></i> Add Note
+        </button>
+        <button class="btn btn-sm btn-warning me-2" onclick="addSticker()">
+            <i class="bi bi-image me-1"></i> Add Image/Sticker
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="clearDrawings()">
+            <i class="bi bi-eraser me-1"></i> Clear Drawings
+        </button>
+    </div>
+</div>
+
+<!-- The Board -->
+<div id="caseBoardContainer" class="mode-move">
+    <div id="caseBoard">
+        <!-- Canvas for drawing -->
+        <canvas id="drawingCanvas"></canvas>
+
+        <!-- Render existing notes from DB -->
+        {% if notes %}
+        {% for note in notes %}
+        <div class="card draggable-item sticky-note" id="note-{{ note.id }}">
+            <div
+                class="card-header bg-black py-1 px-2 d-flex justify-content-between align-items-center border-bottom border-info">
+                <small class="text-info"><i class="bi bi-pin-angle text-warning text-sm"></i> Note</small>
+                <button class="btn btn-sm text-danger p-0 delete-btn" onclick="deleteNote('{{ note.id }}', this)"><i
+                        class="bi bi-x-circle"></i></button>
+            </div>
+            <div class="card-body p-2">
+                <p class="text-light small mb-0" style="white-space: pre-wrap;">{{ note.content }}</p>
+                <small class="text-muted d-block mt-2" style="font-size: 0.65rem;">{{ note.author }} - {{
+                    note.created_at }}</small>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Note Modal -->
+<div class="modal fade" id="addNoteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark border-info">
+            <div class="modal-header border-info">
+                <h5 class="modal-title text-info">Add Sticky Note</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <textarea id="newNoteContent" class="form-control bg-black text-light border-secondary" rows="4"
+                    placeholder="Enter findings..."></textarea>
+            </div>
+            <div class="modal-footer border-info">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info" onclick="saveNewNote()">Add Note</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const caseId = "{{ current_case.id }}";
+    const board = document.getElementById("caseBoard");
+    const container = document.getElementById("caseBoardContainer");
+
+    // --- CANVAS CONFIG ---
+    const canvas = document.getElementById("drawingCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+        canvas.width = board.clientWidth;
+        canvas.height = board.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Set line style (Red String)
+    ctx.strokeStyle = "rgba(255, 50, 50, 0.8)";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+
+    let isDrawing = false;
+    let mode = 'move'; // 'move' or 'draw'
+
+    function setMode(newMode) {
+        mode = newMode;
+        if (mode === 'draw') {
+            container.classList.remove('mode-move');
+            container.classList.add('mode-draw');
+        } else {
+            container.classList.remove('mode-draw');
+            container.classList.add('mode-move');
+        }
+    }
+
+    // Drawing Logic
+    canvas.addEventListener("mousedown", (e) => {
+        if (mode !== 'draw') return;
+        isDrawing = true;
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+    });
+    canvas.addEventListener("mousemove", (e) => {
+        if (mode !== 'draw' || !isDrawing) return;
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+    });
+    canvas.addEventListener("mouseup", () => isDrawing = false);
+    canvas.addEventListener("mouseout", () => isDrawing = false);
+
+    function clearDrawings() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // --- ITEM DRAGGING LOGIC ---
+    let draggedItem = null;
+    let offsetX = 0, offsetY = 0;
+
+    function initDraggable(el) {
+        // Random initial placement if not defined
+        if (!el.style.left) {
+            el.style.left = Math.floor(Math.random() * (board.clientWidth - 250)) + "px";
+            el.style.top = Math.floor(Math.random() * (board.clientHeight - 150)) + "px";
+        }
+
+        el.addEventListener("mousedown", (e) => {
+            if (mode !== 'move') return;
+            if (e.target.closest('.delete-btn')) return; // ignore delete clicks
+
+            draggedItem = el;
+            offsetX = e.clientX - el.getBoundingClientRect().left;
+            offsetY = e.clientY - el.getBoundingClientRect().top;
+        });
+    }
+
+    document.addEventListener("mousemove", (e) => {
+        if (draggedItem && mode === 'move') {
+            const boardRect = board.getBoundingClientRect();
+            let newX = e.clientX - boardRect.left - offsetX;
+            let newY = e.clientY - boardRect.top - offsetY;
+
+            // Keep inside board
+            newX = Math.max(0, Math.min(newX, boardRect.width - draggedItem.clientWidth));
+            newY = Math.max(0, Math.min(newY, boardRect.height - draggedItem.clientHeight));
+
+            draggedItem.style.left = newX + "px";
+            draggedItem.style.top = newY + "px";
+        }
+    });
+
+    document.addEventListener("mouseup", () => {
+        draggedItem = null;
+    });
+
+    // Initialize existing notes
+    document.querySelectorAll(".draggable-item").forEach(initDraggable);
+
+    // --- ADD NOTE / STICKER ---
+    function saveNewNote() {
+        const content = document.getElementById("newNoteContent").value;
+        if (!content) return;
+
+        const formData = new FormData();
+        formData.append("note", content);
+
+        // Save to backend
+        fetch(`/case/${caseId}/add_note`, { method: "POST", body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload(); // Reload to render proper templates and ID for deletion
+                }
+            });
+    }
+
+    function addSticker() {
+        const url = prompt("Enter Image URL (e.g. suspect photo, logo):");
+        if (url) {
+            const sticker = document.createElement("div");
+            sticker.className = "draggable-item custom-sticker";
+            sticker.innerHTML = `
+                <div class="text-end mb-1"><button class="btn btn-sm text-danger p-0 delete-btn" onclick="this.parentElement.parentElement.remove()"><i class="bi bi-x-circle"></i></button></div>
+                <img src="${url}" alt="sticker" onerror="this.src='https://via.placeholder.com/150?text=Invalid+Image'">
+            `;
+            board.appendChild(sticker);
+            initDraggable(sticker);
+        }
+    }
+
+    // --- DELETE DB NOTE ---
+    function deleteNote(noteId, btnElement) {
+        if (!confirm("Delete this physical note from the case file?")) return;
+
+        fetch(`/case/${caseId}/delete_note/${noteId}`, { method: "POST" })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove from DOM
+                    btnElement.closest('.draggable-item').remove();
+                } else {
+                    alert("Error closing note: " + data.error);
+                }
+            }).catch(console.error);
+    }
+</script>
+{% endblock %}

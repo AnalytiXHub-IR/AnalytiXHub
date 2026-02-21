@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="text-light mb-0"><i class="fas fa-project-diagram me-2 text-info"></i>Cross-Wallet Pathfinder</h2>
+        <p class="text-muted mt-1">Discover direct and 1-hop indirect connections between two entities.</p>
+    </div>
+</div>
+
+<div class="card cyber-card p-4 mb-4">
+    <form method="POST" action="/pathfinder">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label text-muted">🔗 Blockchain</label>
+                <select name="chain" class="form-control form-control-lg" required>
+                    {% for group, chains in supported_chains.items() %}
+                    <optgroup label="{{ group }}">
+                        {% for chain_id, name in chains %}
+                        <option value="{{ chain_id }}" {% if request.form.get('chain')==chain_id %}selected{% endif %}>
+                            {{ name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted">Entity A (Source)</label>
+                <input type="text" name="source" class="form-control form-control-lg"
+                    placeholder="Enter Wallet Address A" value="{{ request.form.get('source', '') }}" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label text-muted">Entity B (Target)</label>
+                <input type="text" name="target" class="form-control form-control-lg"
+                    placeholder="Enter Wallet Address B" value="{{ request.form.get('target', '') }}" required>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-info btn-lg w-100 fw-bold" title="Find Path">
+                    <i class="fas fa-search me-2"></i>FIND
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% if result %}
+{% if result.error %}
+<div class="alert alert-danger shadow-sm border-danger">
+    <i class="fas fa-exclamation-triangle me-2"></i> <strong>Error:</strong> {{ result.error }}
+</div>
+{% else %}
+<!-- Direct Connections -->
+<div class="card cyber-card mb-4 border-success">
+    <div class="card-header bg-success bg-opacity-10 border-success">
+        <h5 class="card-title text-success mb-0"><i class="fas fa-link me-2"></i>Direct Connections ({{
+            result.direct_paths|length }})</h5>
+    </div>
+    <div class="card-body">
+        {% if result.direct_paths|length > 0 %}
+        <div class="table-responsive">
+            <table class="table table-dark table-striped table-sm">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Transaction Hash</th>
+                        <th>Direction</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in result.direct_paths %}
+                    <tr>
+                        <td>{{ tx.timestamp if tx.timestamp else 'N/A' }}</td>
+                        <td><span class="font-monospace text-info">{{ tx.get('hash', tx.get('txid', 'Unknown'))
+                                }}</span></td>
+                        <td>
+                            {% if tx.get('from', '').lower() == result.source.lower() %}
+                            <span class="text-warning">A → B</span>
+                            {% else %}
+                            <span class="text-success">B → A</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ "%.4f"|format(tx.get('value', 0)|float) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No direct transactions found between Entity A and Entity B.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Indirect Connections -->
+<div class="card cyber-card border-warning">
+    <div class="card-header bg-warning bg-opacity-10 border-warning">
+        <h5 class="card-title text-warning mb-0"><i class="fas fa-sitemap me-2"></i>1-Hop Indirect Connections ({{
+            result.indirect_paths|length }})</h5>
+    </div>
+    <div class="card-body">
+        {% if result.indirect_paths|length > 0 %}
+        <div class="table-responsive">
+            <table class="table table-dark table-striped table-sm">
+                <thead>
+                    <tr>
+                        <th>Path Type</th>
+                        <th>Intermediate Node</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for path in result.indirect_paths %}
+                    <tr>
+                        <td><span class="badge bg-secondary">{{ path.type }}</span></td>
+                        <td><span class="font-monospace text-info">{{ path.intermediate_node }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No indirect connections (1-hop) found between these entities.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% endblock %}
