@@ -26,9 +26,14 @@ monitoring_system = MonitoringSystem()
 # case_manager = CaseManager() # Deprecated
 
 try:
-    from modules.analyzers.advanced_analysis import AddressClustering, ThreatIntelligence, AnomalyDetector
+    from modules.analyzers.advanced_analysis import AddressClustering, AnomalyDetector
+    from modules.analyzers.threat_intelligence import ThreatIntelligenceAPI, BlockchainIntelligence
+    ti_api = ThreatIntelligenceAPI()
+    bi_api = BlockchainIntelligence()
     ADVANCED_FEATURES_AVAILABLE = True
-except:
+except Exception as e:
+    import traceback
+    traceback.print_exc()
     ADVANCED_FEATURES_AVAILABLE = False
 
 # NEW FEATURES (v4.0) - Taint Analysis, Smart Contracts, DeFi, Real-time Monitor, Threat Intel
@@ -554,25 +559,32 @@ def investigation():
         # Advanced features
         if ADVANCED_FEATURES_AVAILABLE:
             try:
-                from modules.analyzers.advanced_analysis import AddressClustering, ThreatIntelligence
-                from modules.analyzers.ml_engine import ml_engine
-                
                 # 1. Clustering
-                context_case["clustering_results"] = AddressClustering.cluster_addresses(txs, address, chain_id=chain_id)
+                context_case["clustering_results"] = AddressClustering.cluster_addresses(txs, address, chain_id=focus.get('chain_id', 1))
                 
-                # 2. Threat Intel
-                threat_data = ThreatIntelligence.load_threat_data()
-                context_case["threat_intel_results"] = ThreatIntelligence.check_address(address, threat_data)
+                # 2. Threat Intel (V2)
+                ti_result = ti_api.check_address(address)
+                # Map field names for investigation.html template compatibility
+                ti_result['threat_sources'] = ti_result.get('sources', [])
+                ti_result['threat_types'] = [ti_result.get('threat_type')] if ti_result.get('threat_type') else []
                 
-                # 3. Anomaly Detection (using ml_engine)
-                context_case["anomalies"] = ml_engine.detect_anomalies(txs)
+                # Add blockchain intelligence for entity ID
+                entity_info = bi_api.identify_entity(address)
+                if entity_info and entity_info.get('type') != 'unknown':
+                    ti_result['entity'] = entity_info
+                    if entity_info.get('type') not in ti_result['threat_types']:
+                        ti_result['threat_types'].append(entity_info.get('type'))
                 
-                # 4. ML Patterns
+                context_case["threat_intel_results"] = ti_result
+                
+                # 3. Anomaly Detection
+                context_case["anomalies"] = AnomalyDetector.detect_anomalies(txs)
+                
+                # 4. ML Patterns (using ml_engine which is already imported)
                 context_case["patterns"] = ml_engine.detect_patterns(txs, address)
                 
             except Exception as e:
                 print(f"[ADVANCED FEATURES ERROR]: {e}")
-                
                 import traceback
                 traceback.print_exc()
 
@@ -658,6 +670,20 @@ def load_case_context():
         current_case["summary"] = summary
         current_case["source"] = source
         current_case["counts"] = counts
+        
+        # Advanced features for context persistence
+        if ADVANCED_FEATURES_AVAILABLE:
+            try:
+                current_case["clustering_results"] = AddressClustering.cluster_addresses(txs, address, chain_id=chain_id)
+                ti_res = ti_api.check_address(address)
+                ti_res['threat_sources'] = ti_res.get('sources', [])
+                ti_res['threat_types'] = [ti_res.get('threat_type')] if ti_res.get('threat_type') else []
+                current_case["threat_intel_results"] = ti_res
+                current_case["anomalies"] = AnomalyDetector.detect_anomalies(txs)
+                current_case["patterns"] = ml_engine.detect_patterns(txs, address)
+            except Exception as e:
+                print(f"[CONTEXT ADVANCED ERROR]: {e}")
+
         current_case["findings"] = [
              f"Target: {address}",
              f"Chain: {chain_name.upper()}",
@@ -1693,12 +1719,61 @@ def clustering_details():
 @login_required
 def threat_intel():
     """View threat intelligence results"""
-    current_case = load_case_context()
-    if not current_case:
+    active_case_db = get_active_case()
+    if not active_case_db:
          return redirect(url_for('dashboard'))
-    threat = current_case.get("threat_intel_results", {})
-    anomalies = current_case.get("anomalies", [])
-    return render_template("threat_intel.html", threat=threat, anomalies=anomalies)
+    
+    db = SessionLocal()
+    # Get all addresses in this case
+    all_addresses = db.query(Address).filter_by(case_id=active_case_db.id).all()
+    addr_strings = [a.address for a in all_addresses]
+    
+    # Run bulk threat check if features available
+    threat_summary = {'high_risk_count': 0, 'data': []}
+    anomalies = []
+    
+    if ADVANCED_FEATURES_AVAILABLE:
+        try:
+            ti_summary = ti_api.get_threat_summary(addr_strings)
+            # Map to template format
+            formatted_data = []
+            for flagged in ti_summary.get('flagged_addresses', []):
+                formatted_data.append({
+                    'address': flagged.get('address'),
+                    'type': flagged.get('threat_type', 'Suspicious').replace('_', ' ').title(),
+                    'score': (flagged.get('confidence', 0) * 100),
+                    'source': ", ".join(flagged.get('sources', []))
+                })
+            
+            # Also check if the current focused address is a known entity
+            current_context = load_case_context()
+            if current_context and current_context.get('address'):
+                entity_info = bi_api.identify_entity(current_context['address'])
+                if entity_info and entity_info.get('type') != 'unknown':
+                    # Add as a threat entry if not already there (or just as info)
+                    formatted_data.append({
+                        'address': entity_info.get('address'),
+                        'type': f"Identified: {entity_info.get('type').title()}",
+                        'score': 100,
+                        'source': entity_info.get('name', 'Internal DB')
+                    })
+                
+                # Fetch anomalies for focused address
+                if current_context.get('anomalies'):
+                    anomalies = current_context['anomalies']
+
+            threat_summary = {
+                'high_risk_count': ti_summary['summary']['flagged_count'],
+                'data': formatted_data
+            }
+            
+        except Exception as e:
+            print(f"[THREAT ROUTE ERROR]: {e}")
+            import traceback
+            traceback.print_exc()
+            
+    db.close()
+    return render_template("threat_intel.html", threat=threat_summary, anomalies=anomalies, active_page="threat")
 
 
 # ==================== ANOMALY DETAILS ROUTE (#9) ====================

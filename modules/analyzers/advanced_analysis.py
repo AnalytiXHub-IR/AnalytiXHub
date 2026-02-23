@@ -376,8 +376,8 @@ class AnomalyDetector:
         Detect anomalous transactions using Isolation Forest
         contamination: expected % of anomalies (0-1)
         """
-        if len(transactions) < 10:
-            return []  # Need at least 10 transactions
+        if len(transactions) < 5:
+            return []  # Need at least 5 transactions for meaningful outliers
         
         # Extract features
         X, tx_list = AnomalyDetector.extract_features(transactions)
@@ -403,11 +403,12 @@ class AnomalyDetector:
                 
                 # Determine reason
                 reasons = []
-                if tx.get('value', 0) > np.percentile(X[:, 0], 90):
+                val = float(tx.get('value', 0))
+                if val > np.percentile(X[:, 0], 90):
                     reasons.append('unusual_amount_high')
-                if tx.get('value', 0) < np.percentile(X[:, 0], 10) and tx.get('value', 0) > 0:
+                if val < np.percentile(X[:, 0], 10) and val > 0:
                     reasons.append('unusual_amount_low')
-                if tx.get('gasPrice', 0) > np.percentile(X[:, 1], 95):
+                if float(tx.get('gasPrice', 0)) > np.percentile(X[:, 1], 95):
                     reasons.append('unusually_high_gas')
                 
                 anomalies.append({
@@ -415,10 +416,13 @@ class AnomalyDetector:
                     'from': tx.get('from', ''),
                     'to': tx.get('to', ''),
                     'amount': float(tx.get('value', 0)),
-                    'timestamp': int(tx.get('timeStamp', 0)),
+                    'timestamp': datetime.fromtimestamp(int(tx.get('timeStamp', 0))).strftime('%Y-%m-%d %H:%M:%S') if tx.get('timeStamp') else 'Unknown',
                     'anomaly_score': float(anomaly_score),
                     'reasons': reasons,
-                    'is_suspicious': anomaly_score > 0.7,
+                    'type': 'ML Anomaly' if not reasons else reasons[0].replace('_', ' ').title(),
+                    'description': f"Unusual transaction behavior detected. Score: {anomaly_score:.2f}. " + (f"Reasons: {', '.join(reasons)}" if reasons else ""),
+                    'is_suspicious': bool(anomaly_score > 0.7),
+                    'address': tx.get('from', '') if tx.get('from') != '0x0000000000000000000000000000000000000000' else tx.get('to', '')
                 })
         
         return sorted(anomalies, key=lambda x: x['anomaly_score'], reverse=True)
@@ -447,7 +451,7 @@ class AnomalyDetector:
 # ==================== TESTING ====================
 
 if __name__ == '__main__':
-    print("🧪 Testing Advanced Analysis...\n")
+    print("Testing Advanced Analysis...\n")
     
     # Test clustering
     print("Testing Address Clustering...")
@@ -457,12 +461,12 @@ if __name__ == '__main__':
         {'from': '0x123', 'to': '0xghi', 'value': '0.001', 'timeStamp': '1700000110'},
     ]
     clusters = AddressClustering.cluster_addresses(test_txs, '0x123')
-    print(f"✅ Clustering found: {len(clusters)} pattern types\n")
+    print(f"Clustering found: {len(clusters)} pattern types\n")
     
     # Test threat intel
     print("Testing Threat Intelligence...")
     threats = ThreatIntelligence.check_address('0x123', {})
-    print(f"✅ Threat check: {threats['is_flagged']}\n")
+    print(f"Threat check: {threats['is_flagged']}\n")
     
     # Test anomaly detection
     print("Testing Anomaly Detection...")
@@ -471,6 +475,6 @@ if __name__ == '__main__':
         for i in range(50)
     ]
     anomalies = AnomalyDetector.detect_anomalies(complex_txs)
-    print(f"✅ Anomalies detected: {len(anomalies)}\n")
+    print(f"Anomalies detected: {len(anomalies)}\n")
     
-    print("✅ All advanced analysis features working!")
+    print("All advanced analysis features working!")
