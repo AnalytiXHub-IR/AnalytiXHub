@@ -129,6 +129,9 @@
                         <span class="badge bg-info me-2">🔗 {{ summary.chain_name|upper if summary.chain_name else
                             'Ethereum' }} (Chain ID: {{ summary.chain_id if summary.chain_id else '1' }})</span>
                         <span class="badge bg-secondary me-2">Transactions: {{ summary.total_transactions }}</span>
+                        <span class="badge bg-warning text-dark me-2">Wallet Balance: {{
+                            "%.4f"|format(summary.final_balance|default(summary.net_flow|default(0))) }} {{ currency
+                            }}</span>
                         <span class="badge {{ 'bg-success' if 'Live' in source else 'bg-danger' }} fs-6">{{ source
                             }}</span>
                     </div>
@@ -670,39 +673,66 @@
     }
 </script>
 
+<script id="case-data" type="application/json">
+{{ summary | default({}) | tojson | safe }}
+</script>
+<script id="patterns-data" type="application/json">
+{{ patterns | default([]) | tojson | safe }}
+</script>
+<script id="anomalies-data" type="application/json">
+{{ anomalies | default([]) | tojson | safe }}
+</script>
+<script id="threat-data" type="application/json">
+{{ threat_intel | default({}) | tojson | safe }}
+</script>
+
 {% if summary %}
 <script>
+    // Safely load all data injected from Python
+    const caseData = JSON.parse(document.getElementById('case-data').textContent || '{}');
+    const patternsData = JSON.parse(document.getElementById('patterns-data').textContent || '[]');
+    const anomaliesData = JSON.parse(document.getElementById('anomalies-data').textContent || '[]');
+    const threatData = JSON.parse(document.getElementById('threat-data').textContent || '{}');
+
     const ctx = document.getElementById('flowChart').getContext('2d');
     new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: ['Unique Senders (In)', 'Unique Receivers (Out)'],
             datasets: [{
-                data: [{{ summary.unique_senders |default(0) }}, {{ summary.unique_receivers |default(0) }}],
-        backgroundColor: ['#198754', '#dc3545'],
-        borderColor: '#1e1e1e',
-        borderWidth: 2
-    }]
+                data: [caseData.unique_senders || 0, caseData.unique_receivers || 0],
+                backgroundColor: ['#01ffc3', '#ff2a6d'],
+                borderColor: '#1e1e1e',
+                borderWidth: 2
+            }]
         },
         options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { position: 'bottom', labels: { color: '#aaa' } }
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#aaa' } }
+            }
         }
-    }
     });
 
-    const topVictims = {{ summary.top_victims | default ([]) | tojson | safe }} || [];
-    const topSuspects = {{ summary.top_suspects | default ([]) | tojson | safe }} || [];
+    const topVictims = caseData.top_victims || [];
+    const topSuspects = caseData.top_suspects || [];
 
     const combined = [];
-    if (Array.isArray(topVictims)) {
-        topVictims.slice(0, 3).forEach(v => combined.push({ addr: v[0] ? v[0].substring(0, 8) + '...' : 'Unknown', amount: v[1], type: 'Received' }));
+    if (Array.isArray(topVictims) && topVictims.length > 0) {
+        topVictims.slice(0, 3).forEach(v => combined.push({ addr: v[0] ? v[0].substring(0, 8) + '...' : 'Unknown', fullAddr: v[0] || 'Unknown', amount: v[1], type: 'Received' }));
     }
-    if (Array.isArray(topSuspects)) {
-        topSuspects.slice(0, 3).forEach(s => combined.push({ addr: s[0] ? s[0].substring(0, 8) + '...' : 'Unknown', amount: s[1], type: 'Sent' }));
+    if (Array.isArray(topSuspects) && topSuspects.length > 0) {
+        topSuspects.slice(0, 3).forEach(s => combined.push({ addr: s[0] ? s[0].substring(0, 8) + '...' : 'Unknown', fullAddr: s[0] || 'Unknown', amount: s[1], type: 'Sent' }));
     }
+
+    // Fallback data if empty, as requested
+    if (combined.length === 0) {
+        combined.push({ addr: '0x1A2B3C...', fullAddr: '0x1A2B3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0B', amount: 15.5, type: 'Received' });
+        combined.push({ addr: '0x9F8E7D...', fullAddr: '0x9F8E7D6C5B4A39281706F5E4D3C2B1A098765432', amount: 8.2, type: 'Sent' });
+        combined.push({ addr: '0x4D5E6F...', fullAddr: '0x4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0B1C2D3E', amount: 3.1, type: 'Received' });
+    }
+
 
     new Chart(document.getElementById('topAddressesChart').getContext('2d'), {
         type: 'bar',
@@ -711,13 +741,22 @@
             datasets: [{
                 label: 'Volume',
                 data: combined.map(c => c.amount),
-                backgroundColor: combined.map(c => c.type === 'Sent' ? '#dc3545' : '#198754')
+                backgroundColor: combined.map(c => c.type === 'Sent' ? '#ff2a6d' : '#01ffc3')
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: function (context) {
+                            return combined[context[0].dataIndex].fullAddr;
+                        }
+                    }
+                }
+            },
             scales: {
                 y: { ticks: { color: '#aaa' }, grid: { color: '#333', drawBorder: false } },
                 x: { ticks: { color: '#aaa' }, grid: { display: false } }
@@ -725,39 +764,53 @@
         }
     });
 
-    // Radar Chart (Risk Profile)
+    // Calculate Radar Scores purely in JS using the injected JSON context
+    let velocityScore = (caseData.unique_senders || 0) % 100;
+
+    let mixerScore = 20;
+    if (patternsData && Array.isArray(patternsData) && patternsData.length > 0) {
+        let hasMixer = patternsData.some(p => p.type && p.type.toLowerCase().includes('mixer'));
+        mixerScore = hasMixer ? 80 : 10;
+    }
+
+    let blacklistScore = (threatData && threatData.is_flagged) ? 95 : 15;
+
+    let structuringScore = 15;
+    if (patternsData && Array.isArray(patternsData) && patternsData.length > 0) {
+        let hasLayer = patternsData.some(p => p.type && p.type.toLowerCase().includes('layer'));
+        structuringScore = hasLayer ? 85 : 25;
+    }
+
+    let anomaliesScore = (anomaliesData && anomaliesData.length > 0) ? (anomaliesData.length * 15) : 5;
+
+    let radarScores = [velocityScore, mixerScore, blacklistScore, structuringScore, anomaliesScore];
+
     new Chart(document.getElementById('riskRadarChart').getContext('2d'), {
         type: 'radar',
         data: {
             labels: ['Velocity', 'Mixer/Peel', 'Blacklist Exposure', 'Structuring', 'Anomalous Tx'],
             datasets: [{
                 label: 'Heuristic Scoring',
-                data: [
-                    {{ (summary.unique_senders | default(0)) % 100 }},
-    {% if patterns %} { { 80 if patterns.mixing_service_suspicion else 10 } } {% else %} 20{% endif %},
-    {% if threat_intel and threat_intel.is_flagged %} 95{% else %} 15{% endif %},
-    {% if patterns %} { { 85 if patterns.layering_pattern else 25 } } {% else %} 15{% endif %},
-    {% if anomalies and anomalies | length > 0 %} { { anomalies | length * 15 } } {% else %} 5{% endif %}
-                ],
-    backgroundColor: 'rgba(0, 243, 255, 0.2)',
-        borderColor: '#00f3ff',
-            pointBackgroundColor: '#dc3545',
+                data: radarScores,
+                backgroundColor: 'rgba(0, 243, 255, 0.2)',
+                borderColor: '#00f3ff',
+                pointBackgroundColor: '#b100ff',
                 borderWidth: 2
             }]
         },
-    options: {
-        responsive: true,
+        options: {
+            responsive: true,
             maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-        scales: {
-            r: {
-                angleLines: { color: '#333' },
-                grid: { color: '#222' },
-                pointLabels: { color: '#aaa', font: { size: 10 } },
-                ticks: { display: false, max: 100, min: 0 }
+            plugins: { legend: { display: false } },
+            scales: {
+                r: {
+                    angleLines: { color: '#333' },
+                    grid: { color: '#222' },
+                    pointLabels: { color: '#aaa', font: { size: 10 } },
+                    ticks: { display: false, max: 100, min: 0 }
+                }
             }
         }
-    }
     });
 
     // Line Chart (Velocity)
@@ -770,8 +823,8 @@
             datasets: [{
                 label: 'Interaction Count',
                 data: velocityData,
-                borderColor: '#ffc107',
-                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                borderColor: '#b100ff',
+                backgroundColor: 'rgba(177, 0, 255, 0.1)',
                 fill: true,
                 tension: 0.4,
                 borderWidth: 2
@@ -780,7 +833,16 @@
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: function (context) {
+                            return combined[context[0].dataIndex].fullAddr;
+                        }
+                    }
+                }
+            },
             scales: {
                 y: { ticks: { color: '#aaa' }, grid: { color: '#333', drawBorder: false } },
                 x: { ticks: { color: '#aaa' }, grid: { display: false } }

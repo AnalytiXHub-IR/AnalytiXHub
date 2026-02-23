@@ -135,7 +135,6 @@
                                             class="bi bi-plus-circle me-2"></i>Create New Case</a></li>
                             </ul>
                         </div>
-                        <span class="badge bg-secondary me-2">ETH: $2,450.00</span>
                         <span class="badge bg-success">System: Operational</span>
                     </div>
                 </div>
@@ -184,9 +183,11 @@
         var el = document.getElementById("wrapper");
         var toggleButton = document.getElementById("menu-toggle");
 
-        toggleButton.onclick = function () {
-            el.classList.toggle("toggled");
-        };
+        if (toggleButton) {
+            toggleButton.onclick = function () {
+                if (el) el.classList.toggle("toggled");
+            };
+        }
     </script>
     {% block scripts %}{% endblock %}
 </body>

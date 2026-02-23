@@ -620,11 +620,37 @@ def load_case_context():
         chain_name = focus.get("chain", "ethereum")
         chain_id = focus.get("chain_id", 1)
         
-        # Re-fetch data for context (Hybrid persistence)
-        # Ideally this comes from DB, but using fetcher for consistency with current features
-        from modules.fetchers.multi_chain import MultiChainFetcher
-        txs, counts = MultiChainFetcher.fetch_by_chain(chain_name, address)
+        txs = []
+        db = SessionLocal()
+        addr_record = db.query(Address).filter_by(case_id=active_case_db.id, address=address).first()
+        
+        if addr_record and addr_record.last_analyzed:
+            db_txs = db.query(Transaction).filter(
+                Transaction.case_id == active_case_db.id,
+                (Transaction.from_address == address) | (Transaction.to_address == address)
+            ).order_by(Transaction.timestamp.desc()).limit(500).all()
+            
+            if db_txs:
+                for t in db_txs:
+                    txs.append({
+                        'hash': t.tx_hash,
+                        'from': t.from_address,
+                        'to': t.to_address,
+                        'value': t.amount,
+                        'timestamp': t.timestamp.strftime('%Y-%m-%d %H:%M:%S') if t.timestamp else '',
+                        'block': t.block_number,
+                        'chain': chain_name,
+                        'type': t.tx_type
+                    })
+        
+        if not txs:
+            from modules.fetchers.multi_chain import MultiChainFetcher
+            txs, counts = MultiChainFetcher.fetch_by_chain(chain_name, address)
+        else:
+            counts = {'normal': len(txs), 'internal': 0, 'token': 0}
+            
         summary, G, source = analyze_live_eth(txs, address, chain_id=chain_id, chain_name=chain_name)
+        db.close()
         
         current_case["address"] = address
         current_case["chain"] = chain_name
@@ -636,7 +662,7 @@ def load_case_context():
              f"Target: {address}",
              f"Chain: {chain_name.upper()}",
              f"Transactions: {summary.get('total_transactions', 0)}",
-             f"Net Flow: {summary['net_flow']}",
+             f"Net Flow: {summary.get('net_flow', 0)}",
              f"Risk Score: {summary.get('risk_score', 0)}/100"
         ]
         
@@ -1591,7 +1617,6 @@ def api_graph_data():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/relations", methods=["GET"])
-@login_required
 def api_relations():
     """Get transactions between two addresses"""
     source = request.args.get('source', '').strip()
@@ -1601,50 +1626,47 @@ def api_relations():
     if not source or not target:
         return jsonify({"error": "Both source and target addresses required"}), 400
     
-    # Get transactions from Database for the active case
-    active_case_db = load_case_context()
-    
-    if not active_case_db:
-         return jsonify({"error": "No active case found."}), 400
-         
-    from modules.core.db_models import Transaction, db_session
-    db = db_session()
-    
     try:
-        # Normalize addresses for comparison
+        from modules.fetchers.multi_chain import MultiChainFetcher
         from modules.utils.helpers import normalize_address
         from modules.fetchers.eth_live import SUPPORTED_CHAINS
-        chain_id = SUPPORTED_CHAINS.get(chain.lower(), 1)
         
+        chain_id = SUPPORTED_CHAINS.get(chain.lower(), 1)
         source_norm = normalize_address(source, chain_id)
         target_norm = normalize_address(target, chain_id)
         
-        # Query DB for transactions between source and target in the current case
-        # We need to check both directions: (from=source AND to=target) OR (from=target AND to=source)
-        # Note: In DB, EVM addresses should already be stored normalized (lowercased)
-        
-        txs = db.query(Transaction).filter(
-            Transaction.case_id == active_case_db.id,
-            (
-                ((Transaction.from_address == source_norm) & (Transaction.to_address == target_norm)) |
-                ((Transaction.from_address == target_norm) & (Transaction.to_address == source_norm))
-            )
-        ).all()
+        # Fetch live transactions for the target
+        txs, _ = MultiChainFetcher.fetch_by_chain(chain, target)
         
         relations = []
+        is_evm = chain.lower() in ['ethereum', 'bsc', 'polygon', 'optimism', 'arbitrum', 'base']
+        
         for tx in txs:
-            relations.append({
-                'hash': tx.tx_hash,
-                'from': tx.from_address,
-                'to': tx.to_address,
-                'value': tx.amount,
-                'timestamp': tx.timestamp.strftime('%Y-%m-%d %H:%M:%S') if tx.timestamp else 'Unknown',
-                'blockNumber': tx.block_number or '',
-                'direction': 'outgoing' if tx.from_address == source_norm else 'incoming'
-            })
+            frm = tx.get('from', '')
+            to = tx.get('to', '')
             
-    finally:
-        db.close()
+            # Normalize for comparison
+            if is_evm:
+                frm = frm.lower()
+                to = to.lower()
+                
+            # Check if this tx involves both source and target natively
+            if (frm == source_norm and to == target_norm) or (frm == target_norm and to == source_norm):
+                relations.append({
+                    'hash': tx.get('hash', ''),
+                    'from': tx.get('from', ''),
+                    'to': tx.get('to', ''),
+                    'value': tx.get('value', 0),
+                    'timestamp': tx.get('timestamp', 'Unknown'),
+                    'blockNumber': tx.get('blockNumber', ''),
+                    'direction': 'incoming' if to == target_norm else 'outgoing'
+                })
+            
+    except Exception as e:
+        import traceback
+        print(f"[API Relations Error] {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
     
     return jsonify({
         "source": source,

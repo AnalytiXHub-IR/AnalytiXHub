@@ -1137,10 +1137,64 @@ class MultiChainFetcher:
     
     @staticmethod
     def fetch_by_chain(chain: str, address: str, **kwargs) -> Tuple[List[Dict], Dict]:
-        """Universal fetch method for any chain"""
+        """Universal fetch method for any chain with DB persistence check"""
+        from modules.core.db_models import SessionLocal, Address, Transaction, Case
+        from datetime import datetime
+        import pytz
         
         chain = chain.lower()
         
+        # 1. Try DB first unless force_refresh is passed
+        force_refresh = kwargs.pop('force_refresh', False)
+        # Note: We need case_id to fully utilize the DB, but this function is often called globally.
+        # We will attempt to find recent analysis for this address across ANY active case for caching purposes,
+        # or rely on the caller to handle persistence if they don't pass active_case_id.
+        
+        db = SessionLocal()
+        txs = []
+        counts = {'normal': 0, 'internal': 0, 'token': 0}
+        
+        # We don't have active_case_id here easily without passing it down.
+        # For this scoped function, we just do the external fetch. The persistence 
+        # is handled in app.py's investigation route explicitly.
+        # If we wanted full caching here, we'd need to change the function signature
+        # to accept a case_id. Since app.py handles the DB lookup BEFORE calling this,
+        # we can just keep this as the pure external fetcher, OR we can implement 
+        # global address caching here.
+        # Given the instruction was to wrap fetch_by_chain, let's implement global caching.
+        
+        if not force_refresh:
+            # Check for recent global address fetch
+            addr_record = db.query(Address).filter(Address.address == address).order_by(Address.last_analyzed.desc()).first()
+            if addr_record and addr_record.last_analyzed:
+                time_since_last = (datetime.utcnow() - addr_record.last_analyzed).total_seconds()
+                if time_since_last < 86400: # 24 hour cache
+                    # Load txs
+                    db_txs = db.query(Transaction).filter(
+                        (Transaction.from_address == address) | (Transaction.to_address == address)
+                    ).order_by(Transaction.timestamp.desc()).limit(500).all()
+                    
+                    if db_txs:
+                        print(f"[MultiChainFetcher] Cache Hit for {address} on {chain}")
+                        for t in db_txs:
+                            txs.append({
+                                'hash': t.tx_hash,
+                                'from': t.from_address,
+                                'to': t.to_address,
+                                'value': t.amount,
+                                'timestamp': t.timestamp.strftime('%Y-%m-%d %H:%M:%S') if t.timestamp else '',
+                                'block': t.block_number,
+                                'chain': chain,
+                                'type': t.tx_type
+                            })
+                        counts['normal'] = len(txs)
+                        db.close()
+                        return txs, counts
+
+        db.close()
+        print(f"[MultiChainFetcher] Cache Miss/Force Refresh for {address}. Fetching external.")
+        
+        # 2. External Fetch
         # EVM Chains
         if chain in ['ethereum', 'ethereum', 'eth']:
             return EtherscanMultiChainFetcher.fetch_transactions('ethereum', address, **kwargs)
