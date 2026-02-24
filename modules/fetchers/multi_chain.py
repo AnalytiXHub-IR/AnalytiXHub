@@ -763,12 +763,13 @@ class SolanaFetcher:
                     tx_hash = tx.get('signature')
                     block_time = tx.get('timestamp', 0)
                     desc = tx.get('description', '')
+                    fee_payer = tx.get('feePayer', 'Unknown')
                     
                     val = 0.0
                     sender = "Unknown"
                     receiver = "Interaction"
                     
-                    # 1. First, check accountData for net balance change to determine direction
+                    # 1. Check accountData for net balance change to determine magnitude and direction
                     net_change = 0
                     for ad in tx.get('accountData', []):
                         if ad.get('account') == address:
@@ -777,33 +778,47 @@ class SolanaFetcher:
                     
                     if net_change < 0:
                         sender = address
-                        receiver = "Multiple Outputs" # Default
+                        receiver = "Multiple Outputs"
                         val = abs(net_change) / 1e9
                     elif net_change > 0:
-                        sender = "Multiple Inputs" # Default
+                        sender = "Multiple Inputs"
                         receiver = address
                         val = net_change / 1e9
 
-                    # 2. Refine sender/receiver if there's a clear single native transfer
+                    # 2. Refine sender/receiver by looking for direct transfers involving our address
                     native_transfers = tx.get('nativeTransfers', [])
-                    if len(native_transfers) == 1:
-                        nt = native_transfers[0]
-                        if nt.get('fromUserAccount') == address or nt.get('toUserAccount') == address:
-                            sender = nt.get('fromUserAccount')
-                            receiver = nt.get('toUserAccount')
-                            val = nt.get('amount', 0) / 1e9
-                    elif len(native_transfers) > 1:
-                        # Find the transfer involving our address
+                    
+                    if net_change > 0: # We are receiving
+                        # Look for who sent it to us
+                        for nt in native_transfers:
+                            if nt.get('toUserAccount') == address:
+                                sender = nt.get('fromUserAccount')
+                                # If there are multiple direct transfers to us, this picks the last one (or we could sum)
+                                # but usually one primary sender for the main value.
+                        if sender == "Multiple Inputs" and fee_payer != address:
+                            sender = fee_payer # Better fallback than "Multiple"
+                    
+                    elif net_change < 0: # We are sending
+                        # Look for who we sent it to
                         for nt in native_transfers:
                             if nt.get('fromUserAccount') == address:
-                                sender = address
-                                receiver = nt.get('toUserAccount') if len(native_transfers) == 2 else "Multiple Outputs"
-                                val = abs(net_change) / 1e9 if net_change != 0 else nt.get('amount', 0) / 1e9
-                                break
+                                receiver = nt.get('toUserAccount')
+                        if receiver == "Multiple Outputs":
+                             # If we can't find a single recipient, we keep "Multiple Outputs"
+                             pass
+
+                    # 3. Special case: if net_change is 0 but there are transfers (unlikely for SOL but good for tokens)
+                    if net_change == 0 and native_transfers:
+                        for nt in native_transfers:
                             if nt.get('toUserAccount') == address:
-                                sender = nt.get('fromUserAccount') if len(native_transfers) == 2 else "Multiple Inputs"
+                                sender = nt.get('fromUserAccount')
                                 receiver = address
-                                val = net_change / 1e9 if net_change != 0 else nt.get('amount', 0) / 1e9
+                                val = nt.get('amount', 0) / 1e9
+                                break
+                            if nt.get('fromUserAccount') == address:
+                                sender = address
+                                receiver = nt.get('toUserAccount')
+                                val = nt.get('amount', 0) / 1e9
                                 break
 
                     transactions.append({
