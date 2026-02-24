@@ -1,6 +1,0 @@
-DEBUG: MultiChainFetcher file: C:\Users\kollu\Documents\PROJECTS\OPENCHAIN-IR-COMPLETE\modules\fetchers\multi_chain.py
-DEBUG: BlockCypher Token: 280c03c6f8f34afb9d6f5e1b1fb1ab59
-Testing Backend Integration for: DH5yaieqoZN36fDVciNyRueRGvGLR3mr7L
-[-] BlockCypherFetcher returned: 0 transactions
-[-] Counts dict: {'normal': 0, 'internal': 0, 'token': 0}
-[X] FAILURE: Still returning <= 10 transactions.

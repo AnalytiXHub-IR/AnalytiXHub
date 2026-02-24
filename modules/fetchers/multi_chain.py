@@ -19,6 +19,7 @@ load_dotenv()
 
 ETHERSCAN_API_KEY = os.getenv('ETHERSCAN_API_KEY')
 SOLANA_API_KEY = os.getenv('SOLANA_API_KEY', "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjcmVhdGVkQXQiOjE3NzA3MTg3MzU5ODAsImVtYWlsIjoia29sbHVydXNhaWFiaGlyYW01MTNAZ21haWwuY29tIiwiYWN0aW9uIjoidG9rZW4tYXBpIiwiYXBpVmVyc2lvbiI6InYyIiwiaWF0IjoxNzcwNzE4NzM1fQ.SGdL7FJRYiMhC5YnSky-6UXCa4NLOgkoWSvhD2AvRDg")
+HELIUS_API_KEY = os.getenv('HELIUS_API_KEY', "a44ade62-a70f-4b75-8054-3e8388f70058")
 TRON_API_KEY = os.getenv('TRON_API_KEY', "72ac1d93-4497-4664-a844-f730b2b5e606")
 
 # ==================== BLOCKSCOUT (Free EVM API) ====================
@@ -557,6 +558,7 @@ class MempoolFetcher:
                 
                 counts['normal'] = len(transactions)
                 print(f"✅ Bitcoin (Mempool): {counts['normal']} transactions")
+                return transactions, counts
             else:
                 print(f"❌ Mempool API error: {response.status_code}")
                 
@@ -605,38 +607,53 @@ class MempoolFetcher:
 class SolanaFetcher:
     """Fetch Solana transactions via Solscan Public API v2 (Official) or RPC Fallback"""
     
-    # v2 Public API (User Provided Config)
-    BASE_URL = "https://pro-api.solscan.io/v2.0" 
-    RPC_URL = "https://api.mainnet-beta.solana.com"
+    # api-v2 Verified Public API
+    BASE_URL = "https://api-v2.solscan.io/v2" 
+    # Use Helius as primary RPC
+    RPC_URL = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}" 
     
     @staticmethod
     def fetch_transactions(address: str) -> Tuple[List[Dict], Dict]:
         """
-        Fetch Solana transactions via Solscan API (Pro -> Public -> RPC).
+        Fetch Solana transactions via Helius Enhanced API (Primary) or Solscan API.
         """
-        print(f"[Solscan] Fetching transactions for {address}...")
+        print(f"[Solana] Fetching transactions for {address}...")
         
+        # 1. Try Helius Enhanced API first (Best for history)
+        try:
+            print(f"[Solana] Initializing Helius Enhanced Fetch for {address}...")
+            transactions, counts = SolanaFetcher._fetch_helius_enhanced(address)
+            if transactions:
+                # print(f"✅ Helius Enhanced API: {len(transactions)} transactions found")
+                return transactions, counts
+        except Exception as e:
+            print(f"⚠️ Helius Enhanced API failed: {e}. Trying Solscan fallback...")
+
+        # 2. Solscan Fallback (Internal api-v2 or Pro)
         transactions = []
         counts = {'normal': 0, 'token': 0}
         
-        # 1. Try Solscan Pro/Public API first (richer data)
         headers = {
             "token": SOLANA_API_KEY, 
-            "accept": "application/json",
-            "User-Agent": "Mozilla/5.0"
+            "accept": "application/json, text/plain, */*",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+            "Origin": "https://solscan.io",
+            "Referer": "https://solscan.io/"
         }
         
         # If key looks like JWT, use Bearer
         if len(SOLANA_API_KEY) > 50:
              headers = {
                 "Authorization": f"Bearer {SOLANA_API_KEY}",
-                "accept": "application/json",
-                "User-Agent": "Mozilla/5.0"
+                "accept": "application/json, text/plain, */*",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+                "Origin": "https://solscan.io",
+                "Referer": "https://solscan.io/"
             }
         
         try:
-            # Try Pro API
-            url = f"https://pro-api.solscan.io/v2.0/account/transactions?address={address}&limit=100"
+            # Try Account Transaction API (Singular)
+            url = f"{SolanaFetcher.BASE_URL}/account/transaction?address={address}&page_size=100"
             resp = requests.get(url, headers=headers, timeout=15)
             
             # If authorized failed, try Public API
@@ -654,6 +671,7 @@ class SolanaFetcher:
             if resp.status_code == 200:
                 data = resp.json()
                 items = data.get('data', [])
+                # The api-v2 returns a wrapper 'data' which is usually a list
                 # Handle V1 list response or V2 data wrapper
                 if isinstance(data, list): items = data
                 
@@ -723,17 +741,75 @@ class SolanaFetcher:
                     print(f"✅ Solscan: {len(transactions)} transactions found")
                     return transactions, counts
             
-            print(f"⚠️ Solscan API unavailable ({resp.status_code}). Falling back to RPC...")
-            
         except Exception as e:
-            print(f"⚠️ Solscan API Error: {e}. Falling back to RPC...")
+            print(f"⚠️ Solscan API Error: {e}")
 
-        # 2. RPC Fallback (Guaranteed to work for connectivity)
-        return SolanaFetcher._fetch_rpc_signatures(address)
+        # 3. Last Resort: Public Solana RPC
+        print("⚠️ Helius and Solscan failed. Attempting publicnode last-resort fallback...")
+        return SolanaFetcher._fetch_rpc_signatures(address, url="https://solana-rpc.publicnode.com")
 
     @staticmethod
-    def _fetch_rpc_signatures(address: str, limit: int = 1000) -> Tuple[List[Dict], Dict]:
-        """Fallback: Fetch signatures from Solana RPC"""
+    def _fetch_helius_enhanced(address: str) -> Tuple[List[Dict], Dict]:
+        """Fetch transactions via Helius Enhanced API (v0 History)"""
+        url = f"https://api-mainnet.helius-rpc.com/v0/addresses/{address}/transactions/?api-key={HELIUS_API_KEY}"
+        transactions = []
+        counts = {'normal': 0, 'token': 0}
+
+        try:
+            resp = requests.get(url, timeout=15)
+            if resp.status_code == 200:
+                data = resp.json()
+                for tx in data:
+                    tx_hash = tx.get('signature')
+                    block_time = tx.get('timestamp', 0)
+                    desc = tx.get('description', '')
+                    
+                    val = 0.0
+                    sender = "Unknown"
+                    receiver = "Interaction"
+                    
+                    # Native transfers
+                    for nt in tx.get('nativeTransfers', []):
+                        if nt.get('toUserAccount') == address:
+                            val += nt.get('amount', 0) / 1e9
+                            sender = nt.get('fromUserAccount')
+                        if nt.get('fromUserAccount') == address:
+                            val += nt.get('amount', 0) / 1e9
+                            receiver = nt.get('toUserAccount')
+                            sender = address
+
+                    # Balance changes fallback
+                    if val == 0:
+                        for ad in tx.get('accountData', []):
+                            if ad.get('account') == address:
+                                val = abs(ad.get('nativeBalanceChange', 0)) / 1e9
+                                break
+
+                    transactions.append({
+                        'hash': tx_hash,
+                        'timestamp': datetime.fromtimestamp(block_time).strftime('%Y-%m-%d %H:%M:%S') if block_time else 'Unknown',
+                        'value': val,
+                        'from': sender,
+                        'to': receiver,
+                        'chain': 'solana',
+                        'type': 'sol',
+                        'description': desc
+                    })
+                
+                counts['normal'] = len(transactions)
+                print(f"✅ Helius Enhanced: {len(transactions)} transactions found")
+                return transactions, counts
+            else:
+                print(f"⚠️ Helius Enhanced Error: {resp.status_code}")
+                return [], counts
+        except Exception as e:
+            print(f"⚠️ Helius Enhanced Exception: {e}")
+            return [], counts
+
+    @staticmethod
+    def _fetch_rpc_signatures(address: str, limit: int = 1000, url: str = None) -> Tuple[List[Dict], Dict]:
+        """Fetch signatures from Solana RPC (Helius or Public)"""
+        if not url: url = SolanaFetcher.RPC_URL
         # Add User-Agent to avoid 403 blocks from public RPC nodes
         headers = {
             "Content-Type": "application/json",
@@ -742,8 +818,8 @@ class SolanaFetcher:
         transactions = [] # Initialize transactions list for this fallback method
         counts = {'normal': 0, 'token': 0}
 
-        # Fallback to RPC if Solscan fails or returns empty
-        print("⚠️ Solscan failed/empty. Falling back to Solana RPC...")
+        # Fallback to RPC logic
+
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -755,7 +831,7 @@ class SolanaFetcher:
         }
         
         try:
-            resp = requests.post("https://api.mainnet-beta.solana.com", json=payload, headers=headers, timeout=15)
+            resp = requests.post(url, json=payload, headers=headers, timeout=15)
             data = resp.json()
             
             if 'result' in data:
@@ -802,7 +878,7 @@ class SolanaFetcher:
                                     }
                                     
                                     # Increased timeout to 10s
-                                    resp = requests.post("https://api.mainnet-beta.solana.com", json=payload, headers=headers, timeout=10)
+                                    resp = requests.post(url, json=payload, headers=headers, timeout=10)
                                     
                                     if resp.status_code == 429:
                                         wait_time = (2 ** attempt) * 3 # Exponential: 3s, 6s, 12s, 24s...
@@ -884,7 +960,7 @@ class SolanaFetcher:
         }
         
         try:
-            resp = requests.post("https://api.mainnet-beta.solana.com", json=payload, headers=headers, timeout=15)
+            resp = requests.post(SolanaFetcher.RPC_URL, json=payload, headers=headers, timeout=15)
             if resp.status_code == 200:
                 item = resp.json()
                 if 'result' in item and item['result']:
