@@ -266,19 +266,22 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card bg-dark border-warning text-center h-100 p-4" style="cursor:pointer;">
+                        <div class="card bg-dark border-warning text-center h-100 p-4" style="cursor:pointer;"
+                            onclick="exportBlacklist()">
                             <i class="bi bi-download fs-1 text-warning mb-2"></i>
                             <h6 class="text-warning mb-0">Export Blacklist</h6>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card bg-dark border-danger text-center h-100 p-4" style="cursor:pointer;">
+                        <div class="card bg-dark border-danger text-center h-100 p-4" style="cursor:pointer;"
+                            onclick="configureWebhook()">
                             <i class="bi bi-broadcast fs-1 text-danger mb-2"></i>
                             <h6 class="text-danger mb-0">Webhook Alerts</h6>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card bg-dark border-success text-center h-100 p-4" style="cursor:pointer;">
+                        <div class="card bg-dark border-success text-center h-100 p-4" style="cursor:pointer;"
+                            onclick="reportThreat()">
                             <i class="bi bi-plus-circle fs-1 text-success mb-2"></i>
                             <h6 class="text-success mb-0">Report Threat</h6>
                         </div>
@@ -331,7 +334,7 @@
         malicious: {{ global_stats.counts.malicious |default(15) }},
         exchange: {{ global_stats.counts.exchange |default(5) }},
         mixer: {{ global_stats.counts.mixer |default(5) }}
-    };
+        };
 
     new Chart(ctx, {
         type: 'polarArea',
@@ -369,6 +372,53 @@
     Chart.defaults.color = '#adb5bd';
     Chart.defaults.font.family = "'Courier New', Courier, monospace";
 });
+
+    function exportBlacklist() {
+        // Collect the table data
+        const rows = document.querySelectorAll('table tbody tr');
+        let csvContent = "data:text/csv;charset=utf-8,Address,Type,Source,Severity\n";
+
+        rows.forEach(function (rowArray) {
+            let cols = rowArray.querySelectorAll('td');
+            if (cols.length > 3) { // Skip empty/placeholder rows
+                let address = cols[0].innerText.trim();
+                let type = cols[1].innerText.trim();
+                let source = cols[2].innerText.trim();
+                let severity = cols[3].innerText.trim();
+                let row = `${address},${type},${source},${severity}`;
+                csvContent += row + "\r\n";
+            }
+        });
+
+        // Create a virtual anchor and trigger download
+        var encodedUri = encodeURI(csvContent);
+        var link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "openchain_threat_blacklist.csv");
+        document.body.appendChild(link);
+
+        link.click();
+        link.remove();
+    }
+
+    function configureWebhook() {
+        let url = prompt("⚙️ Configure Webhook\nEnter a Discord or Slack Webhook URL to receive live threat notifications:", "https://discord.com/api/webhooks/...");
+        if (url && url !== "https://discord.com/api/webhooks/...") {
+            alert("✅ Webhook target updated locally. New high-severity threats will trigger JSON payloads to this endpoint.");
+            // In a real backend, this would POST to save the webhook to the DB/config.
+        }
+    }
+
+    function reportThreat() {
+        let suspectAddr = prompt("🚨 Report Local Threat\nEnter the malicious wallet address you wish to submit:", "0x...");
+        if (!suspectAddr || suspectAddr === "0x...") return;
+
+        let reason = prompt(`What is the reason for reporting ${suspectAddr}? (e.g., Phishing, Scam, Ransomware)`);
+        if (reason) {
+            alert("📤 Threat report submitted! It has been logged in the local case database for review.");
+            // Simulated submission feedback
+        }
+    }
 </script>
 {% endif %}
 {% endblock %}

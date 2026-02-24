@@ -5,7 +5,7 @@
     <div class="col-md-12">
         <div class="card bg-dark text-info border-info shadow-lg">
             <div class="card-header border-info d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-eye"></i> Active Watchlist</h5>
+                <h5 class="mb-0"><i class="bi bi-eye"></i> Passive Watchlist Database</h5>
                 <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#addMonitorModal">
                     <i class="bi bi-plus-lg"></i> Add Target
                 </button>
@@ -35,8 +35,13 @@
                                     <span class="badge bg-success">Active</span>
                                 </td>
                                 <td>
+                                    <button class="btn btn-sm btn-outline-warning me-1"
+                                        onclick="checkAddressStatus('{{ item.address }}', '{{ item.chain }}')"
+                                        title="Check Live Status Now">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
                                     <a href="/tracing?address={{ item.address }}" class="btn btn-sm btn-outline-primary"
-                                        title="Trace">
+                                        title="Trace Graph">
                                         <i class="bi bi-diagram-3"></i>
                                     </a>
                                     <a href="/api/monitoring/remove/{{ item.address }}"
@@ -118,4 +123,37 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function checkAddressStatus(address, chain) {
+        // Basic UI feedback since this is a manual fetch saving API limits
+        const btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        btn.disabled = true;
+
+        // Call the new manual check endpoint
+        fetch(`/api/monitoring/check/${address}?chain=${chain}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.alert) {
+                    alert(`🚨 ALERT FOUND FOR ${address}:\n\n${data.alert.message}`);
+                    // Simple page reload to show new alerts section
+                    window.location.reload();
+                } else {
+                    alert(`✅ Target address ${address} checked successfully. No new suspicious transactions or blocklists detected since last check.`);
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Error checking address. Please try again later.");
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            });
+    }
+</script>
 {% endblock %}

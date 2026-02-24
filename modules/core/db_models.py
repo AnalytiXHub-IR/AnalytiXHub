@@ -2,7 +2,7 @@
 Database Models for OPENCHAIN IR v3.0
 PostgreSQL-backed multi-chain forensic analysis
 """
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, JSON, ForeignKey, Boolean, Text
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, JSON, ForeignKey, Boolean, Text, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
@@ -31,6 +31,11 @@ class User(Base):
     role = Column(String, default="officer")  # admin, officer
     created_at = Column(DateTime, default=datetime.utcnow)
     
+    # Enhanced security features
+    last_login = Column(DateTime)
+    failed_login_attempts = Column(Integer, default=0)
+    is_locked = Column(Boolean, default=False)
+    
     # Relationships
     cases = relationship("Case", back_populates="owner")
     
@@ -39,7 +44,8 @@ class User(Base):
             "id": self.id,
             "username": self.username,
             "email": self.email,
-            "role": self.role
+            "role": self.role,
+            "is_locked": self.is_locked
         }
 
 class Case(Base):
@@ -60,6 +66,11 @@ class Case(Base):
     jurisdiction = Column(String)
     case_type = Column(String)  # fraud, theft, money_laundering, etc.
     
+    # Legal Details
+    court_reference = Column(String(100))
+    evidence_status = Column(String(30))
+    confidentiality_level = Column(String(30))
+    
     # Relationships
     owner = relationship("User", back_populates="cases")
     addresses = relationship("Address", back_populates="case", cascade="all, delete-orphan")
@@ -67,6 +78,10 @@ class Case(Base):
     clusters = relationship("AddressCluster", back_populates="case", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="case", cascade="all, delete-orphan")
     notes = relationship("CaseNote", back_populates="case", cascade="all, delete-orphan")
+    evidence = relationship("Evidence", back_populates="case", cascade="all, delete-orphan")
+    analysis_reports = relationship("AnalysisReport", back_populates="case", cascade="all, delete-orphan")
+    timeline_events = relationship("CaseTimeline", back_populates="case", cascade="all, delete-orphan")
+    snapshots = relationship("InvestigationSnapshot", back_populates="case", cascade="all, delete-orphan")
     
     def to_dict(self):
         return {
@@ -141,6 +156,9 @@ class Address(Base):
     threat_intel_flag = Column(Boolean, default=False)
     threat_sources = Column(JSON, default=[])  # [chainalysis, ofac, scamalert, etc.]
     
+    # Soft deletion
+    is_deleted = Column(Boolean, default=False)
+    
     # Relationships
     case = relationship("Case", back_populates="addresses")
     chain = relationship("Chain", back_populates="addresses")
@@ -174,7 +192,7 @@ class Transaction(Base):
     case_id = Column(Integer, ForeignKey("cases.id"), index=True)
     chain_id = Column(Integer, ForeignKey("chains.id"), index=True)
     
-    tx_hash = Column(String, unique=True, index=True)
+    tx_hash = Column(String, index=True) # globally unique constraint removed
     from_address_id = Column(Integer, ForeignKey("addresses.id"))
     to_address_id = Column(Integer, ForeignKey("addresses.id"))
     
@@ -197,6 +215,9 @@ class Transaction(Base):
     is_suspicious = Column(Boolean, default=False)
     anomaly_score = Column(Float, default=0)
     anomaly_reasons = Column(JSON, default=[])
+    
+    # Soft deletion
+    is_deleted = Column(Boolean, default=False)
     
     # Relationships
     case = relationship("Case", back_populates="transactions")
@@ -288,6 +309,7 @@ class AnomalyDetection(Base):
     __tablename__ = "anomaly_detection"
     
     id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), index=True)
     
     address = Column(String, index=True)
     chain = Column(String)
@@ -516,6 +538,102 @@ class BatchJob(Base):
     case = relationship("Case", back_populates="batch_jobs")
 
 
+# ==================== ADVANCED FORENSIC AND AUDIT MODELS ====================
+
+class Evidence(Base):
+    """Chain of Custody evidence tracking"""
+    __tablename__ = "evidence"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id", ondelete="CASCADE"), index=True)
+    
+    file_name = Column(String(255))
+    file_path = Column(Text)
+    file_type = Column(String(50))
+    file_size = Column(BigInteger)
+    
+    checksum_sha256 = Column(String(64))
+    
+    uploaded_by = Column(Integer, ForeignKey("users.id"))
+    description = Column(Text)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    case = relationship("Case", back_populates="evidence")
+
+
+class AnalysisReport(Base):
+    """Forensic Reports and AI Investigation Summaries"""
+    __tablename__ = "analysis_reports"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id", ondelete="CASCADE"), index=True)
+    
+    title = Column(String(255))
+    report_text = Column(Text)
+    
+    generated_by_ai = Column(Boolean, default=False)
+    verified_by = Column(Integer, ForeignKey("users.id"))
+    status = Column(String(30))
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    case = relationship("Case", back_populates="analysis_reports")
+
+
+class AuditLog(Base):
+    """Security Tracking and User Action Accountability"""
+    __tablename__ = "audit_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    
+    action = Column(String(255))
+    
+    entity_type = Column(String(50))
+    entity_id = Column(Integer)
+    
+    ip_address = Column(String(45))
+    user_agent = Column(Text)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CaseTimeline(Base):
+    """Visual investigation history mapping"""
+    __tablename__ = "case_timeline"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id", ondelete="CASCADE"), index=True)
+    
+    event_type = Column(String(50))
+    description = Column(Text)
+    
+    related_entity = Column(String(50))
+    related_id = Column(Integer)
+    
+    created_by = Column(Integer, ForeignKey("users.id"))
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    case = relationship("Case", back_populates="timeline_events")
+
+
+class InvestigationSnapshot(Base):
+    """Full database state backup"""
+    __tablename__ = "investigation_snapshots"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), index=True)
+    
+    snapshot_data = Column(JSON)  # Translated natively to JSONB in PostgreSQL
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    case = relationship("Case", back_populates="snapshots")
+
+
 # Add relationships to Case model
 Case.addresses = relationship("Address", back_populates="case", cascade="all, delete-orphan")
 Case.transactions = relationship("Transaction", back_populates="case", cascade="all, delete-orphan")
@@ -526,6 +644,10 @@ Case.defi_activities = relationship("DeFiActivity", back_populates="case", casca
 Case.taint_traces = relationship("TaintTrace", back_populates="case", cascade="all, delete-orphan")
 Case.monitoring_jobs = relationship("MonitoringJob", back_populates="case", cascade="all, delete-orphan")
 Case.batch_jobs = relationship("BatchJob", back_populates="case", cascade="all, delete-orphan")
+Case.evidence = relationship("Evidence", back_populates="case", cascade="all, delete-orphan", overlaps="evidence")
+Case.analysis_reports = relationship("AnalysisReport", back_populates="case", cascade="all, delete-orphan", overlaps="analysis_reports")
+Case.timeline_events = relationship("CaseTimeline", back_populates="case", cascade="all, delete-orphan", overlaps="timeline_events")
+Case.snapshots = relationship("InvestigationSnapshot", back_populates="case", cascade="all, delete-orphan", overlaps="snapshots")
 
 Chain.contracts = relationship("SmartContract", back_populates="chain")
 # Chain.defi = relationship("DeFiActivity", back_populates="chain_rel", foreign_keys=[DeFiActivity.chain_id])
