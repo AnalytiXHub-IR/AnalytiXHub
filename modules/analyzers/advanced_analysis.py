@@ -421,7 +421,7 @@ class AnomalyDetector:
                     'reasons': reasons,
                     'type': 'ML Anomaly' if not reasons else reasons[0].replace('_', ' ').title(),
                     'description': f"Unusual transaction behavior detected. Score: {anomaly_score:.2f}. " + (f"Reasons: {', '.join(reasons)}" if reasons else ""),
-                    'is_suspicious': bool(anomaly_score > 0.7),
+                    'is_suspicious': bool(anomaly_score > 0.5), # Lowered threshold from 0.7 for better sensitivity
                     'address': tx.get('from', '') if tx.get('from') != '0x0000000000000000000000000000000000000000' else tx.get('to', '')
                 })
         

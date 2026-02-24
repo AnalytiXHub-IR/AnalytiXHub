@@ -11,10 +11,30 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Database Configuration
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/openchain_ir')
+# Database Configuration & Failover Logic
+def get_engine():
+    db_url = os.getenv('DATABASE_URL', 'postgresql://postgres:12345678@localhost:5432/openchain_ir')
+    
+    if 'postgresql' in db_url:
+        try:
+            # Attempt PostgreSQL connection (3s timeout)
+            # Standard psycopg2 connect_timeout is in connect_args
+            temp_engine = create_engine(db_url, connect_args={'connect_timeout': 3})
+            with temp_engine.connect() as conn:
+                pass 
+            return temp_engine
+        except Exception as e:
+            print(f"⚠️ Database Notice: PostgreSQL unreachable. Error: {e}")
+            print("🔄 Action: Falling back to local SQLite node storage.")
+    
+    # SQLite Fallback
+    sqlite_url = os.getenv('SQLITE_FALLBACK_URL', 'sqlite:///openchain_ir.db')
+    return create_engine(
+        sqlite_url, 
+        connect_args={'check_same_thread': False} if 'sqlite' in sqlite_url else {}
+    )
 
-engine = create_engine(DATABASE_URL, echo=False)
+engine = get_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -67,6 +87,11 @@ class Case(Base):
     clusters = relationship("AddressCluster", back_populates="case", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="case", cascade="all, delete-orphan")
     notes = relationship("CaseNote", back_populates="case", cascade="all, delete-orphan")
+    evidence = relationship("Evidence", back_populates="case", cascade="all, delete-orphan")
+    analysis_results = relationship("AnalysisResult", back_populates="case", cascade="all, delete-orphan")
+    documents = relationship("Document", back_populates="case", cascade="all, delete-orphan")
+    tracer_analyses = relationship("TracerAnalysis", back_populates="case", cascade="all, delete-orphan")
+    searches = relationship("SearchQuery", back_populates="case", cascade="all, delete-orphan")
     
     def to_dict(self):
         return {
@@ -78,7 +103,9 @@ class Case(Base):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'status': self.status,
-            'address_count': len(self.addresses) if self.addresses else 0
+            'address_count': len(self.addresses) if self.addresses else 0,
+            'evidence_count': len(self.evidence) if self.evidence else 0,
+            'doc_count': len(self.documents) if self.documents else 0
         }
 
 class CaseNote(Base):
@@ -92,6 +119,108 @@ class CaseNote(Base):
     author = Column(String)  # Username
     
     case = relationship("Case", back_populates="notes")
+
+
+class Evidence(Base):
+    """Investigative evidence (files, screenshots, data snippets)"""
+    __tablename__ = "evidence"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), index=True)
+    
+    title = Column(String)
+    description = Column(Text)
+    evidence_type = Column(String)  # file, screenshot, data_snippet, external_link
+    
+    file_path = Column(String)
+    file_type = Column(String)
+    file_size = Column(Integer)
+    
+    checksum = Column(String)  # For integrity verification
+    
+    source_url = Column(String)
+    collected_at = Column(DateTime, default=datetime.utcnow)
+    collected_by = Column(String)
+    
+    extra_metadata = Column(JSON, default={})
+    
+    case = relationship("Case", back_populates="evidence")
+
+
+class AnalysisResult(Base):
+    """Snapshots of full address/transaction analysis runs"""
+    __tablename__ = "analysis_results"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), index=True)
+    address = Column(String, index=True)
+    
+    analysis_type = Column(String)  # full_investigation, risk_assessment, pattern_detection
+    summary = Column(JSON)  # Analysis summary data
+    
+    risk_score = Column(Float)
+    is_suspicious = Column(Boolean)
+    
+    narrative = Column(Text)  # AI generated narrative
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    case = relationship("Case", back_populates="analysis_results")
+
+
+class Document(Base):
+    """Storage for generated forensic reports"""
+    __tablename__ = "documents"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), index=True)
+    
+    title = Column(String)
+    doc_type = Column(String)  # pdf, json, csv
+    file_path = Column(String)
+    
+    version = Column(String, default="1.0")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(String)
+    
+    case = relationship("Case", back_populates="documents")
+
+
+class TracerAnalysis(Base):
+    """Enhanced storage for pathfinding and network traversal results"""
+    __tablename__ = "tracer_analyses"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), index=True)
+    
+    source_address = Column(String, index=True)
+    target_address = Column(String, index=True)
+    
+    hops_data = Column(JSON)  # Detailed path info
+    graph_data = Column(JSON)  # Node/Link data for visualization
+    
+    max_depth = Column(Integer)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    case = relationship("Case", back_populates="tracer_analyses")
+
+
+class SearchQuery(Base):
+    """To track 'Transaction Finder' activity and saved searches"""
+    __tablename__ = "search_queries"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), index=True)
+    
+    query_type = Column(String)  # address, tx_hash, block, range
+    query_params = Column(JSON)
+    
+    results_count = Column(Integer)
+    is_saved = Column(Boolean, default=False)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    case = relationship("Case", back_populates="searches")
 
 
 class Chain(Base):
@@ -526,6 +655,11 @@ Case.defi_activities = relationship("DeFiActivity", back_populates="case", casca
 Case.taint_traces = relationship("TaintTrace", back_populates="case", cascade="all, delete-orphan")
 Case.monitoring_jobs = relationship("MonitoringJob", back_populates="case", cascade="all, delete-orphan")
 Case.batch_jobs = relationship("BatchJob", back_populates="case", cascade="all, delete-orphan")
+Case.evidence = relationship("Evidence", back_populates="case", cascade="all, delete-orphan")
+Case.analysis_results = relationship("AnalysisResult", back_populates="case", cascade="all, delete-orphan")
+Case.documents = relationship("Document", back_populates="case", cascade="all, delete-orphan")
+Case.tracer_analyses = relationship("TracerAnalysis", back_populates="case", cascade="all, delete-orphan")
+Case.searches = relationship("SearchQuery", back_populates="case", cascade="all, delete-orphan")
 
 Chain.contracts = relationship("SmartContract", back_populates="chain")
 # Chain.defi = relationship("DeFiActivity", back_populates="chain_rel", foreign_keys=[DeFiActivity.chain_id])

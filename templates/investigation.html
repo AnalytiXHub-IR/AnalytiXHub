@@ -358,12 +358,13 @@
                                 <th>TX Hash</th>
                                 <th>Amount ({{ currency }})</th>
                                 <th>Anomaly Score</th>
+                                <th>Status</th>
                                 <th>Reasons</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for anom in anomalies %}
-                            <tr class="{% if anom['is_suspicious'] %}border-danger bg-danger bg-opacity-10{% endif %}">
+                            <tr class="{% if anom['is_suspicious'] %}table-danger-custom text-white{% endif %}">
                                 <td><small class="font-monospace text-warning">{{ anom['hash'] }}</small></td>
                                 <td>{{ "%.4f"|format(anom['amount']) }}</td>
                                 <td>
@@ -372,7 +373,16 @@
                                         {{ "%.2f"|format(anom['anomaly_score']) }}
                                     </span>
                                 </td>
-                                <td><small class="text-light">{{ anom['reasons']|join(', ') }}</small></td>
+                                <td>
+                                    {% if anom['is_suspicious'] %}
+                                    <span class="badge bg-danger shadow-sm"><i
+                                            class="fas fa-exclamation-triangle me-1"></i>Suspicious</span>
+                                    {% else %}
+                                    <span class="badge bg-success opacity-75">Normal</span>
+                                    {% endif %}
+                                </td>
+                                <td><small class="{{ 'text-white' if anom['is_suspicious'] else 'text-light' }}">{{
+                                        anom['reasons']|join(', ') }}</small></td>
                             </tr>
                             {% endfor %}
                         </tbody>

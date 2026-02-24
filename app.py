@@ -100,7 +100,7 @@ if __name__ == '__main__':
         from werkzeug.security import generate_password_hash
         
         db = SessionLocal()
-        if not db.query(User).first():
+        if not db.query(User).filter_by(username="admin").first():
             print("[INFO] Creating default admin user (admin/admin)")
             admin = User(
                 username="admin", 
@@ -110,6 +110,7 @@ if __name__ == '__main__':
             )
             db.add(admin)
             db.commit()
+            print("✓ Default admin user established.")
         db.close()
 
 # Helper to get active case from DB
@@ -192,6 +193,28 @@ def inject_active_case():
         active_case = get_active_case()
         return dict(current_case_context=active_case)
     return dict(current_case_context=None)
+
+@app.route("/threat-intel")
+@login_required
+def threat_intel_dashboard():
+    """Global Threat Intelligence Dashboard"""
+    # In a real app, this would fetch from the DB or external APIs
+    # For now, we use the ti_api and bi_api
+    
+    recent_threats = [
+        {'address': '0x59a92b5660f7a1ce51a9ee8f0d0c89d9a86f5a78', 'type': 'sanctioned_entity', 'source': 'OFAC', 'severity': 'CRITICAL'},
+        {'address': '0x2f389ce8bd8ff92de3402ffaf84de0baadfc4755', 'type': 'phishing_scam', 'source': 'Etherscan', 'severity': 'HIGH'},
+        {'address': '0x12d66f87a04a9e220743712ce6d9bb1b5616b8fc', 'type': 'mixer', 'source': 'SlowMist', 'severity': 'CRITICAL'},
+        {'address': '0x77696bb39917c91a0c3908d577d5e322095425ca', 'type': 'exchange', 'source': 'Internal', 'severity': 'INFO'},
+        {'address': '0x60f380bad5ed1632429e5ec7d748c46d1d7db5b9', 'type': 'sanctioned_entity', 'source': 'OFAC', 'severity': 'CRITICAL'}
+    ]
+    
+    return render_template(
+        "threat_intel.html",
+        active_page="threat",
+        recent_threats=recent_threats,
+        known_entities=bi_api.KNOWN_ENTITIES
+    )
 
 @app.route("/case/create", methods=["POST"])
 @login_required

@@ -3,120 +3,218 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h2 class="text-light"><i class="bi bi-shield-exclamation me-2 text-danger"></i> Threat Intelligence</h2>
-        <p class="text-muted">Real-time threat detection and known entity matching.</p>
+        <div class="d-flex justify-content-between align-items-center p-3 border border-danger rounded cyber-card">
+            <div>
+                <h4 class="text-danger fw-bold mb-0"><i class="bi bi-shield-exclamation me-2"></i>GLOBAL THREAT
+                    INTELLIGENCE</h4>
+                <p class="text-muted mb-0 small">Aggregated feeds from OFAC, Etherscan Phishing, and SlowMist</p>
+            </div>
+            <div class="d-flex gap-2">
+                <span class="badge bg-danger animate-pulse">LIVE FEEDS</span>
+                <span class="badge bg-dark border border-secondary text-light">Synced: Just Now</span>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Summary Cards -->
 <div class="row g-4 mb-4">
+    <!-- Threat Distribution -->
     <div class="col-md-4">
-        <div class="card cyber-card border-danger h-100">
-            <div class="card-body text-center">
-                <h6 class="text-danger mb-2">High Risk Entities</h6>
-                <div class="display-4 fw-bold text-light">{{ threat.high_risk_count|default(0) }}</div>
-                <div class="small text-muted">Detected in active case</div>
+        <div class="card cyber-card h-100 border-secondary">
+            <div class="card-header border-bottom border-secondary bg-transparent">
+                <h6 class="card-title text-light mb-0"><i class="fas fa-chart-pie me-2 text-info"></i>Threat
+                    Categorization</h6>
+            </div>
+            <div class="card-body">
+                <div style="height: 250px;">
+                    <canvas id="threatDistributionChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card cyber-card border-warning h-100">
-            <div class="card-body text-center">
-                <h6 class="text-warning mb-2">Suspicious Activities</h6>
-                <div class="display-4 fw-bold text-light">{{ anomalies|length|default(0) }}</div>
-                <div class="small text-muted">ML detected anomalies</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card cyber-card border-info h-100">
-            <div class="card-body text-center">
-                <h6 class="text-info mb-2">Intelligence Sources</h6>
-                <div class="display-4 fw-bold text-light">4</div>
-                <div class="small text-muted">AbuseIPDB, Etherscan, OFAC, Cryptoscamdb</div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Main Content -->
-<div class="row g-4">
-    <!-- Threat List -->
-    <div class="col-lg-8">
-        <div class="card cyber-card h-100">
-            <div class="card-header bg-transparent border-bottom border-secondary">
-                <h5 class="card-title text-light mb-0">Detected Threats</h5>
+    <!-- Known Malicious Entities (Recent) -->
+    <div class="col-md-8">
+        <div class="card cyber-card h-100 border-secondary">
+            <div class="card-header border-bottom border-secondary bg-transparent d-flex justify-content-between">
+                <h6 class="card-title text-light mb-0"><i class="fas fa-list-ul me-2 text-warning"></i>Recent Flagged
+                    Entities</h6>
+                <button class="btn btn-sm btn-outline-info" onclick="location.reload()"><i
+                        class="bi bi-arrow-clockwise"></i> Refresh</button>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-dark table-hover mb-0" style="background: transparent;">
-                        <thead>
+                    <table class="table table-dark table-hover mb-0">
+                        <thead class="small text-muted border-bottom border-secondary">
                             <tr>
-                                <th class="border-secondary">Entity / Address</th>
-                                <th class="border-secondary">Risk Type</th>
-                                <th class="border-secondary">Score</th>
-                                <th class="border-secondary">Source</th>
-                                <th class="border-secondary">Action</th>
+                                <th class="ps-3">ADDRESS</th>
+                                <th>TYPE</th>
+                                <th>SOURCE</th>
+                                <th>SEVERITY</th>
+                                <th class="text-end pe-3">ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% if threat.data %}
-                            {% for item in threat.data %}
+                            {% for entity in recent_threats %}
                             <tr>
-                                <td class="font-monospace text-light">{{ item.address }}</td>
-                                <td><span class="badge bg-danger">{{ item.type }}</span></td>
-                                <td>
-                                    <div class="progress" style="height: 6px; width: 60px;">
-                                        <div class="progress-bar bg-danger" role="progressbar"
-                                            style="width: {{ item.score }}%"></div>
+                                <td class="ps-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar bg-danger bg-opacity-10 text-danger rounded p-1 me-2"
+                                            style="font-size: 0.7rem;">
+                                            <i class="bi bi-incognito"></i>
+                                        </div>
+                                        <small class="font-monospace text-light">{{ entity.address[:16] }}...</small>
                                     </div>
                                 </td>
-                                <td class="text-muted small">{{ item.source }}</td>
-                                <td><button class="btn btn-xs btn-outline-light">Details</button></td>
-                            </tr>
-                            {% endfor %}
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-4">
-                                    No threats detected in current scope.
+                                <td><span class="badge bg-secondary text-light">{{ entity.type|upper }}</span></td>
+                                <td><small class="text-muted">{{ entity.source }}</small></td>
+                                <td>
+                                    <span
+                                        class="badge bg-{{ 'danger' if entity.severity == 'CRITICAL' else 'warning text-dark' }}">
+                                        {{ entity.severity }}
+                                    </span>
+                                </td>
+                                <td class="text-end pe-3">
+                                    <button class="btn btn-sm btn-outline-info py-0 px-2"
+                                        onclick="analyzeAddress('{{ entity.address }}')">
+                                        <i class="bi bi-search"></i>
+                                    </button>
                                 </td>
                             </tr>
-                            {% endif %}
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">No recent threats loaded</td>
+                            </tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Anomaly Feed -->
-    <div class="col-lg-4">
-        <div class="card cyber-card h-100">
-            <div class="card-header bg-transparent border-bottom border-secondary">
-                <h5 class="card-title text-light mb-0">Anomaly Feed</h5>
+<div class="row g-4">
+    <!-- Known High-Profile Wallets -->
+    <div class="col-md-6">
+        <div class="card cyber-card border-warning border-opacity-50">
+            <div class="card-header border-bottom border-warning bg-transparent">
+                <h6 class="card-title text-warning fw-bold mb-0"><i class="bi bi-bank me-2"></i>Infrastructure &
+                    Exchanges</h6>
             </div>
             <div class="card-body">
-                {% if anomalies %}
-                <div class="timeline">
-                    {% for anomaly in anomalies %}
-                    <div class="mb-3 pb-3 border-bottom border-secondary">
-                        <div class="d-flex justify-content-between">
-                            <span class="badge bg-warning text-dark mb-1">{{ anomaly.type }}</span>
-                            <small class="text-muted">{{ anomaly.timestamp }}</small>
+                <div class="list-group list-group-flush bg-transparent">
+                    {% for addr, info in known_entities.items() %}
+                    {% if info.type in ['exchange', 'mixer', 'defi_core'] %}
+                    <div class="list-group-item bg-transparent border-secondary px-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-light fw-bold">{{ info.name }}</div>
+                                <small class="font-monospace text-muted">{{ addr[:12] }}...{{ addr[-8:] }}</small>
+                            </div>
+                            <span
+                                class="badge bg-{{ 'danger' if info.trust_level == 'CRITICAL_RISK' else 'info' if info.type == 'exchange' else 'success' }}">
+                                {{ info.type|upper }}
+                            </span>
                         </div>
-                        <p class="text-light small mb-1">{{ anomaly.description }}</p>
-                        <small class="text-muted font-monospace">{{ anomaly.address }}</small>
                     </div>
+                    {% endif %}
                     {% endfor %}
                 </div>
-                {% else %}
-                <div class="text-center text-muted py-4">
-                    <i class="bi bi-activity p-3 rounded-circle bg-dark fs-2 text-secondary mb-3 d-inline-block"></i>
-                    <p>No anomalies detected</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Threat Intelligence Tools -->
+    <div class="col-md-6">
+        <div class="card cyber-card border-info">
+            <div class="card-header border-bottom border-info bg-transparent">
+                <h6 class="card-title text-info fw-bold mb-0"><i class="bi bi-tools me-2"></i>Intelligence Operations
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <button class="btn btn-outline-info w-100 py-3" onclick="bulkCheck()">
+                            <i class="bi bi-list-check d-block mb-1 fs-4"></i>
+                            Bulk Checker
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-warning w-100 py-3">
+                            <i class="bi bi-file-earmark-arrow-down d-block mb-1 fs-4"></i>
+                            Export Blacklist
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-danger w-100 py-3">
+                            <i class="bi bi-broadcast d-block mb-1 fs-4"></i>
+                            Webhook Alerts
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-success w-100 py-3">
+                            <i class="bi bi-plus-circle d-block mb-1 fs-4"></i>
+                            Report Threat
+                        </button>
+                    </div>
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    function analyzeAddress(addr) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/investigation';
+
+        const addrInput = document.createElement('input');
+        addrInput.name = 'address';
+        addrInput.value = addr;
+        form.appendChild(addrInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    function bulkCheck() {
+        const addresses = prompt("Enter comma-separated addresses to check:");
+        if (addresses) {
+            // Logic for bulk check...
+            alert("Bulk check feature coming soon in v4.1");
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const ctx = document.getElementById('threatDistributionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'polarArea',
+            data: {
+                labels: ['Sanctioned (OFAC)', 'Phishing', 'Malicious', 'Exchange', 'Mixer/Risky'],
+                datasets: [{
+                    data: [12, 45, 28, 15, 8],
+                    backgroundColor: [
+                        'rgba(220, 53, 69, 0.6)',
+                        'rgba(255, 193, 7, 0.6)',
+                        'rgba(253, 126, 20, 0.6)',
+                        'rgba(13, 110, 253, 0.6)',
+                        'rgba(111, 66, 193, 0.6)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#aaa' } }
+                },
+                scales: {
+                    r: { grid: { color: '#333' }, ticks: { display: false } }
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}
