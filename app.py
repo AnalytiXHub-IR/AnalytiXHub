@@ -1715,7 +1715,7 @@ def clustering_details():
 
 # ==================== THREAT INTEL ROUTE (#7) ====================
 
-@app.route("/threat-intel")
+@app.route("/threat-intel", methods=["GET", "POST"])
 @login_required
 def threat_intel():
     """View threat intelligence results"""
@@ -1724,48 +1724,96 @@ def threat_intel():
          return redirect(url_for('dashboard'))
     
     db = SessionLocal()
-    # Get all addresses in this case
-    all_addresses = db.query(Address).filter_by(case_id=active_case_db.id).all()
-    addr_strings = [a.address for a in all_addresses]
     
-    # Run bulk threat check if features available
     threat_summary = {'high_risk_count': 0, 'data': []}
     anomalies = []
+    search_address = None
     
-    if ADVANCED_FEATURES_AVAILABLE:
-        try:
-            ti_summary = ti_api.get_threat_summary(addr_strings)
-            # Map to template format
-            formatted_data = []
-            for flagged in ti_summary.get('flagged_addresses', []):
-                formatted_data.append({
-                    'address': flagged.get('address'),
-                    'type': flagged.get('threat_type', 'Suspicious').replace('_', ' ').title(),
-                    'score': (flagged.get('confidence', 0) * 100),
-                    'source': ", ".join(flagged.get('sources', []))
-                })
-            
-            # Also check if the current focused address is a known entity
-            current_context = load_case_context()
-            if current_context and current_context.get('address'):
-                entity_info = bi_api.identify_entity(current_context['address'])
-                if entity_info and entity_info.get('type') != 'unknown':
-                    # Add as a threat entry if not already there (or just as info)
+    if request.method == "POST":
+        address = request.form.get("address", "").strip()
+        if address and ADVANCED_FEATURES_AVAILABLE:
+            search_address = address
+            try:
+                # 1. Threat Intel Check
+                ti_result = ti_api.check_address(address)
+                
+                # 2. Internal Intelligence Check
+                entity_info = bi_api.identify_entity(address)
+                
+                formatted_data = []
+                if ti_result.get('is_flagged'):
                     formatted_data.append({
-                        'address': entity_info.get('address'),
+                        'address': address,
+                        'type': ti_result.get('threat_type', 'Suspicious').replace('_', ' ').title(),
+                        'score': (ti_result.get('confidence', 0) * 100),
+                        'source': ", ".join(ti_result.get('sources', []))
+                    })
+                
+                if entity_info and entity_info.get('type') != 'unknown':
+                    formatted_data.append({
+                        'address': address,
                         'type': f"Identified: {entity_info.get('type').title()}",
                         'score': 100,
                         'source': entity_info.get('name', 'Internal DB')
                     })
                 
-                # Fetch anomalies for focused address
-                if current_context.get('anomalies'):
-                    anomalies = current_context['anomalies']
-
-            threat_summary = {
-                'high_risk_count': ti_summary['summary']['flagged_count'],
-                'data': formatted_data
+                threat_summary = {
+                    'high_risk_count': 1 if formatted_data else 0,
+                    'data': formatted_data
+                }
+                
+                db.close()
+                return render_template("threat_intel.html", threat=threat_summary, anomalies=[], active_page="threat", search_address=search_address, search_result=ti_result, entity_info=entity_info)
+            except Exception as e:
+                print(f"[THREAT SEARCH ERROR]: {e}")
+                flash(f"Error checking address: {e}", "warning")
+    
+    # Default GET behavior - Global Dashboard
+    global_stats = {}
+    
+    if ADVANCED_FEATURES_AVAILABLE:
+        try:
+            # 1. Threat Categorization Chart Data
+            global_stats['counts'] = {
+                'ofac': len(ti_api.ofac_list),
+                'phishing': len(ti_api.phishing_list),
+                'malicious': len(ti_api.evil_addresses),
+                'exchange': sum(1 for e in bi_api.KNOWN_ENTITIES.values() if e.get('type') == 'exchange'),
+                'mixer': sum(1 for e in bi_api.KNOWN_ENTITIES.values() if e.get('type') in ['mixer', 'suspicious'])
             }
+            
+            # 2. Recent Flagged Entities (Samples)
+            recent_flagged = []
+            # OFAC
+            for addr in list(ti_api.ofac_list)[:2]:
+                recent_flagged.append({'address': addr, 'type': 'SANCTIONED_ENTITY', 'source': 'OFAC', 'severity': 'CRITICAL'})
+            # Etherscan Phishing
+            for addr in list(ti_api.phishing_list)[:2]:
+                recent_flagged.append({'address': addr, 'type': 'PHISHING_SCAM', 'source': 'Etherscan', 'severity': 'HIGH'})
+            # SlowMist
+            for addr in list(ti_api.evil_addresses)[:2]:
+                recent_flagged.append({'address': addr, 'type': 'MALICIOUS', 'source': 'SlowMist', 'severity': 'CRITICAL'})
+            # Internal
+            for addr, data in list(bi_api.KNOWN_ENTITIES.items())[:2]:
+                recent_flagged.append({'address': addr, 'type': data.get('type', 'UNKNOWN').upper(), 'source': 'Internal', 'severity': 'INFO'})
+                
+            global_stats['recent_flagged'] = recent_flagged
+            
+            # 3. Infrastructure & Exchanges (Samples)
+            infrastructure = []
+            for addr, data in list(bi_api.KNOWN_ENTITIES.items())[:5]:
+                infrastructure.append({
+                    'name': data.get('name'),
+                    'address': addr,
+                    'type': data.get('type', 'UNKNOWN').upper()
+                })
+            global_stats['infrastructure'] = infrastructure
+            
+            global_stats['total_flagged'] = sum([
+                len(ti_api.ofac_list),
+                len(ti_api.phishing_list),
+                len(ti_api.evil_addresses)
+            ])
             
         except Exception as e:
             print(f"[THREAT ROUTE ERROR]: {e}")
@@ -1773,7 +1821,7 @@ def threat_intel():
             traceback.print_exc()
             
     db.close()
-    return render_template("threat_intel.html", threat=threat_summary, anomalies=anomalies, active_page="threat")
+    return render_template("threat_intel.html", global_stats=global_stats, active_page="threat")
 
 
 # ==================== ANOMALY DETAILS ROUTE (#9) ====================

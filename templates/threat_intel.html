@@ -1,85 +1,215 @@
 {% extends "base.html" %}
 
+{% block head %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
 {% block content %}
+<!-- Search Results Page View -->
+{% if search_result %}
 <div class="row mb-4">
     <div class="col-12">
-        <h2 class="text-light"><i class="bi bi-shield-exclamation me-2 text-danger"></i> Threat Intelligence</h2>
-        <p class="text-muted">Real-time threat detection and known entity matching.</p>
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="text-light mb-0">🔍 Analytics for <span class="font-monospace text-info">{{ search_address
+                    }}</span></h4>
+            <a href="/threat-intel" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back to
+                Dashboard</a>
+        </div>
+        <hr class="border-secondary my-3">
     </div>
-</div>
 
-<!-- Summary Cards -->
-<div class="row g-4 mb-4">
-    <div class="col-md-4">
-        <div class="card cyber-card border-danger h-100">
-            <div class="card-body text-center">
-                <h6 class="text-danger mb-2">High Risk Entities</h6>
-                <div class="display-4 fw-bold text-light">{{ threat.high_risk_count|default(0) }}</div>
-                <div class="small text-muted">Detected in active case</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card cyber-card border-warning h-100">
-            <div class="card-body text-center">
-                <h6 class="text-warning mb-2">Suspicious Activities</h6>
-                <div class="display-4 fw-bold text-light">{{ anomalies|length|default(0) }}</div>
-                <div class="small text-muted">ML detected anomalies</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card cyber-card border-info h-100">
-            <div class="card-body text-center">
-                <h6 class="text-info mb-2">Intelligence Sources</h6>
-                <div class="display-4 fw-bold text-light">4</div>
-                <div class="small text-muted">AbuseIPDB, Etherscan, OFAC, Cryptoscamdb</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Main Content -->
-<div class="row g-4">
-    <!-- Threat List -->
-    <div class="col-lg-8">
-        <div class="card cyber-card h-100">
+    <!-- Radar & details -->
+    <div class="col-md-6 mb-4 mb-md-0">
+        <div class="card cyber-card border-{{ 'danger' if search_result.is_flagged else 'success' }} h-100">
             <div class="card-header bg-transparent border-bottom border-secondary">
-                <h5 class="card-title text-light mb-0">Detected Threats</h5>
+                <h5 class="card-title text-light mb-0">Intelligence Overview</h5>
+            </div>
+            <div class="card-body">
+                {% if search_result.is_flagged %}
+                <div class="alert alert-danger bg-danger bg-opacity-10 border-danger mb-4">
+                    <h5 class="text-danger mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i> ADDRESS FLAGGED IN
+                        THREAT DATABASE</h5>
+                </div>
+                <div class="mb-3">
+                    <strong class="text-muted d-block mb-1">Severity / Confidence:</strong>
+                    <span class="badge bg-danger fs-6">{{ search_result.severity|upper }}</span>
+                    <span class="badge border border-danger text-danger fs-6 ms-2">{{
+                        "%.0f"|format(search_result.confidence * 100) }}% Confidence</span>
+                </div>
+
+                <div class="mb-3">
+                    <strong class="text-muted d-block mb-1">Detected Threat Types:</strong>
+                    <span class="badge bg-warning text-dark fs-6">{{ search_result.threat_type|replace('_', ' ')|title
+                        }}</span>
+                </div>
+
+                <div class="mb-3">
+                    <strong class="text-muted d-block mb-1">Intelligence Sources:</strong>
+                    {% for source in search_result.sources %}
+                    <span class="badge bg-secondary text-light me-1">{{ source }}</span>
+                    {% endfor %}
+                </div>
+
+                {% if search_result.details %}
+                <div class="mt-4 pt-3 border-top border-secondary">
+                    <strong class="text-muted d-block mb-2">Findings Details:</strong>
+                    <ul class="text-light small mb-0">
+                        {% for key, detail in search_result.details.items() %}
+                        <li><span class="text-warning">{{ key|title }}:</span> {{ detail }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% else %}
+                <div class="text-center py-4">
+                    <div class="display-1 text-success mb-3"><i class="bi bi-shield-check"></i></div>
+                    <h5 class="text-success">No Threats Detected</h5>
+                    <p class="text-muted mb-0">This address was not found in OFAC, Etherscan Phishing, or SlowMist
+                        EvilList databases.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div
+            class="card cyber-card border-{{ 'info' if entity_info and entity_info.type != 'unknown' else 'secondary' }} h-100">
+            <div class="card-header bg-transparent border-bottom border-secondary">
+                <h5 class="card-title text-light mb-0">Entity Identification</h5>
+            </div>
+            <div class="card-body">
+                {% if entity_info and entity_info.type != 'unknown' %}
+                <div class="text-center mb-4">
+                    <div class="display-4 text-info mb-2"><i class="bi bi-building"></i></div>
+                    <h4 class="text-light">{{ entity_info.name }}</h4>
+                    <span class="badge bg-info text-dark">{{ entity_info.type|title }}</span>
+                </div>
+
+                <ul class="list-group list-group-flush bg-transparent">
+                    <li
+                        class="list-group-item bg-transparent text-light border-secondary d-flex justify-content-between align-items-center">
+                        Trust Level
+                        <span
+                            class="badge {{ 'bg-success' if entity_info.trust_level in ['HIGH', 'HIGHEST'] else 'bg-danger' }}">{{
+                            entity_info.trust_level }}</span>
+                    </li>
+                    <li
+                        class="list-group-item bg-transparent text-light border-secondary d-flex justify-content-between align-items-center">
+                        Attribution Confidence
+                        <span class="text-info">{{ "%.0f"|format(entity_info.confidence * 100) }}%</span>
+                    </li>
+                </ul>
+                {% else %}
+                <div class="text-center py-4">
+                    <div class="display-1 text-secondary mb-3"><i class="bi bi-incognito"></i></div>
+                    <h5 class="text-muted">Unknown Entity</h5>
+                    <p class="text-muted small mb-0">This address does not map to any known exchange, mixer, or labeled
+                        entity in our internal database.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- GLOBAL DASHBOARD VIEW -->
+<div class="d-flex justify-content-between align-items-center mb-4 border border-danger p-3 rounded"
+    style="background: rgba(20, 0, 0, 0.4);">
+    <div>
+        <h3 class="text-danger fw-bold mb-1"><i class="bi bi-shield-exclamation me-2"></i> GLOBAL THREAT INTELLIGENCE
+        </h3>
+        <p class="text-muted small mb-0">Aggregated feeds from OFAC, Etherscan Phishing, and SlowMist</p>
+    </div>
+    <div>
+        <span class="badge bg-danger text-light me-2 px-3 py-2">LIVE FEEDS</span>
+        <span class="badge border border-secondary text-light bg-dark px-3 py-2">Synced: Just Now</span>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Left Column Top -->
+    <div class="col-md-5">
+        <div class="card cyber-card border-secondary h-100">
+            <div class="card-header bg-transparent border-bottom border-secondary">
+                <h6 class="card-title text-light mb-0">Threat Categorization</h6>
+            </div>
+            <div class="card-body d-flex justify-content-center align-items-center">
+                <div style="width: 100%; height: 280px; position: relative;">
+                    <canvas id="threatChart"></canvas>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-top border-secondary text-center">
+                <span class="badge" style="background: rgba(220, 53, 69, 0.8);">Sanctioned (OFAC)</span>
+                <span class="badge text-dark" style="background: rgba(255, 193, 7, 0.8);">Phishing</span>
+                <span class="badge" style="background: rgba(253, 126, 20, 0.8);">Malicious</span>
+                <span class="badge" style="background: rgba(13, 110, 253, 0.8);">Exchange</span>
+                <span class="badge" style="background: rgba(111, 66, 193, 0.8);">Mixer/Risky</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column Top -->
+    <div class="col-md-7">
+        <div class="card cyber-card border-secondary h-100">
+            <div
+                class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center">
+                <h6 class="card-title text-light mb-0">Recent Flagged Entities</h6>
+                <button class="btn btn-sm btn-outline-info" onclick="location.reload();"><i
+                        class="bi bi-arrow-clockwise"></i> Refresh</button>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-dark table-hover mb-0" style="background: transparent;">
                         <thead>
                             <tr>
-                                <th class="border-secondary">Entity / Address</th>
-                                <th class="border-secondary">Risk Type</th>
-                                <th class="border-secondary">Score</th>
-                                <th class="border-secondary">Source</th>
-                                <th class="border-secondary">Action</th>
+                                <th class="border-secondary text-uppercase small text-muted">Address</th>
+                                <th class="border-secondary text-uppercase small text-muted">Type</th>
+                                <th class="border-secondary text-uppercase small text-muted">Source</th>
+                                <th class="border-secondary text-uppercase small text-muted">Severity</th>
+                                <th class="border-secondary text-uppercase small text-muted">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% if threat.data %}
-                            {% for item in threat.data %}
+                            {% if global_stats and global_stats.recent_flagged %}
+                            {% for item in global_stats.recent_flagged %}
                             <tr>
-                                <td class="font-monospace text-light">{{ item.address }}</td>
-                                <td><span class="badge bg-danger">{{ item.type }}</span></td>
-                                <td>
-                                    <div class="progress" style="height: 6px; width: 60px;">
-                                        <div class="progress-bar bg-danger" role="progressbar"
-                                            style="width: {{ item.score }}%"></div>
-                                    </div>
+                                <td class="font-monospace text-light align-middle text-truncate"
+                                    style="max-width: 150px;">
+                                    <i class="bi bi-incognito text-danger me-2"></i>{{ item.address[:10] }}...{{
+                                    item.address[-6:] }}
                                 </td>
-                                <td class="text-muted small">{{ item.source }}</td>
-                                <td><button class="btn btn-xs btn-outline-light">Details</button></td>
+                                <td class="align-middle"><span class="badge bg-secondary text-light px-2 py-1">{{
+                                        item.type }}</span></td>
+                                <td class="text-muted small align-middle">{{ item.source }}</td>
+                                <td class="align-middle">
+                                    {% if item.severity == 'CRITICAL' %}
+                                    <span
+                                        class="badge bg-danger bg-opacity-25 border border-danger text-danger">CRITICAL</span>
+                                    {% elif item.severity == 'HIGH' %}
+                                    <span
+                                        class="badge bg-warning bg-opacity-25 border border-warning text-warning">HIGH</span>
+                                    {% else %}
+                                    <span class="badge bg-info bg-opacity-25 border border-info text-info">{{
+                                        item.severity }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle">
+                                    <form method="POST" action="/threat-intel" class="m-0 p-0">
+                                        <input type="hidden" name="address" value="{{ item.address }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-info"><i
+                                                class="bi bi-search"></i></button>
+                                    </form>
+                                </td>
                             </tr>
                             {% endfor %}
                             {% else %}
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">
-                                    No threats detected in current scope.
-                                </td>
+                                <td colspan="5" class="text-center text-muted p-4">No global flagged entity records
+                                    populated.</td>
                             </tr>
                             {% endif %}
                         </tbody>
@@ -88,35 +218,157 @@
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Anomaly Feed -->
-    <div class="col-lg-4">
-        <div class="card cyber-card h-100">
-            <div class="card-header bg-transparent border-bottom border-secondary">
-                <h5 class="card-title text-light mb-0">Anomaly Feed</h5>
+<div class="row g-4">
+    <!-- Left Column Bottom -->
+    <div class="col-md-5">
+        <div class="card cyber-card border-warning h-100">
+            <div class="card-header bg-transparent border-bottom border-warning">
+                <h6 class="card-title text-warning mb-0"><i class="bi bi-bank me-2"></i> Infrastructure & Exchanges</h6>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush bg-transparent">
+                    {% if global_stats and global_stats.infrastructure %}
+                    {% for item in global_stats.infrastructure %}
+                    <li
+                        class="list-group-item bg-transparent text-light border-secondary d-flex justify-content-between align-items-center py-3">
+                        <div>
+                            <div class="fw-bold text-light mb-1">{{ item.name }}</div>
+                            <div class="small text-muted font-monospace">{{ item.address[:10] }}...{{ item.address[-8:]
+                                }}</div>
+                        </div>
+                        <span class="badge bg-info bg-opacity-25 border border-info text-info">{{ item.type }}</span>
+                    </li>
+                    {% endfor %}
+                    {% else %}
+                    <li class="list-group-item bg-transparent text-muted text-center p-4">No specific infrastructure
+                        endpoints loaded.</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column Bottom: Intelligence Operations Grid -->
+    <div class="col-md-7">
+        <div class="card cyber-card border-info h-100">
+            <div class="card-header bg-transparent border-bottom border-info">
+                <h6 class="card-title text-info mb-0"><i class="bi bi-tools me-2"></i> Intelligence Operations</h6>
             </div>
             <div class="card-body">
-                {% if anomalies %}
-                <div class="timeline">
-                    {% for anomaly in anomalies %}
-                    <div class="mb-3 pb-3 border-bottom border-secondary">
-                        <div class="d-flex justify-content-between">
-                            <span class="badge bg-warning text-dark mb-1">{{ anomaly.type }}</span>
-                            <small class="text-muted">{{ anomaly.timestamp }}</small>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card bg-dark border-info text-center h-100 p-4" data-bs-toggle="modal"
+                            data-bs-target="#searchModal" style="cursor:pointer;">
+                            <i class="bi bi-list-task fs-1 text-info mb-2"></i>
+                            <h6 class="text-info mb-0">Single / Bulk Checker</h6>
                         </div>
-                        <p class="text-light small mb-1">{{ anomaly.description }}</p>
-                        <small class="text-muted font-monospace">{{ anomaly.address }}</small>
                     </div>
-                    {% endfor %}
+                    <div class="col-md-6">
+                        <div class="card bg-dark border-warning text-center h-100 p-4" style="cursor:pointer;">
+                            <i class="bi bi-download fs-1 text-warning mb-2"></i>
+                            <h6 class="text-warning mb-0">Export Blacklist</h6>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-dark border-danger text-center h-100 p-4" style="cursor:pointer;">
+                            <i class="bi bi-broadcast fs-1 text-danger mb-2"></i>
+                            <h6 class="text-danger mb-0">Webhook Alerts</h6>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-dark border-success text-center h-100 p-4" style="cursor:pointer;">
+                            <i class="bi bi-plus-circle fs-1 text-success mb-2"></i>
+                            <h6 class="text-success mb-0">Report Threat</h6>
+                        </div>
+                    </div>
                 </div>
-                {% else %}
-                <div class="text-center text-muted py-4">
-                    <i class="bi bi-activity p-3 rounded-circle bg-dark fs-2 text-secondary mb-3 d-inline-block"></i>
-                    <p>No anomalies detected</p>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+<!-- Modal for Address Searching -->
+<div class="modal fade" id="searchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border border-info">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-info"><i class="bi bi-search me-2"></i> Address Look-up</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="/threat-intel">
+                    <div class="mb-3">
+                        <label class="form-label text-light">Enter Wallet Address (ETH, BTC, SOL, etc)</label>
+                        <input type="text" name="address" class="form-control bg-dark text-light border-secondary"
+                            placeholder="0x..." required>
+                    </div>
+                    <button type="submit" class="btn btn-outline-info w-100"><i class="bi bi-radar"></i> Check Address
+                        Intelligence</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if not search_result and global_stats and global_stats.counts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('threatChart').getContext('2d');
+
+        // Values from backend global_stats
+        const counts = {
+            ofac: {{ global_stats.counts.ofac|default (10)
+    }},
+        phishing: {{ global_stats.counts.phishing |default(25) }},
+        malicious: {{ global_stats.counts.malicious |default(15) }},
+        exchange: {{ global_stats.counts.exchange |default(5) }},
+        mixer: {{ global_stats.counts.mixer |default(5) }}
+    };
+
+    new Chart(ctx, {
+        type: 'polarArea',
+        data: {
+            labels: ['Sanctioned', 'Phishing', 'Malicious', 'Exchange', 'Mixer/Risky'],
+            datasets: [{
+                data: [counts.ofac, counts.phishing, counts.malicious, counts.exchange, counts.mixer],
+                backgroundColor: [
+                    'rgba(220, 53, 69, 0.8)',   // Danger Red
+                    'rgba(255, 193, 7, 0.8)',   // Warning Yellow
+                    'rgba(253, 126, 20, 0.8)',  // Orange
+                    'rgba(13, 110, 253, 0.8)',  // Blue
+                    'rgba(111, 66, 193, 0.8)'   // Purple
+                ],
+                borderColor: '#212529',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            scales: {
+                r: {
+                    grid: { color: 'rgba(255, 255, 255, 0.1)', circular: true },
+                    angleLines: { color: 'rgba(255, 255, 255, 0.2)' },
+                    ticks: { display: false }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            },
+            maintainAspectRatio: false
+        }
+    });
+
+    // Dark layout fixes
+    Chart.defaults.color = '#adb5bd';
+    Chart.defaults.font.family = "'Courier New', Courier, monospace";
+});
+</script>
+{% endif %}
 {% endblock %}

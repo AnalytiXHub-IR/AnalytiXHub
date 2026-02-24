@@ -462,12 +462,14 @@ class MempoolFetcher:
         counts = {'normal': 0, 'internal': 0, 'token': 0}
         
         getblock_key = os.getenv('GETBLOCK_DOGE_KEY')
-        if not getblock_key:
-            print("⚠️ No GETBLOCK_DOGE_KEY in .env. Falling back to empty response.")
+        endpoint = os.getenv('GETBLOCK_ENDPOINT')
+        
+        if not getblock_key and not endpoint:
+            print("⚠️ No GETBLOCK_DOGE_KEY or GETBLOCK_ENDPOINT in .env. Falling back to empty response.")
             return [], counts
             
         print(f"[GetBlock.io] Attempting fallback for {address}...")
-        url = f"https://go.getblock.io/{getblock_key}/"
+        url = endpoint if endpoint else f"https://go.getblock.io/{getblock_key}/"
         headers = {"Content-Type": "application/json"}
         payload = {
             "jsonrpc": "2.0",

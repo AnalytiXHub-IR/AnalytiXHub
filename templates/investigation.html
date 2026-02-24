@@ -104,8 +104,7 @@
                     Charts</a></li>
             <li class="nav-item"><a class="nav-link" id="clustering-tab" data-bs-toggle="tab" href="#clustering"
                     role="tab">🕸️ Clustering</a></li>
-            <li class="nav-item"><a class="nav-link" id="threat-tab" data-bs-toggle="tab" href="#threat" role="tab">🚨
-                    Threat Intel</a></li>
+
             <li class="nav-item"><a class="nav-link" id="anomalies-tab" data-bs-toggle="tab" href="#anomalies"
                     role="tab">🤖 Anomalies</a></li>
             <li class="nav-item"><a class="nav-link" id="evidence-tab" data-bs-toggle="tab" href="#evidence"
@@ -315,34 +314,7 @@
                 {% endif %}
             </div>
 
-            <!-- THREAT INTEL TAB (#7) -->
-            <div class="tab-pane fade" id="threat" role="tabpanel">
-                <h4 class="card-title text-light mb-4">🚨 Threat Intelligence</h4>
 
-                {% if threat_intel and threat_intel.is_flagged %}
-                <div class="alert alert-danger">
-                    <h5 class="text-white">⚠️ ADDRESS FLAGGED IN THREAT DATABASE</h5>
-                    <p class="mb-2"><strong>Severity:</strong> <span class="badge bg-danger">{{
-                            threat_intel.severity|upper }}</span></p>
-                    <p class="mb-2"><strong>Confidence:</strong> {{ "%.0f"|format(threat_intel.confidence * 100) }}%</p>
-                    <p class="mb-0"><strong>Sources:</strong>
-                        {% for source in threat_intel.threat_sources %}
-                        <span class="badge bg-warning text-dark">{{ source }}</span>
-                        {% endfor %}
-                    </p>
-                    <hr>
-                    <p class="mb-0"><strong>Threat Types:</strong>
-                        {% for ttype in threat_intel.threat_types %}
-                        <span class="badge bg-danger">{{ ttype }}</span>
-                        {% endfor %}
-                    </p>
-                </div>
-                {% else %}
-                <div class="alert alert-success">
-                    <p class="mb-0">✓ Address NOT found in threat databases (Chainalysis, OFAC, ScamAlert)</p>
-                </div>
-                {% endif %}
-            </div>
 
             <!-- ANOMALIES TAB (#9) -->
             <div class="tab-pane fade" id="anomalies" role="tabpanel">
