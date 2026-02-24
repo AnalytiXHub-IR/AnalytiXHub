@@ -69,13 +69,13 @@ class BreadcrumbsClient:
 
         txs = []
         
-        # FORCE SOLSCAN FOR SOLANA (User Requirement)
+        # FORCE HELIUS FOR SOLANA (via MultiChainFetcher -> SolanaFetcher)
         if bc_chain in ['sol', 'solana']:
-            print("Force-routing Solana to Solscan (MultiChainFetcher)...")
+            print("Force-routing Solana to Helius (MultiChainFetcher)...")
             try:
                 txs, counts = MultiChainFetcher.fetch_by_chain('solana', address) # Use original address for fetch
             except Exception as e:
-                print(f"Error fetching from Solscan: {e}")
+                print(f"Error fetching from Helius/MultiChainFetcher: {e}")
                 txs = []
         
         # For other chains, try Breadcrumbs API first if key exists

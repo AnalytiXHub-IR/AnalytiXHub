@@ -125,6 +125,32 @@ def get_active_case():
     db.close()
     return case
 
+# Chain name aliases → canonical DB names
+_CHAIN_ALIASES = {
+    'eth': 'ethereum', 'sol': 'solana', 'btc': 'bitcoin',
+    'trx': 'tron', 'ripple': 'xrp', 'matic': 'polygon',
+    'bnb': 'bsc', 'binance': 'bsc', 'arb': 'arbitrum', 'op': 'optimism',
+    'doge': 'dogecoin', 'ltc': 'litecoin',
+}
+
+def get_chain_db_id(chain_name: str, db=None) -> int | None:
+    """Resolve a chain name to its actual DB row id (FK-safe).
+    Returns None if the chain is not found (so the FK column stays NULL).
+    """
+    from modules.core.db_models import Chain as _Chain, SessionLocal as _SL
+    canonical = _CHAIN_ALIASES.get(chain_name.lower(), chain_name.lower())
+    close_after = db is None
+    if close_after:
+        db = _SL()
+    try:
+        row = db.query(_Chain).filter(_Chain.name == canonical).first()
+        return row.id if row else None
+    finally:
+        if close_after:
+            db.close()
+
+
+
 @app.route("/", methods=["GET"])
 @login_required # Protect Dashboard
 def dashboard():
@@ -391,7 +417,7 @@ def investigation():
                             
                         db_tx = Transaction(
                             case_id=active_case_db.id,
-                            chain_id=chain_id,
+                            chain_id=get_chain_db_id(chain_name, db),
                             tx_hash=tx_details['hash'],
                             from_address=tx_details.get('from', 'Unknown'),
                             to_address=tx_details.get('to', 'Unknown'),
@@ -427,7 +453,7 @@ def investigation():
                     addr_record = Address(
                         case_id=active_case_db.id,
                         address=address,
-                        chain_id=chain_id, # Simplified: assuming 1-to-1 mapping or we need Chain table lookup
+                        chain_id=get_chain_db_id(chain_name, db),  # FK-safe: looks up actual DB row id
                         alias="Target",
                         address_type="suspect"
                     )
@@ -476,7 +502,7 @@ def investigation():
                         
                         db_tx = Transaction(
                             case_id=active_case_db.id,
-                            chain_id=chain_id,
+                            chain_id=get_chain_db_id(chain_name, db),  # FK-safe: looks up actual DB row id
                             tx_hash=t_hash,
                             from_address=tx.get('from'),
                             to_address=tx.get('to'),
@@ -1059,8 +1085,8 @@ def add_address_to_case(case_id):
     new_addr = Address(
         case_id=case.id,
         address=address_str,
-        tag=tag,
-        chain_id=1 # Default to eth for now, should infer
+        address_type=tag,  # tag maps to address_type (victim/suspect/etc.)
+        chain_id=get_chain_db_id(request.form.get('chain', 'ethereum'), db)  # FK-safe lookup
     )
     db.add(new_addr)
     db.commit()
@@ -1314,8 +1340,8 @@ def batch_processing():
                             addr_record = Address(
                                 case_id=active_case_db.id,
                                 address=address,
-                                chain=chain_name,
-                                address_type="suspect" # Default for batch
+                                chain_id=get_chain_db_id(chain_name, db),  # FK-safe lookup
+                                address_type="suspect"  # Default for batch
                             )
                             db.add(addr_record)
                         

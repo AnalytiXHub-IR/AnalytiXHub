@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ETHERSCAN_KEY = os.getenv("ETHERSCAN_API_KEY")
-SOLANA_API_KEY = os.getenv("SOLSCAN_API_KEY")
+SOLANA_API_KEY = os.getenv("SOLANA_API_KEY")  # Helius API Key
 
 def debug_fetch(chain, address):
     print(f"--- Debugging {chain} fetch for {address} ---")

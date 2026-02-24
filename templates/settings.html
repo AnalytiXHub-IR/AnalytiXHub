@@ -30,7 +30,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label text-muted">Solana API Key (Solscan)</label>
+                        <label class="form-label text-muted">Solana API Key (Helius)</label>
                         <div class="input-group">
                             <span class="input-group-text bg-dark border-secondary text-secondary"><i
                                     class="bi bi-sun"></i></span>
@@ -38,6 +38,8 @@
                                 name="solana_key" value="{{ config.get('SOLANA_API_KEY', '') }}"
                                 placeholder="Enter API Key">
                         </div>
+                        <div class="form-text text-secondary">Required for Solana. Get a free key at <a
+                                href="https://helius.dev" target="_blank" class="text-info">helius.dev</a></div>
                     </div>
 
                     <div class="mb-3">

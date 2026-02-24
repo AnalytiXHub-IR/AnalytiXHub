@@ -447,16 +447,34 @@ def init_db():
     db = Session(bind=engine)
     
     chains = [
+        # EVM Chains
         Chain(name='ethereum', symbol='ETH', full_name='Ethereum Mainnet', 
               api_type='etherscan', explorer_url='https://etherscan.io', decimals=18),
+        Chain(name='polygon', symbol='MATIC', full_name='Polygon Mainnet',
+              api_type='etherscan', explorer_url='https://polygonscan.com', decimals=18),
+        Chain(name='bsc', symbol='BNB', full_name='BNB Smart Chain',
+              api_type='etherscan', explorer_url='https://bscscan.com', decimals=18),
+        Chain(name='arbitrum', symbol='ETH', full_name='Arbitrum One',
+              api_type='etherscan', explorer_url='https://arbiscan.io', decimals=18),
+        Chain(name='optimism', symbol='ETH', full_name='Optimism Mainnet',
+              api_type='etherscan', explorer_url='https://optimistic.etherscan.io', decimals=18),
+        Chain(name='base', symbol='ETH', full_name='Base Mainnet',
+              api_type='etherscan', explorer_url='https://basescan.org', decimals=18),
+        Chain(name='avalanche', symbol='AVAX', full_name='Avalanche C-Chain',
+              api_type='etherscan', explorer_url='https://snowtrace.io', decimals=18),
+        # Non-EVM Chains
         Chain(name='bitcoin', symbol='BTC', full_name='Bitcoin Mainnet', 
-              api_type='blockchain_com', explorer_url='https://blockchain.com', decimals=8),
+              api_type='mempool', explorer_url='https://mempool.space', decimals=8),
+        Chain(name='solana', symbol='SOL', full_name='Solana Mainnet',
+              api_type='helius', explorer_url='https://solana.fm', decimals=9),
+        Chain(name='tron', symbol='TRX', full_name='TRON Mainnet',
+              api_type='trongrid', explorer_url='https://tronscan.org', decimals=6),
+        Chain(name='xrp', symbol='XRP', full_name='XRP Ledger',
+              api_type='xrpl', explorer_url='https://xrpscan.com', decimals=6),
+        Chain(name='dogecoin', symbol='DOGE', full_name='Dogecoin Mainnet', 
+              api_type='blockcypher', explorer_url='https://blockchair.com/dogecoin', decimals=8),
         Chain(name='litecoin', symbol='LTC', full_name='Litecoin Mainnet', 
               api_type='blockchain_com', explorer_url='https://blockchair.com/litecoin', decimals=8),
-        Chain(name='dogecoin', symbol='DOGE', full_name='Dogecoin Mainnet', 
-              api_type='blockchain_com', explorer_url='https://blockchair.com/dogecoin', decimals=8),
-        Chain(name='xrp', symbol='XRP', full_name='XRP Ledger', 
-              api_type='xrpl', explorer_url='https://xrpscan.com', decimals=6),
     ]
     
     for chain in chains:
@@ -466,6 +484,7 @@ def init_db():
     db.commit()
     db.close()
     print("✅ Chains initialized")
+
 
 
 def get_db():
