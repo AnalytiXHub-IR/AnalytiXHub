@@ -513,7 +513,7 @@ def investigation():
             db_txs = db.query(Transaction).filter(
                 Transaction.case_id == active_case_db.id,
                 (Transaction.from_address == address) | (Transaction.to_address == address)
-            ).order_by(Transaction.timestamp.desc()).limit(500).all()
+            ).order_by(Transaction.timestamp.desc()).all()
             
             if db_txs:
                 print(f"[Persistence] Loading {len(db_txs)} transactions from DB for {address}")
@@ -598,12 +598,14 @@ def investigation():
 
     db.close()
     
+    from modules.fetchers.multi_chain import MultiChainFetcher
     return render_template("investigation.html", 
                          active_page="investigation",
                          current_case=context_case, # Pass dict
                          summary=context_case["summary"], 
                          supported_chains=SUPPORTED_CHAINS,
                          current_chain=context_case.get('chain', 'ethereum'),
+                         explorer_tx=MultiChainFetcher.get_tx_explorer_url(context_case.get('chain', 'ethereum')),
                          current_address=context_case.get('address'),
                          fetch_options={'include_internal': True, 'include_token_transfers': True}, # Default options
                          recent_activity=context_case.get('transactions', [])[:5],
@@ -1029,7 +1031,7 @@ def add_address_to_case(case_id):
          return jsonify({'success': False, 'error': 'Address required'}), 400
          
     db = SessionLocal()
-    case = db.query(DBCase).filter(DBCase.id == case_id).first()
+    case = db.query(DBCase).filter(DBCase.case_id == case_id).first()
     
     if not case or (case.user_id != current_user.id and current_user.role != 'admin'):
         db.close()
@@ -1063,7 +1065,7 @@ def add_note_to_case(case_id):
         return jsonify({'success': False, 'error': "Note content empty"}), 400
         
     db = SessionLocal()
-    case = db.query(DBCase).filter(DBCase.id == case_id).first()
+    case = db.query(DBCase).filter(DBCase.case_id == case_id).first()
     
     if not case or (case.user_id != current_user.id and current_user.role != 'admin'):
         db.close()
@@ -1085,7 +1087,7 @@ def add_note_to_case(case_id):
 def delete_note_from_case(case_id, note_id):
     """Delete note from case"""
     db = SessionLocal()
-    case = db.query(DBCase).filter(DBCase.id == case_id).first()
+    case = db.query(DBCase).filter(DBCase.case_id == case_id).first()
     
     if not case or (case.user_id != current_user.id and current_user.role != 'admin'):
         db.close()

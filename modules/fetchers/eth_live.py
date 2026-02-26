@@ -47,7 +47,7 @@ def _validate_chain(chain_id):
     except (ValueError, TypeError) as e:
         raise ValueError(f"Invalid chain_id: {chain_id}") from e
 
-def _fetch_page(address, api_key, chain_id=1, page=1, offset=1000, action="txlist"):
+def _fetch_page(address, api_key, chain_id=1, page=1, offset=1000, action="txlist", startblock=0, endblock=99999999):
     """Fetch a page of transactions from Etherscan V2 API for a specific chain"""
     chain_id = _validate_chain(chain_id)
     
@@ -56,8 +56,8 @@ def _fetch_page(address, api_key, chain_id=1, page=1, offset=1000, action="txlis
         "module": "account",
         "action": action,
         "address": address,
-        "startblock": 0,
-        "endblock": 99999999,
+        "startblock": startblock,
+        "endblock": endblock,
         "page": page,
         "offset": offset,
         "sort": "asc",
@@ -68,171 +68,96 @@ def _fetch_page(address, api_key, chain_id=1, page=1, offset=1000, action="txlis
     return r.json()
 
 
-def fetch_eth_address(address, api_key, chain_id=1, include_internal=False, include_token_transfers=False, max_txs=None):
-    """Fetch full transaction history for an address from Etherscan V2 API.
+def _fetch_all_paginate_by_block(address, api_key, chain_id, action, max_txs=None):
+    all_txs = []
+    seen = set()
+    startblock = 0
+    offset = 10000  # Max Etherscan allows per page
+    
+    while True:
+        if max_txs and len(all_txs) >= max_txs:
+            break
+            
+        data = _fetch_page(address, api_key, chain_id=chain_id, page=1, offset=offset, action=action, startblock=startblock)
+        if data.get('status') == '0' and data.get('message') != 'OK':
+            if data.get('result') != 'No transactions found':
+                print(f"[ETHERSCAN API] {data.get('message')} - {data.get('result')}")
+            break
+            
+        page_results = data.get('result', []) or []
+        if not page_results:
+            break
+            
+        added_in_page = 0
+        for tx in page_results:
+            thash = tx.get('hash')
+            if not thash:
+                continue
+            if thash not in seen:
+                seen.add(thash)
+                all_txs.append(tx)
+                added_in_page += 1
+                
+        if len(page_results) < offset:
+            break
+            
+        # Over 10k, slide block
+        last_tx = page_results[-1]
+        new_startblock = int(last_tx.get('blockNumber', startblock))
+        if new_startblock == startblock and added_in_page == 0:
+            print("[ETHERSCAN API] Stuck on giant block, breaking.")
+            break
+        startblock = new_startblock
+        time.sleep(0.25)
+        
+    return all_txs
 
-    Args:
-        address: Blockchain address (0x...)
-        api_key: Etherscan API key
-        chain_id: Chain ID (1=Ethereum, 56=BSC, 137=Polygon, etc.)
-        include_internal: Include internal transactions
-        include_token_transfers: Include ERC-20 transfers
-        max_txs: Maximum number of transactions to fetch (default: None for all)
-
-    This performs paginated requests and will return a combined list of normal
-    transactions. Set `include_internal` or `include_token_transfers` to True to
-    also fetch internal transactions and ERC-20 transfers (additional API calls).
-    """
+def fetch_eth_address(address, api_key, chain_id=1, include_internal=False, include_token_transfers=False, max_txs=None, startblock=0):
+    """Fetch full transaction history for an address from Etherscan V2 API (Unlimited via block pagination)."""
     if not api_key:
         raise Exception("Missing Etherscan API key")
 
     chain_id = _validate_chain(chain_id)
     all_txs = []
-    page = 1
-    offset = 1000  # page size; adjust as needed but keep reasonable for rate limits
 
     try:
-        while True:
-            # Check max_txs limit
-            if max_txs and len(all_txs) >= max_txs:
-                break
-                
-            data = _fetch_page(address, api_key, chain_id=chain_id, page=page, offset=offset, action="txlist")
-            # Etherscan returns a 'status' and 'message' field
-            if data.get('status') == '0' and data.get('message') != 'OK':
-                # no transactions or an error
-                if data.get('result') == 'No transactions found':
-                    break
-                print(f"[ETHERSCAN API] {data.get('message')} - {data.get('result')}")
-                break
+        normals = _fetch_all_paginate_by_block(address, api_key, chain_id, action="txlist", max_txs=max_txs, startblock=startblock)
+        all_txs.extend(normals)
 
-            page_results = data.get('result', []) or []
-            if not page_results:
-                break
-
-            all_txs.extend(page_results)
-
-            # If fewer results than offset, we've reached the end
-            if len(page_results) < offset:
-                break
-            
-            # Additional safety for free tier (10k result window)
-            if page * offset >= 10000:
-                print("[ETHERSCAN API] Reached 10k result window limit. Stopping.")
-                break
-
-            page += 1
-            time.sleep(0.25)  # be gentle with rate limits
-
-        # Optionally fetch internal txs (may include contract/internal transfers)
         if include_internal:
-            page = 1
-            while True:
-                data = _fetch_page(address, api_key, chain_id=chain_id, page=page, offset=offset, action="txlistinternal")
-                if data.get('status') == '0' and data.get('message') != 'OK':
-                    break
-                page_results = data.get('result', []) or []
-                if not page_results:
-                    break
-                all_txs.extend(page_results)
-                if len(page_results) < offset:
-                    break
-                page += 1
-                time.sleep(0.25)
+            internals = _fetch_all_paginate_by_block(address, api_key, chain_id, action="txlistinternal", max_txs=max_txs, startblock=startblock)
+            all_txs.extend(internals)
 
-        # Optionally fetch ERC20 token transfers
         if include_token_transfers:
-            page = 1
-            while True:
-                data = _fetch_page(address, api_key, chain_id=chain_id, page=page, offset=offset, action="tokentx")
-                if data.get('status') == '0' and data.get('message') != 'OK':
-                    break
-                page_results = data.get('result', []) or []
-                if not page_results:
-                    break
-                all_txs.extend(page_results)
-                if len(page_results) < offset:
-                    break
-                page += 1
-                time.sleep(0.25)
+            tokens = _fetch_all_paginate_by_block(address, api_key, chain_id, action="tokentx", max_txs=max_txs, startblock=startblock)
+            all_txs.extend(tokens)
 
         return all_txs
-
     except requests.exceptions.RequestException as e:
         raise Exception(f"Network connection failed: {e}")
 
-
-def fetch_eth_address_with_counts(address, api_key, chain_id=1, include_internal=False, include_token_transfers=False):
-    """Returns combined tx list and a breakdown of counts per type.
-
-    Args:
-        address: Blockchain address (0x...)
-        api_key: Etherscan API key
-        chain_id: Chain ID (1=Ethereum, 56=BSC, 137=Polygon, etc.)
-        include_internal: Include internal transactions
-        include_token_transfers: Include ERC-20 transfers
-
-    Returns: (all_txs_list, counts_dict)
-    counts_dict = {'normal': int, 'internal': int, 'token': int}
-    """
+def fetch_eth_address_with_counts(address, api_key, chain_id=1, include_internal=False, include_token_transfers=False, startblock=0):
+    """Returns combined tx list and a breakdown of counts per type (Unlimited via block pagination)."""
     if not api_key:
         raise Exception("Missing Etherscan API key")
 
     chain_id = _validate_chain(chain_id)
-
     counts = {'normal': 0, 'internal': 0, 'token': 0}
     combined = []
 
-    # Fetch normal transactions (paginated) and count
-    page = 1
-    offset = 1000
-    while True:
-        data = _fetch_page(address, api_key, chain_id=chain_id, page=page, offset=offset, action="txlist")
-        if data.get('status') == '0' and data.get('message') != 'OK':
-            if data.get('result') == 'No transactions found':
-                break
-            break
-        page_results = data.get('result', []) or []
-        if not page_results:
-            break
-        counts['normal'] += len(page_results)
-        combined.extend(page_results)
-        if len(page_results) < offset:
-            break
-        page += 1
-        time.sleep(0.25)
+    normals = _fetch_all_paginate_by_block(address, api_key, chain_id, action="txlist", startblock=startblock)
+    counts['normal'] = len(normals)
+    combined.extend(normals)
 
     if include_internal:
-        page = 1
-        while True:
-            data = _fetch_page(address, api_key, chain_id=chain_id, page=page, offset=offset, action="txlistinternal")
-            if data.get('status') == '0' and data.get('message') != 'OK':
-                break
-            page_results = data.get('result', []) or []
-            if not page_results:
-                break
-            counts['internal'] += len(page_results)
-            combined.extend(page_results)
-            if len(page_results) < offset:
-                break
-            page += 1
-            time.sleep(0.25)
+        internals = _fetch_all_paginate_by_block(address, api_key, chain_id, action="txlistinternal", startblock=startblock)
+        counts['internal'] = len(internals)
+        combined.extend(internals)
 
     if include_token_transfers:
-        page = 1
-        while True:
-            data = _fetch_page(address, api_key, chain_id=chain_id, page=page, offset=offset, action="tokentx")
-            if data.get('status') == '0' and data.get('message') != 'OK':
-                break
-            page_results = data.get('result', []) or []
-            if not page_results:
-                break
-            counts['token'] += len(page_results)
-            combined.extend(page_results)
-            if len(page_results) < offset:
-                break
-            page += 1
-            time.sleep(0.25)
+        tokens = _fetch_all_paginate_by_block(address, api_key, chain_id, action="tokentx", startblock=startblock)
+        counts['token'] = len(tokens)
+        combined.extend(tokens)
 
     return combined, counts
 

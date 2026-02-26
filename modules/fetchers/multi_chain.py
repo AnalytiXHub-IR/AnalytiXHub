@@ -353,99 +353,141 @@ class EtherscanMultiChainFetcher:
     }
     
     @staticmethod
+    def _fetch_all_paginate_by_block(chain: str, address: str, action: str, startblock: int = 0) -> List[Dict]:
+        config = EtherscanMultiChainFetcher.CHAIN_CONFIGS[chain]
+        all_txs = []
+        seen = set()
+        offset = 10000  # Max allowed by Etherscan per page
+        
+        while True:
+            params = {
+                'chainid': config['chainid'],
+                'module': 'account',
+                'action': action,
+                'address': address,
+                'startblock': startblock,
+                'endblock': 99999999,
+                'page': 1,
+                'offset': offset,
+                'sort': 'asc', # Must be asc for block pagination to work correctly
+                'apikey': ETHERSCAN_API_KEY
+            }
+            
+            try:
+                response = requests.get(EtherscanMultiChainFetcher.V2_ENDPOINT, params=params, timeout=15)
+                data = response.json()
+                
+                if data.get('status') == '0' and data.get('message') != 'OK':
+                    if data.get('result') != 'No transactions found':
+                        print(f"[ETHERSCAN API] {data.get('message')} - {data.get('result')}")
+                    break
+                    
+                page_results = data.get('result', []) or []
+                if not page_results:
+                    break
+                    
+                added_in_page = 0
+                for tx in page_results:
+                    thash = tx.get('hash')
+                    if not thash:
+                        continue
+                    if thash not in seen:
+                        seen.add(thash)
+                        
+                        # Normalize results
+                        tx['chain'] = chain
+                        if 'timeStamp' in tx: # Normalize timestamp format
+                            try:
+                                tx['timestamp'] = datetime.fromtimestamp(int(tx['timeStamp'])).strftime('%Y-%m-%d %H:%M:%S')
+                            except:
+                                pass
+                        
+                        # Normalize Value (Wei -> ETH)
+                        if 'value' in tx:
+                            try:
+                                tx['value'] = float(tx['value']) / 1e18
+                            except:
+                                tx['value'] = 0.0
+                                
+                        all_txs.append(tx)
+                        added_in_page += 1
+                        
+                if len(page_results) < offset:
+                    break
+                    
+                # Slide block window
+                last_tx = page_results[-1]
+                new_startblock = int(last_tx.get('blockNumber', startblock))
+                if new_startblock == startblock and added_in_page == 0:
+                    print("[ETHERSCAN API] Stuck on giant block, breaking.")
+                    break
+                startblock = new_startblock
+                time.sleep(0.25)
+                
+            except Exception as e:
+                print(f"❌ {config['name']} pagination error: {e}")
+                break
+                
+        return all_txs
+
+    @staticmethod
     def fetch_transactions(chain: str, address: str, include_internal: bool = True, 
-                          include_token_transfers: bool = True) -> Tuple[List[Dict], Dict]:
+                          include_token_transfers: bool = True, startblock: int = 0) -> Tuple[List[Dict], Dict]:
         
         chain = chain.lower()
         if chain not in EtherscanMultiChainFetcher.CHAIN_CONFIGS:
-            # Try BlockScout fallback immediately if chain not supported here but supported there
              return BlockScoutFetcher.fetch_transactions(chain, address)
         
         config = EtherscanMultiChainFetcher.CHAIN_CONFIGS[chain]
         transactions = []
         counts = {'normal': 0, 'internal': 0, 'token': 0}
         
-        # Fallback to BlockScout if no key
         if not ETHERSCAN_API_KEY:
             print(f"⚠️  No Etherscan API key, using BlockScout for {config['name']}...")
             return BlockScoutFetcher.fetch_transactions(chain, address)
         
         try:
-            print(f"[+] Fetching {config['name']} transactions via Etherscan v2 API...")
+            print(f"[+] Fetching {config['name']} transactions via Etherscan v2 API (Paginated from block {startblock})...")
             
             # Normal transactions
-            normal_txs = EtherscanMultiChainFetcher._fetch_page(chain, address, 'txlist')
+            normal_txs = EtherscanMultiChainFetcher._fetch_all_paginate_by_block(chain, address, 'txlist', startblock)
             transactions.extend(normal_txs)
             counts['normal'] = len(normal_txs)
             
             # Internal transactions
             if include_internal:
-                internal_txs = EtherscanMultiChainFetcher._fetch_page(chain, address, 'txlistinternal')
+                internal_txs = EtherscanMultiChainFetcher._fetch_all_paginate_by_block(chain, address, 'txlistinternal', startblock)
                 transactions.extend(internal_txs)
                 counts['internal'] = len(internal_txs)
             
             # Token transfers
             if include_token_transfers:
-                token_txs = EtherscanMultiChainFetcher._fetch_page(chain, address, 'tokentx')
+                token_txs = EtherscanMultiChainFetcher._fetch_all_paginate_by_block(chain, address, 'tokentx', startblock)
                 transactions.extend(token_txs)
                 counts['token'] = len(token_txs)
             
             total = counts['normal'] + counts['internal'] + counts['token']
             print(f"✅ {config['name']}: {counts['normal']} normal, {counts['internal']} internal, {counts['token']} token ({total} total)")
+            
+            # Fallback to BlockScout if absolutely nothing was found (could be an API quirk)
+            if total == 0 and startblock == 0:
+                print(f"⚠️ Zero transactions found via Etherscan, attempting BlockScout fallback just in case...")
+                bs_txs, bs_counts = BlockScoutFetcher.fetch_transactions(chain, address)
+                if sum(bs_counts.values()) > 0:
+                    return bs_txs, bs_counts
+                    
             return transactions, counts
         
         except Exception as e:
             print(f"❌ {config['name']} fetch error: {e}")
             print(f"   Falling back to BlockScout...")
             return BlockScoutFetcher.fetch_transactions(chain, address)
-            
+
     @staticmethod
     def fetch_by_tx_hash(chain: str, tx_hash: str) -> Optional[Dict]:
          """Fetch transaction by hash on EVM chains. Relies on BlockScout fallback for generic tx queries"""
          print(f"[+] Proxying Etherscan TxHash to BlockScout...")
          return BlockScoutFetcher.fetch_by_tx_hash(chain, tx_hash)
-    
-    @staticmethod
-    def _fetch_page(chain: str, address: str, action: str, page: int = 1, offset: int = 5000) -> List[Dict]:
-        config = EtherscanMultiChainFetcher.CHAIN_CONFIGS[chain]
-        params = {
-            'chainid': config['chainid'],
-            'module': 'account',
-            'action': action,
-            'address': address,
-            'page': page,
-            'offset': offset,
-            'sort': 'desc',
-            'apikey': ETHERSCAN_API_KEY
-        }
-        
-        try:
-            response = requests.get(EtherscanMultiChainFetcher.V2_ENDPOINT, params=params, timeout=10)
-            data = response.json()
-            
-            if data.get('status') == '1' and data.get('result'):
-                # Normalize results
-                results = []
-                for tx in data['result']:
-                    tx['chain'] = chain
-                    if 'timeStamp' in tx: # Normalize timestamp format
-                        try:
-                            tx['timestamp'] = datetime.fromtimestamp(int(tx['timeStamp'])).strftime('%Y-%m-%d %H:%M:%S')
-                        except:
-                            pass
-                    
-                    # Normalize Value (Wei -> ETH)
-                    if 'value' in tx:
-                        try:
-                            tx['value'] = float(tx['value']) / 1e18
-                        except:
-                            tx['value'] = 0.0
-                            
-                    results.append(tx)
-                return results
-            return []
-        except:
-            return []
 
 
 # ==================== BITCOIN (Mempool.space) ====================
@@ -1282,31 +1324,40 @@ class MultiChainFetcher:
             addr_record = db.query(Address).filter(Address.address == address).order_by(Address.last_analyzed.desc()).first()
             if addr_record and addr_record.last_analyzed:
                 time_since_last = (datetime.utcnow() - addr_record.last_analyzed).total_seconds()
-                if time_since_last < 86400: # 24 hour cache
-                    # Load txs
-                    db_txs = db.query(Transaction).filter(
-                        (Transaction.from_address == address) | (Transaction.to_address == address)
-                    ).order_by(Transaction.timestamp.desc()).limit(500).all()
+                
+                # Load ALL cached txs
+                db_txs = db.query(Transaction).filter(
+                    (Transaction.from_address == address) | (Transaction.to_address == address)
+                ).order_by(Transaction.timestamp.desc()).all()
+                
+                if db_txs:
+                    print(f"[MultiChainFetcher] Cache Hit for {address} on {chain} (Found {len(db_txs)} in DB)")
+                    max_block = 0
+                    for t in db_txs:
+                        if t.block_number and t.block_number > max_block:
+                            max_block = t.block_number
+                            
+                        txs.append({
+                            'hash': t.tx_hash,
+                            'from': t.from_address,
+                            'to': t.to_address,
+                            'value': t.amount,
+                            'timestamp': t.timestamp.strftime('%Y-%m-%d %H:%M:%S') if t.timestamp else '',
+                            'block': t.block_number,
+                            'chain': chain,
+                            'type': t.tx_type
+                        })
+                    counts['normal'] = len(txs)
                     
-                    if db_txs:
-                        print(f"[MultiChainFetcher] Cache Hit for {address} on {chain}")
-                        for t in db_txs:
-                            txs.append({
-                                'hash': t.tx_hash,
-                                'from': t.from_address,
-                                'to': t.to_address,
-                                'value': t.amount,
-                                'timestamp': t.timestamp.strftime('%Y-%m-%d %H:%M:%S') if t.timestamp else '',
-                                'block': t.block_number,
-                                'chain': chain,
-                                'type': t.tx_type
-                            })
-                        counts['normal'] = len(txs)
+                    if time_since_last < 3600: # 1 hour cache instead of 24 to keep data fresher
                         db.close()
                         return txs, counts
+                    else:
+                        print(f"Cache expired (> 1 hour). Initiating incremental background fetch from block {max_block}...")
+                        kwargs['startblock'] = max_block
 
         db.close()
-        print(f"[MultiChainFetcher] Cache Miss/Force Refresh for {address}. Fetching external.")
+        print(f"[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for {address}. Fetching external.")
         
         # 2. External Fetch
         # EVM Chains
@@ -1373,6 +1424,25 @@ class MultiChainFetcher:
             'dogecoin': f'https://dogechain.info/address/{address}',
         }
         return explorers.get(chain, '#')
+
+    @staticmethod
+    def get_tx_explorer_url(chain: str) -> str:
+        explorers = {
+            'ethereum': 'https://etherscan.io/tx/',
+            'bsc': 'https://bscscan.com/tx/',
+            'polygon': 'https://polygonscan.com/tx/',
+            'arbitrum': 'https://arbiscan.io/tx/',
+            'optimism': 'https://optimistic.etherscan.io/tx/',
+            'base': 'https://basescan.org/tx/',
+            'avalanche': 'https://snowtrace.io/tx/',
+            'bitcoin': 'https://mempool.space/tx/',
+            'solana': 'https://solscan.io/tx/',
+            'tron': 'https://tronscan.org/#/transaction/',
+            'xrp': 'https://xrpscan.com/tx/',
+            'dogecoin': 'https://dogechain.info/tx/',
+        }
+        # Fallback to etherscan
+        return explorers.get(chain, 'https://etherscan.io/tx/')
 
 if __name__ == '__main__':
     print("Test run...")
