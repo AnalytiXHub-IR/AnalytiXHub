@@ -56,7 +56,7 @@ class BlockScoutFetcher:
                         transactions.append({
                             'hash': tx.get('hash'),
                             'from': tx.get('from', {}).get('hash') if isinstance(tx.get('from'), dict) else tx.get('from'),
-                            'to': tx.get('to', {}).get('hash') if isinstance(tx.get('to'), dict) else tx.get('to'),
+                            'to': (tx.get('to', {}).get('hash') if isinstance(tx.get('to'), dict) else tx.get('to')) or (tx.get('created_contract', {}).get('hash') if isinstance(tx.get('created_contract'), dict) else tx.get('created_contract')),
                             'value': float(tx.get('value', 0)) if tx.get('value') else 0,
                             'timestamp': tx.get('timestamp') or datetime.now().isoformat(),
                             'block': tx.get('block', 0),
@@ -90,7 +90,7 @@ class BlockScoutFetcher:
                     return {
                         'hash': tx.get('hash'),
                         'from': tx.get('from', {}).get('hash') if isinstance(tx.get('from'), dict) else tx.get('from'),
-                        'to': tx.get('to', {}).get('hash') if isinstance(tx.get('to'), dict) else tx.get('to'),
+                        'to': (tx.get('to', {}).get('hash') if isinstance(tx.get('to'), dict) else tx.get('to')) or (tx.get('created_contract', {}).get('hash') if isinstance(tx.get('created_contract'), dict) else tx.get('created_contract')),
                         'value': float(tx.get('value', 0)) / 1e18 if tx.get('value') else 0.0,
                         'timestamp': tx.get('timestamp') or datetime.now().isoformat(),
                         'block': tx.get('block', 0),
@@ -122,7 +122,7 @@ class BlockCypherFetcher:
             has_more = True
             before_bh = None
             total_fetched = 0
-            MAX_FETCH = 5000 # Capture everything for the user's "1600-1700 txs" case
+            MAX_FETCH = 500000 # Capture everything for the user's "1600-1700 txs" case
             
             while has_more and total_fetched < MAX_FETCH:
                 # Construct URL - Try to fetch MAX in one go to save API calls
@@ -396,6 +396,11 @@ class EtherscanMultiChainFetcher:
                         
                         # Normalize results
                         tx['chain'] = chain
+                        
+                        # Handle Contract Creations
+                        if not tx.get('to') and tx.get('contractAddress'):
+                            tx['to'] = tx['contractAddress']
+                            
                         if 'timeStamp' in tx: # Normalize timestamp format
                             try:
                                 tx['timestamp'] = datetime.fromtimestamp(int(tx['timeStamp'])).strftime('%Y-%m-%d %H:%M:%S')
@@ -1145,7 +1150,7 @@ class TronFetcher:
             start = 0
             limit = 50
             total_fetched = 0
-            MAX_FETCH = 1000 # Safety limit
+            MAX_FETCH = 500000 # Safety limit
             has_more = True
             
             while has_more and total_fetched < MAX_FETCH:

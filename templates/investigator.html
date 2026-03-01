@@ -4,54 +4,48 @@
 
 {% block content %}
 <style>
-    /* Cyber Theme Overrides for Investigator */
-    .cyber-card {
-        background-color: #0d1117;
-        border: 1px solid #30363d;
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
-    }
-
+    /* Web3 Theme Overrides for Investigator */
     .cyber-input {
-        background-color: #161b22;
-        border: 1px solid #30363d;
-        color: #c9d1d9;
+        background-color: #121214;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #f8fafc;
     }
 
     .cyber-input:focus {
-        background-color: #161b22;
-        border-color: #00f0ff;
+        background-color: #121214;
+        border-color: #ffffff;
         color: #fff;
-        box-shadow: 0 0 5px rgba(0, 240, 255, 0.5);
+        box-shadow: none;
+        outline: none;
     }
 
     .btn-cyber {
-        background: linear-gradient(45deg, #00f0ff, #0077ff);
-        border: none;
-        color: #000;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        background: #ffffff;
+        border: 1px solid #ffffff;
+        color: #000000;
+        font-weight: 600;
+        letter-spacing: normal;
+        transition: all 0.2s ease;
     }
 
     .btn-cyber:hover {
-        background: linear-gradient(45deg, #00c3ff, #0056b3);
-        color: #fff;
-        box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+        background: #e2e8f0;
+        color: #000000;
+        box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
     }
 
     #cy {
-        background-color: #050505;
-        /* Deep black for graph bg */
+        background-color: #09090b;
         background-image:
-            linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+            linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
         background-size: 20px 20px;
     }
 
     .node-details-panel {
-        background: rgba(13, 17, 23, 0.95);
-        border-left: 1px solid #00f0ff;
-        backdrop-filter: blur(5px);
+        background: var(--card-bg);
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(4px);
     }
 </style>
 
@@ -150,14 +144,14 @@
         <div id="cy" style="width: 100%; height: 100%;"></div>
 
         <!-- Legend -->
-        <div class="position-absolute bottom-0 end-0 m-4 p-3 rounded shadow-lg border border-secondary"
-            style="background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);">
+        <div class="position-absolute bottom-0 end-0 m-4 p-3 rounded border border-secondary cyber-card"
+            style="background: var(--card-bg); backdrop-filter: blur(4px);">
             <div class="small fw-bold text-muted mb-2 text-uppercase">Legend</div>
             <div class="d-flex align-items-center mb-1"><span class="badge rounded-circle p-1 me-2"
-                    style="background-color: #ff0055;">&nbsp;</span> <span class="text-light">Target/High Risk</span>
+                    style="background-color: #ef4444;">&nbsp;</span> <span class="text-light">Target/High Risk</span>
             </div>
             <div class="d-flex align-items-center mb-1"><span class="badge rounded-circle p-1 me-2"
-                    style="background-color: #00f0ff;">&nbsp;</span> <span class="text-light">Standard Wallet</span>
+                    style="background-color: #ffffff;">&nbsp;</span> <span class="text-light">Standard Wallet</span>
             </div>
             <div class="d-flex align-items-center mb-1"><span class="badge rounded-circle p-1 me-2"
                     style="background-color: #ffcc00;">&nbsp;</span> <span class="text-light">Exchange/Service</span>
@@ -188,37 +182,36 @@
                 {
                     selector: 'node',
                     style: {
-                        'background-color': '#00f0ff', // Neon Cyan
+                        'background-color': '#ffffff',
                         'label': 'data(label)',
-                        'color': '#00f0ff',
+                        'color': '#ffffff',
                         'text-valign': 'bottom',
                         'text-halign': 'center',
                         'text-outline-width': 0,
                         'width': 20,
                         'height': 20,
                         'font-size': 10,
-                        'font-family': 'Consolas, monospace',
-                        'text-background-color': '#000',
-                        'text-background-opacity': 0.7,
-                        'text-background-padding': 3,
+                        'font-family': 'Inter, sans-serif',
+                        'text-background-color': '#121214',
+                        'text-background-opacity': 0.9,
+                        'text-background-padding': 4,
                         'text-background-shape': 'round-rectangle',
-                        'overlay-color': '#00f0ff',
-                        'overlay-opacity': 0.2
+                        'overlay-color': '#ffffff',
+                        'overlay-opacity': 0.1
                     }
                 },
                 {
                     selector: 'node.root',
                     style: {
-                        'background-color': '#ff0055', // Neon Red/Pink
-                        'color': '#ff0055',
-                        'width': 40,
-                        'height': 40,
+                        'background-color': '#ef4444',
+                        'color': '#ef4444',
+                        'width': 32,
+                        'height': 32,
                         'font-size': 12,
                         'font-weight': 'bold',
                         'border-width': 2,
                         'border-color': '#fff',
-                        'shadow-blur': 10,
-                        'shadow-color': '#ff0055'
+                        'shadow-blur': 0 /* Removed neon dropshadow */
                     }
                 },
                 {

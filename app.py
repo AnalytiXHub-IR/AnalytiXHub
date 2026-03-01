@@ -21,6 +21,7 @@ from modules.analyzers.batch_analyzer import BatchAnalyzer
 from modules.utils.pathfinder import PathFinder
 from modules.utils.monitoring import MonitoringSystem
 from modules.analyzers.ml_engine import ml_engine
+from modules.utils.helpers import normalize_address
 
 monitoring_system = MonitoringSystem()
 # case_manager = CaseManager() # Deprecated
@@ -459,12 +460,12 @@ def investigation():
                         # Determine direction/amount for DB storage (simplified)
                         # We store raw from/to/amount.
                         
-                        db_tx = Transaction(
+                        db_tx = dict(
                             case_id=active_case_db.id,
                             chain_id=chain_id,
                             tx_hash=t_hash,
-                            from_address=tx.get('from'),
-                            to_address=tx.get('to'),
+                            from_address=normalize_address(tx.get('from'), chain_name) if tx.get('from') else 'Unknown',
+                            to_address=normalize_address(tx.get('to'), chain_name) if tx.get('to') else 'Unknown',
                             amount=float(tx.get('value', 0)),
                             timestamp=ts_val,
                             block_number=int(tx.get('block', 0)) if tx.get('block') else None,
@@ -475,9 +476,9 @@ def investigation():
                         existing_txs_keys.add(t_key)
                     
                     if new_txs_db:
-                        db.bulk_save_objects(new_txs_db)
+                        db.bulk_insert_mappings(Transaction, new_txs_db)
                         db.commit()
-                        print(f"[Persistence] Saved {len(new_txs_db)} new transactions to DB.")
+                        print(f"[Persistence] Saved {len(new_txs_db)} new transactions to DB using bulk mapping.")
                         
                 except Exception as e_db:
                     print(f"[Persistence Error] Failed to save transactions: {e_db}")
@@ -521,8 +522,8 @@ def investigation():
                 for t in db_txs:
                     txs.append({
                         'hash': t.tx_hash,
-                        'from': t.from_address,
-                        'to': t.to_address,
+                        'from': normalize_address(t.from_address, chain_name) if t.from_address else 'Unknown',
+                        'to': normalize_address(t.to_address, chain_name) if t.to_address else 'Unknown',
                         'value': t.amount,
                         'timestamp': t.timestamp.strftime('%Y-%m-%d %H:%M:%S') if t.timestamp else '',
                         'block': t.block_number,
@@ -656,8 +657,8 @@ def load_case_context():
                 for t in db_txs:
                     txs.append({
                         'hash': t.tx_hash,
-                        'from': t.from_address,
-                        'to': t.to_address,
+                        'from': normalize_address(t.from_address, chain_name) if t.from_address else 'Unknown',
+                        'to': normalize_address(t.to_address, chain_name) if t.to_address else 'Unknown',
                         'value': t.amount,
                         'timestamp': t.timestamp.strftime('%Y-%m-%d %H:%M:%S') if t.timestamp else '',
                         'block': t.block_number,
@@ -1462,7 +1463,7 @@ def api_trace(address):
         evm_chains = ['ethereum', 'bsc', 'polygon', 'optimism', 'arbitrum', 'base', 'avalanche', 'fantom', 'cronos', 'moonbeam', 'gnosis', 'celo', 'blast', 'linea', 'sepolia']
         elements.append({
             'data': {
-                'id': address.lower() if chain_name in evm_chains else address,
+                'id': address,
                 'label': address[:8] + '...',
                 'full_address': address,
                 'type': 'root',
@@ -1471,7 +1472,7 @@ def api_trace(address):
             },
             'classes': 'root'
         })
-        node_set.add(address.lower() if chain_name in evm_chains else address)
+        node_set.add(address)
         
         # Process transactions
         for tx in txs[:200]:  # Limit to 200 for performance
@@ -1480,10 +1481,7 @@ def api_trace(address):
             val = tx.get('value', 0)
             tx_hash = tx.get('hash', '')
             
-            # Normalize addresses for EVM chains
-            if chain_name in evm_chains:
-                sender = sender.lower() if sender != 'Unknown' else sender
-                receiver = receiver.lower() if receiver != 'Unknown' else receiver
+            # Removed address lowercasing for better case sensitivity. Mismatches handled in engine.
             
             # Add Sender Node
             if sender and sender != 'Unknown' and sender not in node_set:
@@ -1574,7 +1572,7 @@ def api_graph_data():
         # Normalize address for EVM chains
         evm_chains = ['ethereum', 'bsc', 'polygon', 'optimism', 'arbitrum', 'base', 'avalanche', 'fantom', 'cronos', 'moonbeam', 'gnosis', 'celo', 'blast', 'linea', 'sepolia']
         is_evm = chain.lower() in evm_chains
-        root_id = address.lower() if is_evm else address
+        root_id = address
         
         # Add root node
         elements.append({
@@ -1597,10 +1595,7 @@ def api_graph_data():
             val = tx.get('value', 0)
             tx_hash = tx.get('hash', '')
             
-            # Normalize for EVM
-            if is_evm:
-                sender = sender.lower() if sender != 'Unknown' else sender
-                receiver = receiver.lower() if receiver != 'Unknown' else receiver
+            # Keep original case from API
             
             # Add nodes
             if sender and sender != 'Unknown' and sender not in node_set:
@@ -1849,24 +1844,10 @@ def anomalies():
 @app.route("/settings", methods=["GET"])
 def settings():
     """System configuration page"""
-    # Pass current config to template (safely)
-    config_data = {
-        'ETHERSCAN_API_KEY': os.getenv('ETHERSCAN_API_KEY'),
-        'SOLANA_API_KEY': os.getenv('SOLANA_API_KEY'),
-        'TRON_API_KEY': os.getenv('TRON_API_KEY'),
-        'ABUSEIPDB_API_KEY': os.getenv('ABUSEIPDB_API_KEY'),
+    return render_template("settings.html", active_page="settings", config={
         'DB_AVAILABLE': DB_AVAILABLE,
         'THREAT_INTEL_V2_AVAILABLE': THREAT_INTEL_V2_AVAILABLE
-    }
-    return render_template("settings.html", active_page="settings", config=config_data)
-
-@app.route("/settings/update", methods=["POST"])
-def update_settings():
-    """Update system settings (API keys)"""
-    # In a real app, we'd update .env or a db
-    # For now, just flash a message as we can't easily hot-reload .env in this env
-    flash("Settings saved. Note: For persistent API key updates, please edit the .env file directly in this development environment.", "info")
-    return redirect(url_for('settings'))
+    })
 
 # ==================== SUPPORTED CHAINS ROUTE ====================
 
@@ -2058,17 +2039,36 @@ def export_csv():
         
         data = []
         
+        # Determine focus
+        focus_key = f"case_focus_{active_case_db.id}"
+        focus = session.get(focus_key)
+        
+        target_addr = None
+        chain_name = 'ethereum'
+        if focus and focus.get('address'):
+            target_addr = focus['address']
+            chain_name = focus.get('chain', 'ethereum')
+            
         # 1. Get DB Transactions (explicitly saved)
         db = SessionLocal()
-        transactions = db.query(Transaction).filter_by(case_id=active_case_db.id).all()
+        query = db.query(Transaction).filter_by(case_id=active_case_db.id)
+        
+        if target_addr:
+            from sqlalchemy import or_
+            query = query.filter(or_(
+                Transaction.from_address == target_addr,
+                Transaction.to_address == target_addr
+            ))
+            
+        transactions = query.all()
         for tx in transactions:
             data.append({
                 "Tx Hash": tx.tx_hash,
-                "From": tx.from_address,
-                "To": tx.to_address,
+                "From": normalize_address(tx.from_address, chain_name) if tx.from_address else "Unknown",
+                "To": normalize_address(tx.to_address, chain_name) if tx.to_address else "Unknown",
                 "Amount": tx.amount,
                 "Fee": tx.fee,
-                "Timestamp": tx.timestamp.strftime('%Y-%m-%d %H:%M:%S') if tx.timestamp else '',
+                "Timestamp": f" {tx.timestamp.strftime('%Y-%m-%d %H:%M:%S')}" if tx.timestamp else '',
                 "Block": tx.block_number,
                 "Suspicious": "Yes" if tx.is_suspicious else "No",
                 "Anomaly Score": tx.anomaly_score
@@ -2076,11 +2076,9 @@ def export_csv():
         db.close()
         
         # 2. Add Live Context History (if investigating an address)
-        focus_key = f"case_focus_{active_case_db.id}"
-        focus = session.get(focus_key)
-        if focus and focus.get('address'):
+        if target_addr:
             from modules.fetchers.multi_chain import MultiChainFetcher
-            live_txs, _ = MultiChainFetcher.fetch_by_chain(focus['chain'], focus['address'])
+            live_txs, _ = MultiChainFetcher.fetch_by_chain(chain_name, target_addr)
             existing_hashes = set(d["Tx Hash"] for d in data)
             
             for tx in live_txs:
@@ -2088,12 +2086,12 @@ def export_csv():
                 if target_hash and target_hash not in existing_hashes:
                     data.append({
                         "Tx Hash": target_hash,
-                        "From": tx.get('from', ''),
-                        "To": tx.get('to', ''),
+                        "From": normalize_address(tx.get('from', ''), chain_name),
+                        "To": normalize_address(tx.get('to', ''), chain_name),
                         "Amount": tx.get('value', 0),
-                        "Fee": tx.get('fee', 0),
-                        "Timestamp": tx.get('timestamp', ''),
-                        "Block": tx.get('blockNumber', ''),
+                        "Fee": tx.get('fee', tx.get('fees', 0)),
+                        "Timestamp": f" {tx.get('timestamp', '')}", 
+                        "Block": tx.get('block', tx.get('blockNumber', '')),
                         "Suspicious": "Unknown",
                         "Anomaly Score": 0
                     })
@@ -2119,6 +2117,88 @@ def export_csv():
     except Exception as e:
         flash(f"Error exporting CSV: {str(e)}", "error")
         return redirect(url_for('investigation'))
+
+@app.route("/api/transactions/search")
+@login_required
+def search_transactions():
+    """Server-side search for transactions in current focus"""
+    query = request.args.get('q', '').strip().lower()
+    
+    active_case_db = get_active_case()
+    if not active_case_db:
+        return jsonify({"error": "No active case"}), 400
+        
+    focus = session.get(f"case_focus_{active_case_db.id}")
+    if not focus or not focus.get('address'):
+        return jsonify({"results": []})
+        
+    address = focus['address']
+    chain = focus.get('chain', 'ethereum')
+    
+    # Try DB first
+    db = SessionLocal()
+    from sqlalchemy import or_
+    
+    db_txs = None
+    if query:
+         db_txs = db.query(Transaction).filter(
+            Transaction.case_id == active_case_db.id,
+            or_(
+                Transaction.tx_hash.ilike(f"%{query}%"),
+                Transaction.from_address.ilike(f"%{query}%"),
+                Transaction.to_address.ilike(f"%{query}%")
+            )
+        ).order_by(Transaction.timestamp.desc()).limit(500).all()
+    else:
+         db_txs = db.query(Transaction).filter(
+            Transaction.case_id == active_case_db.id,
+            or_(Transaction.from_address == address, Transaction.to_address == address)
+        ).order_by(Transaction.timestamp.desc()).limit(500).all()
+        
+    if db_txs and len(db_txs) > 0:
+        results = []
+        for t in db_txs:
+            results.append({
+                'hash': t.tx_hash,
+                'from': normalize_address(t.from_address, chain) if t.from_address else 'Unknown',
+                'to': normalize_address(t.to_address, chain) if t.to_address else 'Unknown',
+                'value': float(t.amount),
+                'timestamp': t.timestamp.strftime('%Y-%m-%d %H:%M:%S') if t.timestamp else ''
+            })
+        db.close()
+        return jsonify({"results": results})
+        
+    db.close()
+    
+    # If no DB txs, fallback to live memory equivalent (fetcher)
+    from modules.fetchers.multi_chain import MultiChainFetcher
+    live_txs, _ = MultiChainFetcher.fetch_by_chain(chain, address)
+    
+    results = []
+    for tx in live_txs:
+        if query:
+            if (query in str(tx.get('hash', '')).lower() or 
+                query in str(tx.get('from', '')).lower() or 
+                query in str(tx.get('to', '')).lower()):
+                results.append(tx)
+        else:
+            results.append(tx)
+            
+        if len(results) >= 500: # Limit output to 500 to protect browser
+            break
+            
+    # Format results for JS consumption
+    formatted = []
+    for tx in results:
+        formatted.append({
+            'hash': tx.get('hash', tx.get('txid', '')),
+            'from': tx.get('from', ''),
+            'to': tx.get('to', ''),
+            'value': float(tx.get('value', 0)),
+            'timestamp': str(tx.get('timestamp', ''))
+        })
+        
+    return jsonify({"results": formatted})
 
 
 @app.route("/api/case/<case_id>/export")

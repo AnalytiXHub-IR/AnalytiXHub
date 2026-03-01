@@ -53,8 +53,8 @@ def identify_entity_type(address, transactions):
         return KNOWN_ENTITIES[address]
     
     # Analyze transaction patterns to infer type
-    incoming = len([tx for tx in transactions if tx.get("to", "").lower() == address.lower()])
-    outgoing = len([tx for tx in transactions if tx.get("from", "").lower() == address.lower()])
+    incoming = len([tx for tx in transactions if (tx.get("to") or "").lower() == (address or "").lower()])
+    outgoing = len([tx for tx in transactions if (tx.get("from") or "").lower() == (address or "").lower()])
     
     if incoming > outgoing * 5:
         return {"name": "Possible Exchange/Aggregator", "type": "Exchange", "risk": "LOW", "confidence": "MEDIUM"}
@@ -128,16 +128,16 @@ def detect_patterns(txlist, root_address):
         patterns["high_frequency_wallet"] = True
     
     # Mixing service suspicion (many inputs, few outputs)
-    incoming = sum(1 for tx in txlist if tx.get("to", "").lower() == root_address.lower())
-    outgoing = sum(1 for tx in txlist if tx.get("from", "").lower() == root_address.lower())
+    incoming = sum(1 for tx in txlist if (tx.get("to") or "").lower() == (root_address or "").lower())
+    outgoing = sum(1 for tx in txlist if (tx.get("from") or "").lower() == (root_address or "").lower())
     if incoming > outgoing * 2:
         patterns["mixing_service_suspicion"] = True
     
     # Consolidation pattern (many small inputs, large output)
     input_amounts = [float(tx.get("value", 0)) / 1e18 for tx in txlist 
-                     if tx.get("to", "").lower() == root_address.lower()]
+                     if (tx.get("to") or "").lower() == (root_address or "").lower()]
     output_amounts = [float(tx.get("value", 0)) / 1e18 for tx in txlist 
-                      if tx.get("from", "").lower() == root_address.lower()]
+                      if (tx.get("from") or "").lower() == (root_address or "").lower()]
     
     if input_amounts and output_amounts:
         avg_input = sum(input_amounts) / len(input_amounts) if input_amounts else 0
@@ -264,8 +264,8 @@ def analyze_live_eth(txlist, root_address, start_date=None, end_date=None, chain
 
         filtered_txs.append(tx)
         
-        frm = normalize_address(tx.get("from"), chain_id)
-        to = normalize_address(tx.get("to"), chain_id)
+        frm = normalize_address(tx.get("from") or "Unknown", chain_id)
+        to = normalize_address(tx.get("to") or "Unknown", chain_id)
         
         raw_val = tx.get("value", 0)
         
@@ -317,13 +317,13 @@ def analyze_live_eth(txlist, root_address, start_date=None, end_date=None, chain
             if 'original_address' not in G.nodes[to]:
                 G.nodes[to]['original_address'] = to_original
 
-        root_norm = normalize_address(root_address, chain_id)
+        root_norm = root_address
 
-        if to and to == root_norm:
+        if to and to.lower() == root_norm.lower():
             total_in += val
             all_victims.append(frm)
             incoming_addresses[frm] += val
-        elif frm and frm == root_norm:
+        elif frm and frm.lower() == root_norm.lower():
             total_out += val
             all_suspects.append(to)
             outgoing_addresses[to] += val

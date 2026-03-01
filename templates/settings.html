@@ -9,63 +9,37 @@
 </div>
 
 <div class="row g-4">
-    <!-- API Configuration -->
+    <!-- User Profile -->
     <div class="col-lg-6">
         <div class="card cyber-card h-100">
             <div class="card-header bg-transparent border-bottom border-secondary">
-                <h5 class="card-title text-light mb-0">API Configuration</h5>
+                <h5 class="card-title text-light mb-0">User Profile</h5>
             </div>
             <div class="card-body">
-                <form action="/settings/update" method="POST">
-                    <div class="mb-3">
-                        <label class="form-label text-muted">Etherscan API Key</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-dark border-secondary text-secondary"><i
-                                    class="bi bi-key"></i></span>
-                            <input type="password" class="form-control bg-dark text-light border-secondary"
-                                name="etherscan_key" value="{{ config.get('ETHERSCAN_API_KEY', '') }}"
-                                placeholder="Enter API Key">
-                        </div>
-                        <div class="form-text text-secondary">Required for Ethereum, BSC, Polygon, etc.</div>
+                <div class="mb-3">
+                    <label class="form-label text-muted">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary text-secondary"><i
+                                class="bi bi-person"></i></span>
+                        <input type="text" class="form-control bg-dark text-light border-secondary"
+                            value="{{ current_user.username }}" readonly>
                     </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label text-muted">Solana API Key (Solscan)</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-dark border-secondary text-secondary"><i
-                                    class="bi bi-sun"></i></span>
-                            <input type="password" class="form-control bg-dark text-light border-secondary"
-                                name="solana_key" value="{{ config.get('SOLANA_API_KEY', '') }}"
-                                placeholder="Enter API Key">
-                        </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted">Account Role</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary text-secondary"><i
+                                class="bi bi-shield-lock"></i></span>
+                        <input type="text" class="form-control bg-dark text-light border-secondary"
+                            value="{{ current_user.role|capitalize }}" readonly>
                     </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label text-muted">TronGrid API Key</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-dark border-secondary text-secondary"><i
-                                    class="bi bi-triangle"></i></span>
-                            <input type="password" class="form-control bg-dark text-light border-secondary"
-                                name="tron_key" value="{{ config.get('TRON_API_KEY', '') }}"
-                                placeholder="Enter API Key">
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label text-muted">AbuseIPDB Key</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-dark border-secondary text-secondary"><i
-                                    class="bi bi-shield-lock"></i></span>
-                            <input type="password" class="form-control bg-dark text-light border-secondary"
-                                name="abuseipdb_key" value="{{ config.get('ABUSEIPDB_API_KEY', '') }}"
-                                placeholder="Enter API Key">
-                        </div>
-                    </div>
-
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Save Configuration</button>
-                    </div>
-                </form>
+                <div class="alert alert-info border border-info bg-dark text-light">
+                    <i class="bi bi-info-circle me-1"></i> API Keys and system configurations are securely managed via
+                    environment variables. Contact your system administrator to update them.
+                </div>
             </div>
         </div>
     </div>

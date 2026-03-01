@@ -359,14 +359,29 @@
 
             <!-- TRANSACTIONS TAB (NEW) -->
             <div class="tab-pane fade" id="transactions" role="tabpanel">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h4 class="card-title text-light mb-0">📜 Transaction History</h4>
-                    <a href="/export/csv" class="btn btn-sm btn-outline-info">
-                        <i class="fas fa-file-csv me-1"></i> Download CSV
-                    </a>
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+                    <h4 class="card-title text-light mb-3 mb-md-0">📜 Transaction History</h4>
+                    <div class="d-flex gx-2 align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="max-width: 300px;">
+                            <span class="input-group-text bg-dark border-secondary text-secondary"><i
+                                    class="fas fa-search"></i></span>
+                            <input type="text" id="txSearchInput"
+                                class="form-control bg-dark text-light border-secondary"
+                                placeholder="Search hash or address...">
+                            <button class="btn btn-outline-secondary" type="button" id="txSearchBtn">Search</button>
+                        </div>
+                        <a href="/export/csv" class="btn btn-sm btn-outline-info text-nowrap">
+                            <i class="fas fa-file-csv me-1"></i> Full CSV Export
+                        </a>
+                    </div>
                 </div>
 
                 {% if current_case.transactions and current_case.transactions|length > 0 %}
+                <div class="alert alert-info mb-3 border border-info">
+                    <i class="fas fa-info-circle me-1"></i> Displaying the latest {{ [current_case.transactions|length,
+                    500]|min }} transactions. The full dataset ({{ current_case.transactions|length }} total) is
+                    actively modeled in the backend graphs and analytic metrics.
+                </div>
                 <div class="table-responsive">
                     <table class="table table-dark table-striped table-sm">
                         <thead>
@@ -378,8 +393,8 @@
                                 <th>Value ({{ currency }})</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {% for tx in current_case.transactions %}
+                        <tbody id="txTableBody">
+                            {% for tx in current_case.transactions[:500] %}
                             <tr>
                                 <td>{{ tx.timestamp }}</td>
                                 <td><small class="font-monospace"><a href="{{ explorer_tx }}{{ tx.hash }}"
@@ -673,8 +688,8 @@
             labels: ['Unique Senders (In)', 'Unique Receivers (Out)'],
             datasets: [{
                 data: [caseData.unique_senders || 0, caseData.unique_receivers || 0],
-                backgroundColor: ['#01ffc3', '#ff2a6d'],
-                borderColor: '#1e1e1e',
+                backgroundColor: ['#10b981', '#ef4444'], // Crisp green and red
+                borderColor: '#121214',
                 borderWidth: 2
             }]
         },
@@ -713,7 +728,7 @@
             datasets: [{
                 label: 'Volume',
                 data: combined.map(c => c.amount),
-                backgroundColor: combined.map(c => c.type === 'Sent' ? '#ff2a6d' : '#01ffc3')
+                backgroundColor: combined.map(c => c.type === 'Sent' ? '#ef4444' : '#10b981')
             }]
         },
         options: {
@@ -764,9 +779,9 @@
             datasets: [{
                 label: 'Heuristic Scoring',
                 data: radarScores,
-                backgroundColor: 'rgba(0, 243, 255, 0.2)',
-                borderColor: '#00f3ff',
-                pointBackgroundColor: '#b100ff',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderColor: '#ffffff',
+                pointBackgroundColor: '#ffffff',
                 borderWidth: 2
             }]
         },
@@ -823,4 +838,68 @@
     });
 </script>
 {% endif %}
+
+<script>
+    // Handle transaction server-side searching
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('txSearchInput');
+        const searchBtn = document.getElementById('txSearchBtn');
+        const tbody = document.getElementById('txTableBody');
+
+        if (!searchInput || !searchBtn || !tbody) return;
+
+        async function performSearch() {
+            const query = searchInput.value.trim();
+            searchBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            searchBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/api/transactions/search?q=${encodeURIComponent(query)}`);
+                if (!response.ok) throw new Error("Search failed");
+                const data = await response.json();
+
+                // Clear current table
+                tbody.innerHTML = '';
+
+                if (data.results && data.results.length > 0) {
+                    const explorerBase = '{{ explorer_tx }}';
+                    data.results.forEach(tx => {
+                        const row = document.createElement('tr');
+                        // Format value safely
+                        let formattedValue = "0.0000";
+                        if (!isNaN(parseFloat(tx.value))) {
+                            formattedValue = parseFloat(tx.value).toFixed(4);
+                        }
+
+                        row.innerHTML = `
+                            <td>${tx.timestamp || ''}</td>
+                            <td><small class="font-monospace"><a href="${explorerBase}${tx.hash}" target="_blank" class="text-light text-decoration-none">${tx.hash}</a></small></td>
+                            <td><small class="font-monospace">${tx.from}</small></td>
+                            <td><small class="font-monospace">${tx.to}</small></td>
+                            <td>${formattedValue}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No matching transactions found</td></tr>';
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error searching transactions. Please try again.");
+            } finally {
+                searchBtn.innerHTML = 'Search';
+                searchBtn.disabled = false;
+            }
+        }
+
+        searchBtn.addEventListener('click', performSearch);
+        searchInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch();
+            }
+        });
+    });
+</script>
+
 {% endblock %}

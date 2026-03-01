@@ -100,7 +100,7 @@ class MLEngine:
         # 1. Peeling Chain Detection
         # Look for a series of outputs where change address keeps carrying majority funds
         # Simplified: Look for many small outputs in short succession
-        out_txs = [tx for tx in transactions if tx.get('from', '').lower() == address.lower()]
+        out_txs = [tx for tx in transactions if (tx.get('from') or '').lower() == (address or '').lower()]
         if len(out_txs) > 10:
             patterns.append({
                 'type': 'High Frequency Outflow',
@@ -113,10 +113,10 @@ class MLEngine:
         sent_to = set()
         received_from = set()
         for tx in transactions:
-            if tx.get('from', '').lower() == address.lower():
-                sent_to.add(tx.get('to', '').lower())
+            if (tx.get('from') or '').lower() == (address or '').lower():
+                sent_to.add((tx.get('to') or '').lower())
             else:
-                received_from.add(tx.get('from', '').lower())
+                received_from.add((tx.get('from') or '').lower())
         
         common = sent_to.intersection(received_from)
         if common:

@@ -21,7 +21,7 @@
 <div class="row mb-4">
     <!-- Quick Stats -->
     <div class="col-md-3">
-        <div class="card cyber-card text-center h-100 border-info border-opacity-50">
+        <div class="card cyber-card text-center h-100">
             <div class="card-body py-4">
                 <i class="fas fa-folder-open fa-2x text-info mb-2 opacity-75"></i>
                 <h2 class="display-5 fw-bold text-light mb-0">{{ total_cases }}</h2>
@@ -30,7 +30,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card cyber-card text-center h-100 border-success border-opacity-50">
+        <div class="card cyber-card text-center h-100">
             <div class="card-body py-4">
                 <i class="fas fa-play-circle fa-2x text-success mb-2 opacity-75"></i>
                 <h2 class="display-5 fw-bold text-light mb-0">{{ active_cases }}</h2>
@@ -39,7 +39,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card cyber-card text-center h-100 border-warning border-opacity-50">
+        <div class="card cyber-card text-center h-100">
             <div class="card-body py-4">
                 <i class="fas fa-users fa-2x text-warning mb-2 opacity-75"></i>
                 <h2 class="display-5 fw-bold text-light mb-0">{{ total_addresses }}</h2>
@@ -48,7 +48,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card cyber-card text-center h-100 border-danger border-opacity-50">
+        <div class="card cyber-card text-center h-100">
             <div class="card-body py-4">
                 <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2 opacity-75"></i>
                 <h2 class="display-5 fw-bold text-light mb-0">{{ alerts_count }}</h2>
@@ -94,9 +94,8 @@
 <div class="row g-4 mb-4">
     <!-- Network Status -->
     <div class="col-md-4">
-        <div class="card cyber-card h-100 border-info border-opacity-75"
-            style="box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);">
-            <div class="card-header bg-transparent border-info">
+        <div class="card cyber-card h-100">
+            <div class="card-header bg-transparent border-bottom border-secondary">
                 <h6 class="card-title text-info fw-bold mb-0"><i class="bi bi-hdd-network me-2"></i>Global Nodes Status
                 </h6>
             </div>
@@ -131,9 +130,8 @@
 
     <!-- Live Threat Feed -->
     <div class="col-md-8">
-        <div class="card cyber-card h-100 border-danger border-opacity-50"
-            style="box-shadow: 0 0 15px rgba(220, 53, 69, 0.1);">
-            <div class="card-header bg-transparent border-danger d-flex justify-content-between">
+        <div class="card cyber-card h-100">
+            <div class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between">
                 <h6 class="card-title text-danger fw-bold mb-0"><i class="bi bi-radar me-2"></i>Live Threat Monitor</h6>
                 <span class="badge bg-danger animate-pulse">LIVE</span>
             </div>
@@ -172,8 +170,8 @@
 <div class="row g-4">
     <!-- Active Cases -->
     <div class="col-md-12">
-        <div class="card cyber-card h-100 border-info" style="box-shadow: 0 0 10px rgba(0, 243, 255, 0.15);">
-            <div class="card-header bg-transparent border-info d-flex justify-content-between">
+        <div class="card cyber-card h-100">
+            <div class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between">
                 <h5 class="card-title text-light mb-0">Active Investigations</h5>
                 <span class="badge bg-secondary border border-info text-info">{{ cases|length }} Active</span>
             </div>
@@ -228,8 +226,8 @@
 <!-- New Case Modal -->
 <div class="modal fade" id="newCaseModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border border-info cyber-card">
-            <div class="modal-header border-info">
+        <div class="modal-content cyber-card">
+            <div class="modal-header border-bottom border-secondary">
                 <h5 class="modal-title text-info fw-bold">INITIALIZE NEW CASE</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -246,7 +244,7 @@
                             placeholder="Brief case details..."></textarea>
                     </div>
                 </div>
-                <div class="modal-footer border-info">
+                <div class="modal-footer border-top border-secondary">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">CANCEL</button>
                     <button type="submit" class="btn btn-info fw-bold">CREATE CASE</button>
                 </div>
@@ -266,8 +264,8 @@
         datasets: [{
             label: 'Transactions Tracked',
             data: {{ chart_data | tojson | safe }},
-        borderColor: '#00f3ff',
-        backgroundColor: 'rgba(0, 243, 255, 0.1)',
+        borderColor: '#ffffff',
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
         borderWidth: 2,
         fill: true,
         tension: 0.4

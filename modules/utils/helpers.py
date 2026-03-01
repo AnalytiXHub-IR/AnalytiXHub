@@ -1,3 +1,4 @@
+from web3 import Web3
 
 def normalize_address(address, chain_id_or_name):
     """
@@ -27,4 +28,10 @@ def normalize_address(address, chain_id_or_name):
     if c in ['sol', 'solana', 'btc', 'bitcoin', 'tron', 'trx', 'xrp', 'ripple']:
         is_evm = False
         
-    return address.lower() if is_evm else address
+    if is_evm and address and isinstance(address, str) and address.startswith('0x'):
+        try:
+            return Web3.to_checksum_address(address)
+        except:
+            return address
+            
+    return address
