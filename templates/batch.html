@@ -53,7 +53,91 @@
                             <option value="ethereum">Ethereum</option>
                             <option value="bsc">BSC</option>
                             <option value="polygon">Polygon</option>
-                        </select>
+                        
+                    <optgroup label="🔋 Alchemy EVM (Expanded Networks)">
+                        <option value="worldchain" {% if current_chain=="worldchain" %}selected{% endif %}>Worldchain (Alchemy)</option>
+                        <option value="worldchain_sepolia" {% if current_chain=="worldchain_sepolia" %}selected{% endif %}>Worldchain Sepolia (Alchemy)</option>
+                        <option value="shape" {% if current_chain=="shape" %}selected{% endif %}>Shape (Alchemy)</option>
+                        <option value="shape_sepolia" {% if current_chain=="shape_sepolia" %}selected{% endif %}>Shape Sepolia (Alchemy)</option>
+                        <option value="arbitrum_nova" {% if current_chain=="arbitrum_nova" %}selected{% endif %}>Arbitrum Nova (Alchemy)</option>
+                        <option value="astar" {% if current_chain=="astar" %}selected{% endif %}>Astar (Alchemy)</option>
+                        <option value="zetachain" {% if current_chain=="zetachain" %}selected{% endif %}>Zetachain (Alchemy)</option>
+                        <option value="zetachain_testnet" {% if current_chain=="zetachain_testnet" %}selected{% endif %}>Zetachain Testnet (Alchemy)</option>
+                        <option value="berachain" {% if current_chain=="berachain" %}selected{% endif %}>Berachain (Alchemy)</option>
+                        <option value="berachain_bepolia" {% if current_chain=="berachain_bepolia" %}selected{% endif %}>Berachain Bepolia (Alchemy)</option>
+                        <option value="zora" {% if current_chain=="zora" %}selected{% endif %}>Zora (Alchemy)</option>
+                        <option value="zora_sepolia" {% if current_chain=="zora_sepolia" %}selected{% endif %}>Zora Sepolia (Alchemy)</option>
+                        <option value="robinhood_testnet" {% if current_chain=="robinhood_testnet" %}selected{% endif %}>Robinhood Testnet (Alchemy)</option>
+                        <option value="ronin" {% if current_chain=="ronin" %}selected{% endif %}>Ronin (Alchemy)</option>
+                        <option value="ronin_saigon" {% if current_chain=="ronin_saigon" %}selected{% endif %}>Ronin Saigon (Alchemy)</option>
+                        <option value="plasma" {% if current_chain=="plasma" %}selected{% endif %}>Plasma (Alchemy)</option>
+                        <option value="plasma_testnet" {% if current_chain=="plasma_testnet" %}selected{% endif %}>Plasma Testnet (Alchemy)</option>
+                        <option value="mythos" {% if current_chain=="mythos" %}selected{% endif %}>Mythos (Alchemy)</option>
+                        <option value="settlus" {% if current_chain=="settlus" %}selected{% endif %}>Settlus (Alchemy)</option>
+                        <option value="settlus_sepolia" {% if current_chain=="settlus_sepolia" %}selected{% endif %}>Settlus Sepolia (Alchemy)</option>
+                        <option value="megaeth" {% if current_chain=="megaeth" %}selected{% endif %}>Megaeth (Alchemy)</option>
+                        <option value="megaeth_testnet" {% if current_chain=="megaeth_testnet" %}selected{% endif %}>Megaeth Testnet (Alchemy)</option>
+                        <option value="citrea" {% if current_chain=="citrea" %}selected{% endif %}>Citrea (Alchemy)</option>
+                        <option value="citrea_testnet" {% if current_chain=="citrea_testnet" %}selected{% endif %}>Citrea Testnet (Alchemy)</option>
+                        <option value="tea_sepolia" {% if current_chain=="tea_sepolia" %}selected{% endif %}>Tea Sepolia (Alchemy)</option>
+                        <option value="gensyn_testnet" {% if current_chain=="gensyn_testnet" %}selected{% endif %}>Gensyn Testnet (Alchemy)</option>
+                        <option value="arc_testnet" {% if current_chain=="arc_testnet" %}selected{% endif %}>Arc Testnet (Alchemy)</option>
+                        <option value="story" {% if current_chain=="story" %}selected{% endif %}>Story (Alchemy)</option>
+                        <option value="story_aeneid" {% if current_chain=="story_aeneid" %}selected{% endif %}>Story Aeneid (Alchemy)</option>
+                        <option value="clankermon" {% if current_chain=="clankermon" %}selected{% endif %}>Clankermon (Alchemy)</option>
+                        <option value="humanity" {% if current_chain=="humanity" %}selected{% endif %}>Humanity (Alchemy)</option>
+                        <option value="humanity_testnet" {% if current_chain=="humanity_testnet" %}selected{% endif %}>Humanity Testnet (Alchemy)</option>
+                        <option value="risa_testnet" {% if current_chain=="risa_testnet" %}selected{% endif %}>Risa Testnet (Alchemy)</option>
+                        <option value="tempo_testnet" {% if current_chain=="tempo_testnet" %}selected{% endif %}>Tempo Testnet (Alchemy)</option>
+                        <option value="tempo_moderato" {% if current_chain=="tempo_moderato" %}selected{% endif %}>Tempo Moderato (Alchemy)</option>
+                        <option value="hyperliquid" {% if current_chain=="hyperliquid" %}selected{% endif %}>Hyperliquid (Alchemy)</option>
+                        <option value="hyperliquid_testnet" {% if current_chain=="hyperliquid_testnet" %}selected{% endif %}>Hyperliquid Testnet (Alchemy)</option>
+                        <option value="lens" {% if current_chain=="lens" %}selected{% endif %}>Lens (Alchemy)</option>
+                        <option value="lens_sepolia" {% if current_chain=="lens_sepolia" %}selected{% endif %}>Lens Sepolia (Alchemy)</option>
+                        <option value="worldmobilechain" {% if current_chain=="worldmobilechain" %}selected{% endif %}>Worldmobilechain (Alchemy)</option>
+                        <option value="worldmobile_testnet" {% if current_chain=="worldmobile_testnet" %}selected{% endif %}>Worldmobile Testnet (Alchemy)</option>
+                        <option value="frax" {% if current_chain=="frax" %}selected{% endif %}>Frax (Alchemy)</option>
+                        <option value="frax_sepolia" {% if current_chain=="frax_sepolia" %}selected{% endif %}>Frax Sepolia (Alchemy)</option>
+                        <option value="ink" {% if current_chain=="ink" %}selected{% endif %}>Ink (Alchemy)</option>
+                        <option value="ink_sepolia" {% if current_chain=="ink_sepolia" %}selected{% endif %}>Ink Sepolia (Alchemy)</option>
+                        <option value="celestiabridge" {% if current_chain=="celestiabridge" %}selected{% endif %}>Celestiabridge (Alchemy)</option>
+                        <option value="celestiabridge_mocha" {% if current_chain=="celestiabridge_mocha" %}selected{% endif %}>Celestiabridge Mocha (Alchemy)</option>
+                        <option value="unichain" {% if current_chain=="unichain" %}selected{% endif %}>Unichain (Alchemy)</option>
+                        <option value="unichain_sepolia" {% if current_chain=="unichain_sepolia" %}selected{% endif %}>Unichain Sepolia (Alchemy)</option>
+                        <option value="syndicate" {% if current_chain=="syndicate" %}selected{% endif %}>Syndicate (Alchemy)</option>
+                        <option value="superseed" {% if current_chain=="superseed" %}selected{% endif %}>Superseed (Alchemy)</option>
+                        <option value="superseed_sepolia" {% if current_chain=="superseed_sepolia" %}selected{% endif %}>Superseed Sepolia (Alchemy)</option>
+                        <option value="rise_testnet" {% if current_chain=="rise_testnet" %}selected{% endif %}>Rise Testnet (Alchemy)</option>
+                        <option value="monad" {% if current_chain=="monad" %}selected{% endif %}>Monad (Alchemy)</option>
+                        <option value="monad_testnet" {% if current_chain=="monad_testnet" %}selected{% endif %}>Monad Testnet (Alchemy)</option>
+                        <option value="flow" {% if current_chain=="flow" %}selected{% endif %}>Flow (Alchemy)</option>
+                        <option value="flow_testnet" {% if current_chain=="flow_testnet" %}selected{% endif %}>Flow Testnet (Alchemy)</option>
+                        <option value="degen" {% if current_chain=="degen" %}selected{% endif %}>Degen (Alchemy)</option>
+                        <option value="polynomial" {% if current_chain=="polynomial" %}selected{% endif %}>Polynomial (Alchemy)</option>
+                        <option value="polynomial_sepolia" {% if current_chain=="polynomial_sepolia" %}selected{% endif %}>Polynomial Sepolia (Alchemy)</option>
+                        <option value="mode" {% if current_chain=="mode" %}selected{% endif %}>Mode (Alchemy)</option>
+                        <option value="mode_sepolia" {% if current_chain=="mode_sepolia" %}selected{% endif %}>Mode Sepolia (Alchemy)</option>
+                        <option value="apechain" {% if current_chain=="apechain" %}selected{% endif %}>Apechain (Alchemy)</option>
+                        <option value="apechain_curtis" {% if current_chain=="apechain_curtis" %}selected{% endif %}>Apechain Curtis (Alchemy)</option>
+                        <option value="anime" {% if current_chain=="anime" %}selected{% endif %}>Anime (Alchemy)</option>
+                        <option value="anime_sepolia" {% if current_chain=="anime_sepolia" %}selected{% endif %}>Anime Sepolia (Alchemy)</option>
+                        <option value="metis" {% if current_chain=="metis" %}selected{% endif %}>Metis (Alchemy)</option>
+                        <option value="sonic" {% if current_chain=="sonic" %}selected{% endif %}>Sonic (Alchemy)</option>
+                        <option value="sonic_testnet" {% if current_chain=="sonic_testnet" %}selected{% endif %}>Sonic Testnet (Alchemy)</option>
+                        <option value="sonic_blaze" {% if current_chain=="sonic_blaze" %}selected{% endif %}>Sonic Blaze (Alchemy)</option>
+                        <option value="xmtp_ropsten" {% if current_chain=="xmtp_ropsten" %}selected{% endif %}>Xmtp Ropsten (Alchemy)</option>
+                        <option value="adi" {% if current_chain=="adi" %}selected{% endif %}>Adi (Alchemy)</option>
+                        <option value="adi_testnet" {% if current_chain=="adi_testnet" %}selected{% endif %}>Adi Testnet (Alchemy)</option>
+                        <option value="abstract" {% if current_chain=="abstract" %}selected{% endif %}>Abstract (Alchemy)</option>
+                        <option value="abstract_testnet" {% if current_chain=="abstract_testnet" %}selected{% endif %}>Abstract Testnet (Alchemy)</option>
+                        <option value="crossfi" {% if current_chain=="crossfi" %}selected{% endif %}>Crossfi (Alchemy)</option>
+                        <option value="crossfi_testnet" {% if current_chain=="crossfi_testnet" %}selected{% endif %}>Crossfi Testnet (Alchemy)</option>
+                        <option value="soneium" {% if current_chain=="soneium" %}selected{% endif %}>Soneium (Alchemy)</option>
+                        <option value="soneium_minato" {% if current_chain=="soneium_minato" %}selected{% endif %}>Soneium Minato (Alchemy)</option>
+                        <option value="stable" {% if current_chain=="stable" %}selected{% endif %}>Stable (Alchemy)</option>
+                        <option value="stable_testnet" {% if current_chain=="stable_testnet" %}selected{% endif %}>Stable Testnet (Alchemy)</option>
+                    </optgroup>
+</select>
                     </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-info btn-lg">

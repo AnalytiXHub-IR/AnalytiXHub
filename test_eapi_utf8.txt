@@ -1,0 +1,89 @@
+﻿========================================
+Multi-Chain Endpoint Integrity Test
+========================================
+
+[TESTING] ZKSYNC          (Wallet: 0x9d2bCc598a...)
+[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for 0x9d2bCc598a30cC54AF0D9B021Fb24Be41A46F171. Fetching external.
+[+] Fetching Alchemy EVM data for zksync...
+[+] ZKSYNC (Alchemy): 0 transfers found
+  [WARN]: 0 transactions (Endpoint returned nothing)
+
+[TESTING] SCROLL          (Wallet: 0x9d2bCc598a...)
+[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for 0x9d2bCc598a30cC54AF0D9B021Fb24Be41A46F171. Fetching external.
+[+] Fetching Alchemy EVM data for scroll...
+[+] SCROLL (Alchemy): 0 transfers found
+  [WARN]: 0 transactions (Endpoint returned nothing)
+
+[TESTING] POLYGON_ZKEVM   (Wallet: 0x9d2bCc598a...)
+[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for 0x9d2bCc598a30cC54AF0D9B021Fb24Be41A46F171. Fetching external.
+[+] Fetching Alchemy EVM data for polygon_zkevm...
+[-] Alchemy query error on polygon_zkevm: EAPIs not enabled on specified network: [POLYGONZKEVM_MAINNET].
+[-] Alchemy query error on polygon_zkevm: EAPIs not enabled on specified network: [POLYGONZKEVM_MAINNET].
+[+] POLYGON_ZKEVM (Alchemy): 0 transfers found
+  [WARN]: 0 transactions (Endpoint returned nothing)
+
+[TESTING] MANTLE          (Wallet: 0x9d2bCc598a...)
+[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for 0x9d2bCc598a30cC54AF0D9B021Fb24Be41A46F171. Fetching external.
+[+] Fetching Alchemy EVM data for mantle...
+[-] Alchemy query error on mantle: EAPIs not enabled on specified network: [MANTLE_MAINNET].
+[-] Alchemy query error on mantle: EAPIs not enabled on specified network: [MANTLE_MAINNET].
+[+] MANTLE (Alchemy): 0 transfers found
+  [WARN]: 0 transactions (Endpoint returned nothing)
+
+[TESTING] BEACON          (Wallet: 0x9d2bCc598a...)
+[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for 0x9d2bCc598a30cC54AF0D9B021Fb24Be41A46F171. Fetching external.
+[+] Fetching Alchemy EVM data for beacon...
+[+] BEACON (Alchemy): 21 transfers found
+  [SUCCESS]: 21 transactions grabbed
+  [SAMPLE]:  0xb4bf3521824d97165293671d798614adfc36a9d2f5f37883290820d07bd01864
+
+[TESTING] BOB             (Wallet: 0x9d2bCc598a...)
+[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for 0x9d2bCc598a30cC54AF0D9B021Fb24Be41A46F171. Fetching external.
+[+] Fetching Alchemy EVM data for bob...
+[-] Alchemy query error on bob: EAPIs not enabled on specified network: [BOB_MAINNET].
+[-] Alchemy query error on bob: EAPIs not enabled on specified network: [BOB_MAINNET].
+[+] BOB (Alchemy): 0 transfers found
+  [WARN]: 0 transactions (Endpoint returned nothing)
+
+[TESTING] BOTANIX         (Wallet: 0x9d2bCc598a...)
+[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for 0x9d2bCc598a30cC54AF0D9B021Fb24Be41A46F171. Fetching external.
+[+] Fetching Alchemy EVM data for botanix...
+[-] Alchemy query error on botanix: EAPIs not enabled on specified network: [BOTANIX_MAINNET].
+[-] Alchemy query error on botanix: EAPIs not enabled on specified network: [BOTANIX_MAINNET].
+[+] BOTANIX (Alchemy): 0 transfers found
+  [WARN]: 0 transactions (Endpoint returned nothing)
+
+[TESTING] GALACTICA       (Wallet: 0x9d2bCc598a...)
+[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for 0x9d2bCc598a30cC54AF0D9B021Fb24Be41A46F171. Fetching external.
+[+] Fetching Alchemy EVM data for galactica...
+[-] Alchemy query error on galactica: EAPIs not enabled on specified network: [GALACTICA_MAINNET].
+[-] Alchemy query error on galactica: EAPIs not enabled on specified network: [GALACTICA_MAINNET].
+[+] GALACTICA (Alchemy): 0 transfers found
+  [WARN]: 0 transactions (Endpoint returned nothing)
+
+[TESTING] OPBNB           (Wallet: 0x9d2bCc598a...)
+[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for 0x9d2bCc598a30cC54AF0D9B021Fb24Be41A46F171. Fetching external.
+[+] Fetching Alchemy EVM data for opbnb...
+[-] Alchemy query error on opbnb: EAPIs not enabled on specified network: [OPBNB_MAINNET].
+[-] Alchemy query error on opbnb: EAPIs not enabled on specified network: [OPBNB_MAINNET].
+[+] OPBNB (Alchemy): 0 transfers found
+  [WARN]: 0 transactions (Endpoint returned nothing)
+
+[TESTING] ROOTSTOCK       (Wallet: 0x9d2bCc598a...)
+[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for 0x9d2bCc598a30cC54AF0D9B021Fb24Be41A46F171. Fetching external.
+[+] Fetching Alchemy EVM data for rootstock...
+[+] ROOTSTOCK (Alchemy): 0 transfers found
+  [WARN]: 0 transactions (Endpoint returned nothing)
+
+[TESTING] SEI             (Wallet: 0x9d2bCc598a...)
+[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for 0x9d2bCc598a30cC54AF0D9B021Fb24Be41A46F171. Fetching external.
+[+] Fetching Alchemy EVM data for sei...
+[-] Alchemy query error on sei: EAPIs not enabled on specified network: [SEI_MAINNET].
+[-] Alchemy query error on sei: EAPIs not enabled on specified network: [SEI_MAINNET].
+[+] SEI (Alchemy): 0 transfers found
+  [WARN]: 0 transactions (Endpoint returned nothing)
+
+[TESTING] APTOS           (Wallet: 0x889add27cf...)
+[MultiChainFetcher] Cache Miss/Force Refresh/Incremental for 0x889add27cfbd2432ae9f6d6c1df807e3350ddad7de6f3ec8bdf5fbf920cc70d0. Fetching external.
+[+] APTOS: 0 transactions found
+  [WARN]: 0 transactions (Endpoint returned nothing)

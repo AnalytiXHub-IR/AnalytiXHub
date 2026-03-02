@@ -18,9 +18,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ETHERSCAN_API_KEY = os.getenv('ETHERSCAN_API_KEY')
+ALCHEMY_API_KEY = os.getenv('ALCHEMY_API_KEY')
 SOLANA_API_KEY = os.getenv('SOLANA_API_KEY', "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjcmVhdGVkQXQiOjE3NzA3MTg3MzU5ODAsImVtYWlsIjoia29sbHVydXNhaWFiaGlyYW01MTNAZ21haWwuY29tIiwiYWN0aW9uIjoidG9rZW4tYXBpIiwiYXBpVmVyc2lvbiI6InYyIiwiaWF0IjoxNzcwNzE4NzM1fQ.SGdL7FJRYiMhC5YnSky-6UXCa4NLOgkoWSvhD2AvRDg")
 HELIUS_API_KEY = os.getenv('HELIUS_API_KEY', "a44ade62-a70f-4b75-8054-3e8388f70058")
 TRON_API_KEY = os.getenv('TRON_API_KEY', "72ac1d93-4497-4664-a844-f730b2b5e606")
+
+# Global Checksum Helper
+try:
+    from web3 import Web3
+    w3 = Web3()
+    def safe_checksum(addr):
+        try:
+            if addr and isinstance(addr, str) and addr != 'Unknown' and addr.startswith('0x'):
+                return w3.to_checksum_address(addr.lower())
+        except:
+            pass
+        return addr
+except ImportError:
+    def safe_checksum(addr): return addr
 
 # ==================== BLOCKSCOUT (Free EVM API) ====================
 
@@ -32,6 +47,21 @@ class BlockScoutFetcher:
         'polygon': 'https://polygon.blockscout.com/api/v2',
         'arbitrum': 'https://arbitrum.blockscout.com/api/v2',
         'optimism': 'https://optimism.blockscout.com/api/v2',
+        'base': 'https://base.blockscout.com/api/v2',
+        'base_sepolia': 'https://base-sepolia.blockscout.com/api/v2',
+        'gnosis': 'https://gnosis.blockscout.com/api/v2',
+        'celo': 'https://explorer.celo.org/mainnet/api/v2',
+        'blast': 'https://blast.blockscout.com/api/v2',
+        'linea': 'https://explorer.linea.build/api/v2',
+        'moonbeam': 'https://moonbeam.blockscout.com/api/v2',
+        'cronos': 'https://cronos.blockscout.com/api/v2',
+        'polygon_zkevm': 'https://zkevm.blockscout.com/api/v2',
+        'mantle': 'https://explorer.mantle.xyz/api/v2',
+        'bob': 'https://explorer.gobob.xyz/api/v2',
+        'botanix': 'https://blockscout.botanixlabs.dev/api/v2',
+        'galactica': 'https://explorer.galactica.com/api/v2',
+        'opbnb': 'https://opbnb.blockscout.com/api/v2',
+        'sei': 'https://seitrace.com/api/v2',
     }
     
     @staticmethod
@@ -47,29 +77,46 @@ class BlockScoutFetcher:
         
         try:
             tx_url = f"{base_url}/addresses/{address}/transactions"
-            tx_response = requests.get(tx_url, timeout=15)
+            params = {}
             
-            if tx_response.status_code == 200:
-                tx_data = tx_response.json()
-                if 'items' in tx_data:
-                    for tx in tx_data['items']: # Process all returned items
-                        transactions.append({
+            while True:
+                tx_response = requests.get(tx_url, params=params, timeout=15)
+                
+                if tx_response.status_code == 200:
+                    tx_data = tx_response.json()
+                    if 'items' in tx_data:
+                        for tx in tx_data['items']: # Process all returned items
+                            transactions.append({
                             'hash': tx.get('hash'),
-                            'from': tx.get('from', {}).get('hash') if isinstance(tx.get('from'), dict) else tx.get('from'),
-                            'to': (tx.get('to', {}).get('hash') if isinstance(tx.get('to'), dict) else tx.get('to')) or (tx.get('created_contract', {}).get('hash') if isinstance(tx.get('created_contract'), dict) else tx.get('created_contract')),
-                            'value': float(tx.get('value', 0)) if tx.get('value') else 0,
+                            'from': safe_checksum(tx.get('from', {}).get('hash') if isinstance(tx.get('from'), dict) else tx.get('from')),
+                            'to': safe_checksum(tx.get('to', {}).get('hash') if isinstance(tx.get('to'), dict) else tx.get('to', 'Unknown')),
+                            'value': float(tx.get('value', 0)) / 1e18 if tx.get('value') else 0.0,
                             'timestamp': tx.get('timestamp') or datetime.now().isoformat(),
                             'block': tx.get('block', 0),
-                            'chain': chain
-                        })
-                counts['normal'] = len(transactions)
-                print(f"✅ {chain.upper()} (BlockScout): {counts['normal']} transactions")
+                            'chain': chain,
+                            'type': 'transfer'
+                        })    
+                    # Pagination logic
+                    next_page = tx_data.get('next_page_params')
+                    # Set a hard limit at 10000 to prevent ultra-massive wallets hanging the server indefinitely
+                    if next_page and len(transactions) < 10000:
+                        params = next_page
+                        # Sleep momentarily to respect rate limits
+                        time.sleep(0.2)
+                    else:
+                        break
+                else:
+                    print(f"[-] BlockScout pagination stopped with status: {tx_response.status_code}")
+                    break
+                    
+            counts['normal'] = len(transactions)
+            print(f"[+] {chain.upper()} (BlockScout): {counts['normal']} transactions")
             
             return transactions, counts
         
         except Exception as e:
-            print(f"❌ BlockScout {chain} error: {e}")
-            return [], counts
+            print(f"[-] BlockScout {chain} error: {e}")
+            return transactions, counts
 
     @staticmethod
     def fetch_by_tx_hash(chain: str, tx_hash: str) -> Optional[Dict]:
@@ -89,8 +136,8 @@ class BlockScoutFetcher:
                 if tx and tx.get('hash'):
                     return {
                         'hash': tx.get('hash'),
-                        'from': tx.get('from', {}).get('hash') if isinstance(tx.get('from'), dict) else tx.get('from'),
-                        'to': (tx.get('to', {}).get('hash') if isinstance(tx.get('to'), dict) else tx.get('to')) or (tx.get('created_contract', {}).get('hash') if isinstance(tx.get('created_contract'), dict) else tx.get('created_contract')),
+                        'from': safe_checksum(tx.get('from', {}).get('hash') if isinstance(tx.get('from'), dict) else tx.get('from')),
+                        'to': safe_checksum((tx.get('to', {}).get('hash') if isinstance(tx.get('to'), dict) else tx.get('to')) or (tx.get('created_contract', {}).get('hash') if isinstance(tx.get('created_contract'), dict) else tx.get('created_contract'))),
                         'value': float(tx.get('value', 0)) / 1e18 if tx.get('value') else 0.0,
                         'timestamp': tx.get('timestamp') or datetime.now().isoformat(),
                         'block': tx.get('block', 0),
@@ -98,7 +145,7 @@ class BlockScoutFetcher:
                     }
             return None
         except Exception as e:
-            print(f"❌ BlockScout Tx details Error: {e}")
+            print(f"[-] BlockScout Tx details Error: {e}")
             return None
 
 # ==================== BLOCKCYPHER API (Dogecoin) ====================
@@ -147,26 +194,26 @@ class BlockCypherFetcher:
                         if response.status_code == 429:
                             # Exponential backoff: 5s, 10s, 20s, 40s, 80s
                             wait_time = (2 ** attempt) * 5 
-                            print(f"⚠️ BlockCypher Rate Limit (429). Waiting {wait_time}s (Attempt {attempt+1}/{max_retries})...")
+                            print(f"[!] BlockCypher Rate Limit (429). Waiting {wait_time}s (Attempt {attempt+1}/{max_retries})...")
                             time.sleep(wait_time)
                             continue # Retry
                         
                         if response.status_code == 200:
                             break # Success
                         else:
-                            print(f"❌ BlockCypher Error: {response.status_code} - {response.text[:100]}")
+                            print(f"[-] BlockCypher Error: {response.status_code} - {response.text[:100]}")
                             response = None
                             break # Don't retry other errors immediately
                             
                     except requests.exceptions.Timeout:
-                        print(f"⚠️ Timeout. Retrying...")
+                        print(f"[!] Timeout. Retrying...")
                     except Exception as e:
-                        print(f"⚠️ Network Error: {e}")
+                        print(f"[!] Network Error: {e}")
                         time.sleep(5)
                 
                 # If failed after all retries, break pagination loop
                 if not response or response.status_code != 200:
-                    print("❌ Failed to fetch BlockCypher batch after retries.")
+                    print("[-] Failed to fetch BlockCypher batch after retries.")
                     break
                     
                 data = response.json()
@@ -273,7 +320,7 @@ class BlockCypherFetcher:
                     pass
                     
             counts['normal'] = len(transactions)
-            print(f"✅ Dogecoin (BlockCypher): {counts['normal']} transactions (Paginated)")
+            print(f"[+] Dogecoin (BlockCypher): {counts['normal']} transactions (Paginated)")
                 
             # Fallback to GetBlock.io if BlockCypher failed totally
             if len(transactions) == 0:
@@ -282,7 +329,7 @@ class BlockCypherFetcher:
             return transactions, counts
             
         except Exception as e:
-            print(f"❌ Dogecoin fetch error: {e}")
+            print(f"[-] Dogecoin fetch error: {e}")
             return MempoolFetcher._fetch_via_getblock(address)
 
     @staticmethod
@@ -321,7 +368,7 @@ class BlockCypherFetcher:
                 }
             return None
         except Exception as e:
-            print(f"❌ BlockCypher Tx details Error: {e}")
+            print(f"[-] BlockCypher Tx details Error: {e}")
             return None
 
 # ==================== ETHERSCAN v2 API (All EVM Chains) ====================
@@ -335,21 +382,45 @@ class EtherscanMultiChainFetcher:
     V2_ENDPOINT = 'https://api.etherscan.io/v2/api'
     
     CHAIN_CONFIGS = {
-        'ethereum': {'chainid': 1, 'name': 'Ethereum'},
-        'bsc': {'chainid': 56, 'name': 'Binance Smart Chain'},
-        'polygon': {'chainid': 137, 'name': 'Polygon'},
-        'optimism': {'chainid': 10, 'name': 'Optimism'},
-        'arbitrum': {'chainid': 42161, 'name': 'Arbitrum One'},
-        'avalanche': {'chainid': 43114, 'name': 'Avalanche'},
-        'fantom': {'chainid': 250, 'name': 'Fantom'},
-        'base': {'chainid': 8453, 'name': 'Base'},
-        'cronos': {'chainid': 25, 'name': 'Cronos'},
-        'moonbeam': {'chainid': 1284, 'name': 'Moonbeam'},
+        'ethereum': {'chainid': 1, 'name': 'Ethereum Mainnet'},
+        'hoodi': {'chainid': 560048, 'name': 'Hoodi Testnet'},
+        'polygon': {'chainid': 137, 'name': 'Polygon Mainnet'},
+        'amoy': {'chainid': 80002, 'name': 'Polygon Amoy Testnet'},
+        'arbitrum': {'chainid': 42161, 'name': 'Arbitrum One Mainnet'},
+        'arbitrum_sepolia': {'chainid': 421614, 'name': 'Arbitrum Sepolia Testnet'},
+        'linea': {'chainid': 59144, 'name': 'Linea Mainnet'},
+        'linea_sepolia': {'chainid': 59141, 'name': 'Linea Sepolia Testnet'},
+        'blast': {'chainid': 81457, 'name': 'Blast Mainnet'},
+        'blast_sepolia': {'chainid': 168587773, 'name': 'Blast Sepolia Testnet'},
+        'bttc': {'chainid': 199, 'name': 'BitTorrent Chain Mainnet'},
+        'bttc_testnet': {'chainid': 1029, 'name': 'BitTorrent Chain Testnet'},
+        'celo': {'chainid': 42220, 'name': 'Celo Mainnet'},
+        'celo_sepolia': {'chainid': 11142220, 'name': 'Celo Sepolia Testnet'},
+        'fraxtal': {'chainid': 252, 'name': 'Fraxtal Mainnet'},
+        'fraxtal_hoodi': {'chainid': 2523, 'name': 'Fraxtal Hoodi Testnet'},
         'gnosis': {'chainid': 100, 'name': 'Gnosis'},
-        'celo': {'chainid': 42220, 'name': 'Celo'},
-        'blast': {'chainid': 81457, 'name': 'Blast'},
-        'linea': {'chainid': 59144, 'name': 'Linea'},
-        'sepolia': {'chainid': 11155111, 'name': 'Sepolia (Testnet)'},
+        'mantle': {'chainid': 5000, 'name': 'Mantle Mainnet'},
+        'mantle_sepolia': {'chainid': 5003, 'name': 'Mantle Sepolia Testnet'},
+        'memecore': {'chainid': 4352, 'name': 'Memecore Mainnet'},
+        'memecore_testnet': {'chainid': 43521, 'name': 'Memecore Testnet'},
+        'moonbeam': {'chainid': 1284, 'name': 'Moonbeam Mainnet'},
+        'moonriver': {'chainid': 1285, 'name': 'Moonriver Mainnet'},
+        'moonbase': {'chainid': 1287, 'name': 'Moonbase Alpha Testnet'},
+        'opbnb': {'chainid': 204, 'name': 'opBNB Mainnet'},
+        'opbnb_testnet': {'chainid': 5611, 'name': 'opBNB Testnet'},
+        'scroll': {'chainid': 534352, 'name': 'Scroll Mainnet'},
+        'scroll_sepolia': {'chainid': 534351, 'name': 'Scroll Sepolia Testnet'},
+        'taiko': {'chainid': 167000, 'name': 'Taiko Mainnet'},
+        'taiko_hoodi': {'chainid': 167013, 'name': 'Taiko Hoodi'},
+        'xdc': {'chainid': 50, 'name': 'XDC Mainnet'},
+        'xdc_testnet': {'chainid': 51, 'name': 'XDC Apothem Testnet'},
+        'swellchain': {'chainid': 1923, 'name': 'Swellchain Mainnet'},
+        'swellchain_testnet': {'chainid': 1924, 'name': 'Swellchain Testnet'},
+        'hyperevm': {'chainid': 999, 'name': 'HyperEVM Mainnet'},
+        'katana': {'chainid': 747474, 'name': 'Katana Mainnet'},
+        'katana_bokuto': {'chainid': 737373, 'name': 'Katana Bokuto'},
+        'sei': {'chainid': 1329, 'name': 'Sei Mainnet'},
+        'sei_testnet': {'chainid': 1328, 'name': 'Sei Testnet'},
     }
     
     @staticmethod
@@ -403,7 +474,7 @@ class EtherscanMultiChainFetcher:
                             
                         if 'timeStamp' in tx: # Normalize timestamp format
                             try:
-                                tx['timestamp'] = datetime.fromtimestamp(int(tx['timeStamp'])).strftime('%Y-%m-%d %H:%M:%S')
+                                tx['timestamp'] = datetime.utcfromtimestamp(int(tx['timeStamp'])).strftime('%Y-%m-%d %H:%M:%S')
                             except:
                                 pass
                         
@@ -413,6 +484,12 @@ class EtherscanMultiChainFetcher:
                                 tx['value'] = float(tx['value']) / 1e18
                             except:
                                 tx['value'] = 0.0
+                        
+                        # Fix Lowercase Casing bug by restoring Ethereum EIP-55 Checksum natively across Etherscan output.
+                        if 'from' in tx:
+                            tx['from'] = safe_checksum(tx.get('from'))
+                        if 'to' in tx:
+                            tx['to'] = safe_checksum(tx.get('to'))
                                 
                         all_txs.append(tx)
                         added_in_page += 1
@@ -427,10 +504,10 @@ class EtherscanMultiChainFetcher:
                     print("[ETHERSCAN API] Stuck on giant block, breaking.")
                     break
                 startblock = new_startblock
-                time.sleep(0.25)
+                time.sleep(0.3)
                 
             except Exception as e:
-                print(f"❌ {config['name']} pagination error: {e}")
+                print(f"[-] {config['name']} pagination error: {e}")
                 break
                 
         return all_txs
@@ -448,35 +525,50 @@ class EtherscanMultiChainFetcher:
         counts = {'normal': 0, 'internal': 0, 'token': 0}
         
         if not ETHERSCAN_API_KEY:
-            print(f"⚠️  No Etherscan API key, using BlockScout for {config['name']}...")
+            print(f"[!]  No Etherscan API key, using BlockScout for {config['name']}...")
             return BlockScoutFetcher.fetch_transactions(chain, address)
         
         try:
-            print(f"[+] Fetching {config['name']} transactions via Etherscan v2 API (Paginated from block {startblock})...")
+            print(f"[+] Fetching {config['name']} transactions via Etherscan v2 API concurrently (from block {startblock})...")
             
-            # Normal transactions
-            normal_txs = EtherscanMultiChainFetcher._fetch_all_paginate_by_block(chain, address, 'txlist', startblock)
-            transactions.extend(normal_txs)
-            counts['normal'] = len(normal_txs)
+            import concurrent.futures
+
+            def fetch_action(action_type):
+                return EtherscanMultiChainFetcher._fetch_all_paginate_by_block(chain, address, action_type, startblock)
             
-            # Internal transactions
+            # Map the needed actions to their respective keys
+            fetch_plan = {'normal': 'txlist'}
             if include_internal:
-                internal_txs = EtherscanMultiChainFetcher._fetch_all_paginate_by_block(chain, address, 'txlistinternal', startblock)
-                transactions.extend(internal_txs)
-                counts['internal'] = len(internal_txs)
-            
-            # Token transfers
+                fetch_plan['internal'] = 'txlistinternal'
             if include_token_transfers:
-                token_txs = EtherscanMultiChainFetcher._fetch_all_paginate_by_block(chain, address, 'tokentx', startblock)
-                transactions.extend(token_txs)
-                counts['token'] = len(token_txs)
+                fetch_plan['token'] = 'tokentx'
+
+            results = {}
+            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                # Submit jobs
+                futures_to_key = {
+                    executor.submit(fetch_action, action): key 
+                    for key, action in fetch_plan.items()
+                }
+                
+                # Gather results
+                for future in concurrent.futures.as_completed(futures_to_key):
+                    k = futures_to_key[future]
+                    try:
+                        res = future.result()
+                        results[k] = res
+                        transactions.extend(res)
+                        counts[k] = len(res)
+                    except Exception as exc:
+                        print(f"[-] Etherscan {k} threaded fetch generated an exception: {exc}")
+                        counts[k] = 0
             
-            total = counts['normal'] + counts['internal'] + counts['token']
-            print(f"✅ {config['name']}: {counts['normal']} normal, {counts['internal']} internal, {counts['token']} token ({total} total)")
+            total = sum(counts.values())
+            print(f"[+] {config['name']}: {counts['normal']} normal, {counts['internal']} internal, {counts['token']} token ({total} total)")
             
             # Fallback to BlockScout if absolutely nothing was found (could be an API quirk)
             if total == 0 and startblock == 0:
-                print(f"⚠️ Zero transactions found via Etherscan, attempting BlockScout fallback just in case...")
+                print(f"[!] Zero transactions found via Etherscan, attempting BlockScout fallback just in case...")
                 bs_txs, bs_counts = BlockScoutFetcher.fetch_transactions(chain, address)
                 if sum(bs_counts.values()) > 0:
                     return bs_txs, bs_counts
@@ -484,7 +576,7 @@ class EtherscanMultiChainFetcher:
             return transactions, counts
         
         except Exception as e:
-            print(f"❌ {config['name']} fetch error: {e}")
+            print(f"[-] {config['name']} fetch error: {e}")
             print(f"   Falling back to BlockScout...")
             return BlockScoutFetcher.fetch_transactions(chain, address)
 
@@ -494,6 +586,479 @@ class EtherscanMultiChainFetcher:
          print(f"[+] Proxying Etherscan TxHash to BlockScout...")
          return BlockScoutFetcher.fetch_by_tx_hash(chain, tx_hash)
 
+# ==================== ALCHEMY API (EVM Layer 2s) ====================
+
+class AlchemyEVMFetcher:
+    """Fetch transactions via Alchemy's alchemy_getAssetTransfers JSON-RPC method"""
+    
+    ALCHEMY_URLS = {
+        'beacon': 'https://eth-mainnet.g.alchemy.com/v2/',
+        'beacon_sepolia': 'https://eth-sepolia.g.alchemy.com/v2/',
+        'beacon_hoodi': 'https://eth-holesky.g.alchemy.com/v2/',
+        'rootstock': 'https://rootstock-mainnet.g.alchemy.com/v2/',
+        'rootstock_testnet': 'https://rootstock-testnet.g.alchemy.com/v2/',
+        'scroll': 'https://scroll-mainnet.g.alchemy.com/v2/',
+        'scroll_sepolia': 'https://scroll-sepolia.g.alchemy.com/v2/',
+        'zksync': 'https://zksync-mainnet.g.alchemy.com/v2/',
+        'zksync_sepolia': 'https://zksync-sepolia.g.alchemy.com/v2/',
+        
+        # Extended Alchemy Networks via User Specification
+        'worldchain': 'https://worldchain-mainnet.g.alchemy.com/v2/',
+        'worldchain_sepolia': 'https://worldchain-sepolia.g.alchemy.com/v2/',
+        'shape': 'https://shape-mainnet.g.alchemy.com/v2/',
+        'shape_sepolia': 'https://shape-sepolia.g.alchemy.com/v2/',
+        'arbitrum_nova': 'https://arbnova-mainnet.g.alchemy.com/v2/',
+        'astar': 'https://astar-mainnet.g.alchemy.com/v2/',
+        'zetachain': 'https://zetachain-mainnet.g.alchemy.com/v2/',
+        'zetachain_testnet': 'https://zetachain-testnet.g.alchemy.com/v2/',
+        'berachain': 'https://berachain-mainnet.g.alchemy.com/v2/',
+        'berachain_bepolia': 'https://berachain-bepolia.g.alchemy.com/v2/',
+        'zora': 'https://zora-mainnet.g.alchemy.com/v2/',
+        'zora_sepolia': 'https://zora-sepolia.g.alchemy.com/v2/',
+        'robinhood_testnet': 'https://robinhood-testnet.g.alchemy.com/v2/',
+        'ronin': 'https://ronin-mainnet.g.alchemy.com/v2/',
+        'ronin_saigon': 'https://ronin-saigon.g.alchemy.com/v2/',
+        'plasma': 'https://plasma-mainnet.g.alchemy.com/v2/',
+        'plasma_testnet': 'https://plasma-testnet.g.alchemy.com/v2/',
+        'mythos': 'https://mythos-mainnet.g.alchemy.com/v2/',
+        'settlus': 'https://settlus-mainnet.g.alchemy.com/v2/',
+        'settlus_sepolia': 'https://settlus-septestnet.g.alchemy.com/v2/',
+        'megaeth': 'https://megaeth-mainnet.g.alchemy.com/v2/',
+        'megaeth_testnet': 'https://megaeth-testnet.g.alchemy.com/v2/',
+        'citrea': 'https://citrea-mainnet.g.alchemy.com/v2/',
+        'citrea_testnet': 'https://citrea-testnet.g.alchemy.com/v2/',
+        'tea_sepolia': 'https://tea-sepolia.g.alchemy.com/v2/',
+        'gensyn_testnet': 'https://gensyn-testnet.g.alchemy.com/v2/',
+        'arc_testnet': 'https://arc-testnet.g.alchemy.com/v2/',
+        'story': 'https://story-mainnet.g.alchemy.com/v2/',
+        'story_aeneid': 'https://story-aeneid.g.alchemy.com/v2/',
+        'clankermon': 'https://clankermon-mainnet.g.alchemy.com/v2/',
+        'humanity': 'https://humanity-mainnet.g.alchemy.com/v2/',
+        'humanity_testnet': 'https://humanity-testnet.g.alchemy.com/v2/',
+        'risa_testnet': 'https://risa-testnet.g.alchemy.com/v2/',
+        'tempo_testnet': 'https://tempo-testnet.g.alchemy.com/v2/',
+        'tempo_moderato': 'https://tempo-moderato.g.alchemy.com/v2/',
+        'hyperliquid': 'https://hyperliquid-mainnet.g.alchemy.com/v2/',
+        'hyperliquid_testnet': 'https://hyperliquid-testnet.g.alchemy.com/v2/',
+        'lens': 'https://lens-mainnet.g.alchemy.com/v2/',
+        'lens_sepolia': 'https://lens-sepolia.g.alchemy.com/v2/',
+        'worldmobilechain': 'https://worldmobilechain-mainnet.g.alchemy.com/v2/',
+        'worldmobile_testnet': 'https://worldmobile-testnet.g.alchemy.com/v2/',
+        'frax': 'https://frax-mainnet.g.alchemy.com/v2/',
+        'frax_sepolia': 'https://frax-sepolia.g.alchemy.com/v2/',
+        'ink': 'https://ink-mainnet.g.alchemy.com/v2/',
+        'ink_sepolia': 'https://ink-sepolia.g.alchemy.com/v2/',
+        'celestiabridge': 'https://celestiabridge-mainnet.g.alchemy.com/v2/',
+        'celestiabridge_mocha': 'https://celestiabridge-mocha.g.alchemy.com/v2/',
+        'unichain': 'https://unichain-mainnet.g.alchemy.com/v2/',
+        'unichain_sepolia': 'https://unichain-sepolia.g.alchemy.com/v2/',
+        'syndicate': 'https://synd-mainnet.g.alchemy.com/v2/',
+        'superseed': 'https://superseed-mainnet.g.alchemy.com/v2/',
+        'superseed_sepolia': 'https://superseed-sepolia.g.alchemy.com/v2/',
+        'rise_testnet': 'https://rise-testnet.g.alchemy.com/v2/',
+        'monad': 'https://monad-mainnet.g.alchemy.com/v2/',
+        'monad_testnet': 'https://monad-testnet.g.alchemy.com/v2/',
+        'flow': 'https://flow-mainnet.g.alchemy.com/v2/',
+        'flow_testnet': 'https://flow-testnet.g.alchemy.com/v2/',
+        'degen': 'https://degen-mainnet.g.alchemy.com/v2/',
+        'polynomial': 'https://polynomial-mainnet.g.alchemy.com/v2/',
+        'polynomial_sepolia': 'https://polynomial-sepolia.g.alchemy.com/v2/',
+        'mode': 'https://mode-mainnet.g.alchemy.com/v2/',
+        'mode_sepolia': 'https://mode-sepolia.g.alchemy.com/v2/',
+        'apechain': 'https://apechain-mainnet.g.alchemy.com/v2/',
+        'apechain_curtis': 'https://apechain-curtis.g.alchemy.com/v2/',
+        'anime': 'https://anime-mainnet.g.alchemy.com/v2/',
+        'anime_sepolia': 'https://anime-sepolia.g.alchemy.com/v2/',
+        'metis': 'https://metis-mainnet.g.alchemy.com/v2/',
+        'sonic': 'https://sonic-mainnet.g.alchemy.com/v2/',
+        'sonic_testnet': 'https://sonic-testnet.g.alchemy.com/v2/',
+        'sonic_blaze': 'https://sonic-blaze.g.alchemy.com/v2/',
+        'xmtp_ropsten': 'https://xmtp-ropsten.g.alchemy.com/v2/',
+        'adi': 'https://adi-mainnet.g.alchemy.com/v2/',
+        'adi_testnet': 'https://adi-testnet.g.alchemy.com/v2/',
+        'abstract': 'https://abstract-mainnet.g.alchemy.com/v2/',
+        'abstract_testnet': 'https://abstract-testnet.g.alchemy.com/v2/',
+        'crossfi': 'https://crossfi-mainnet.g.alchemy.com/v2/',
+        'crossfi_testnet': 'https://crossfi-testnet.g.alchemy.com/v2/',
+        'soneium': 'https://soneium-mainnet.g.alchemy.com/v2/',
+        'soneium_minato': 'https://soneium-minato.g.alchemy.com/v2/',
+        'stable': 'https://stable-mainnet.g.alchemy.com/v2/',
+        'stable_testnet': 'https://stable-testnet.g.alchemy.com/v2/'
+    }
+
+    @staticmethod
+    def _fetch_transfers(chain: str, address: str, direction: str) -> List[Dict]:
+        """Fetch incoming or outgoing transfers via alchemy_getAssetTransfers"""
+        if not ALCHEMY_API_KEY:
+            print("[!] Missing ALCHEMY_API_KEY")
+            return []
+
+        base_url = AlchemyEVMFetcher.ALCHEMY_URLS.get(chain)
+        if not base_url:
+            return []
+            
+        url = f"{base_url}{ALCHEMY_API_KEY}"
+        all_txs = []
+        page_key = None
+        
+        while True:
+            params = {
+                "fromBlock": "0x0",
+                "toBlock": "latest",
+                "category": ["external", "erc20", "erc721", "erc1155"],
+                "withMetadata": True,
+                "excludeZeroValue": False,
+                "maxCount": "0x3E8" # 1000 max per page
+            }
+            
+            if direction == "from":
+                params["fromAddress"] = address
+            else:
+                params["toAddress"] = address
+                
+            if page_key:
+                params["pageKey"] = page_key
+                
+            payload = {
+                "id": 1,
+                "jsonrpc": "2.0",
+                "method": "alchemy_getAssetTransfers",
+                "params": [params]
+            }
+            
+            headers = {"accept": "application/json", "content-type": "application/json"}
+            
+            try:
+                response = requests.post(url, json=payload, headers=headers, timeout=15)
+                data = response.json()
+                
+                error_payload = data.get('error')
+                if error_payload:
+                    err_msg = str(error_payload)
+                    if isinstance(error_payload, dict):
+                        err_msg = error_payload.get('message', err_msg)
+                    print(f"[-] Alchemy query error on {chain}: {err_msg}")
+                    break
+                
+                result = data.get('result') or {}
+                transfers = result.get('transfers', [])
+                
+                for tx in transfers:
+                    meta = tx.get('metadata') or {}
+                    timestamp_str = meta.get('blockTimestamp')
+                    formatted_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    if timestamp_str:
+                        try:
+                            # 2023-10-01T12:00:00Z
+                            if timestamp_str.endswith('Z'):
+                                dt = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M:%SZ')
+                            else:
+                                dt = datetime.fromisoformat(timestamp_str.split('.')[0])
+                            formatted_time = dt.strftime('%Y-%m-%d %H:%M:%S')
+                        except:
+                            pass
+                            
+                    block_num_hex = tx.get('blockNum') or '0x0'
+                    all_txs.append({
+                        'hash': tx.get('hash'),
+                        'from': tx.get('from', 'Unknown') or 'Unknown',
+                        'to': tx.get('to', 'Unknown') or 'Unknown',
+                        'value': tx.get('value') or 0.0,
+                        'timestamp': formatted_time,
+                        'block': int(block_num_hex, 16),
+                        'chain': chain,
+                        'type': tx.get('category', 'transfer'),
+                        'uniqueId': tx.get('uniqueId')
+                    })
+                    
+                page_key = result.get('pageKey')
+                if not page_key:
+                    break
+                    
+                time.sleep(0.1) # Rate limit protection
+            except Exception as e:
+                print(f"[-] Alchemy query error on {chain}: {e}")
+                break
+                
+        return all_txs
+
+    @staticmethod
+    def fetch_transactions(chain: str, address: str) -> Tuple[List[Dict], Dict]:
+        chain = chain.lower()
+        if chain not in AlchemyEVMFetcher.ALCHEMY_URLS:
+            return [], {'normal': 0}
+            
+        print(f"[+] Fetching Alchemy EVM data sequentially for {chain} (Bi-Directional)...")
+        import concurrent.futures
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future_out = executor.submit(AlchemyEVMFetcher._fetch_transfers, chain, address, "from")
+            future_in = executor.submit(AlchemyEVMFetcher._fetch_transfers, chain, address, "to")
+            
+            outgoing = future_out.result()
+            incoming = future_in.result()
+            
+        combined = outgoing + incoming
+        
+        # Deduplicate using uniqueId
+        unique_txs = {}
+        for tx in combined:
+            uid = tx.get('uniqueId')
+            if not uid:
+                uid = f"{tx.get('hash')}_{tx.get('from')}_{tx.get('to')}_{tx.get('value')}"
+            unique_txs[uid] = tx
+        
+        final_list = list(unique_txs.values())
+        
+        # Sort chronologically by timestamp
+        final_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        counts = {'normal': 0, 'internal': 0, 'token': 0}
+        for tx in final_list:
+            tx['from'] = safe_checksum(tx['from'])
+            tx['to'] = safe_checksum(tx['to'])
+            
+            t = tx.get('type', 'transfer')
+            if t in ('erc20', 'erc721', 'erc1155'):
+                counts['token'] += 1
+            elif t == 'internal':
+                counts['internal'] += 1
+            else:
+                counts['normal'] += 1
+                
+        total = counts['normal'] + counts['internal'] + counts['token']
+        print(f"[+] {chain.upper()} (Alchemy): {total} unique transfers found")
+        return final_list, counts
+        
+    @staticmethod
+    def fetch_by_tx_hash(chain: str, tx_hash: str) -> Optional[Dict]:
+        """Alchemy fetch by hash via eth_getTransactionByHash"""
+        chain = chain.lower()
+        if chain not in AlchemyEVMFetcher.ALCHEMY_URLS or not ALCHEMY_API_KEY:
+            return None
+            
+        try:
+            url = f"{AlchemyEVMFetcher.ALCHEMY_URLS[chain]}{ALCHEMY_API_KEY}"
+            payload = {
+                "id": 1,
+                "jsonrpc": "2.0",
+                "method": "eth_getTransactionByHash",
+                "params": [tx_hash]
+            }
+            response = requests.post(url, json=payload, timeout=10)
+            tx = response.json().get('result')
+            
+            if tx:
+                # eth_getTransactionByHash does not return timestamps natively in EVM APIs,
+                # we must fetch the block it was mined in to get the timestamp.
+                block_hex = tx.get('blockNumber')
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                if block_hex:
+                    block_payload = {
+                        "id": 1,
+                        "jsonrpc": "2.0",
+                        "method": "eth_getBlockByNumber",
+                        "params": [block_hex, False]
+                    }
+                    block_resp = requests.post(url, json=block_payload, timeout=10)
+                    block_data = block_resp.json().get('result', {})
+                    ts_hex = block_data.get('timestamp')
+                    if ts_hex:
+                        timestamp = datetime.fromtimestamp(int(ts_hex, 16)).strftime('%Y-%m-%d %H:%M:%S')
+
+                val_hex = tx.get('value', '0x0')
+                value_eth = int(val_hex, 16) / 1e18 if val_hex else 0.0
+                
+                # Restore UI Checksoum Caps
+                try:
+                    from web3 import Web3
+                    w3 = Web3()
+                    def checksum(addr):
+                        try:
+                            if addr and addr != 'Unknown' and addr.startswith('0x'):
+                                return w3.to_checksum_address(addr.lower())
+                        except:
+                            pass
+                        return addr
+                except ImportError:
+                    def checksum(addr): return addr
+                
+                return {
+                    'hash': tx.get('hash'),
+                    'from': checksum(tx.get('from', 'Unknown')),
+                    'to': checksum(tx.get('to', 'Unknown')),
+                    'value': value_eth,
+                    'timestamp': timestamp,
+                    'block': int(block_hex, 16) if block_hex else 0,
+                    'chain': chain
+                }
+            return None
+        except Exception as e:
+            print(f"[-] Alchemy Hash Fetch error: {e}")
+            return None
+
+
+class AlchemyAptosFetcher:
+    """Fetch Aptos transactions via Alchemy REST endpoints"""
+    
+    APTOS_URLS = {
+        'aptos': 'https://aptos-mainnet.g.alchemy.com/v2/',
+        'aptos_testnet': 'https://aptos-testnet.g.alchemy.com/v2/'
+    }
+
+    @staticmethod
+    def fetch_transactions(chain: str, address: str) -> Tuple[List[Dict], Dict]:
+        chain = chain.lower()
+        if chain not in AlchemyAptosFetcher.APTOS_URLS or not ALCHEMY_API_KEY:
+            return [], {'normal': 0}
+            
+        base_url = AlchemyAptosFetcher.APTOS_URLS[chain]
+        # Alchemy Aptos REST URL setup
+        url = f"{base_url}{ALCHEMY_API_KEY}/v1/accounts/{address}/transactions"
+        
+        all_txs = []
+        limit = 100
+        start_version = None
+        
+        # Aptos is a high throughput chain, grab latest 200 txs to avoid heavy REST loops
+        for _ in range(2): 
+            params = {"limit": limit}
+            if start_version:
+                params["start"] = start_version
+                
+            try:
+                response = requests.get(url, params=params, timeout=10)
+                if response.status_code != 200:
+                    break
+                    
+                data = response.json()
+                if not data:
+                    break
+                    
+                for tx in data:
+                    # Aptos specific transaction schema
+                    sender = tx.get('sender', 'Unknown')
+                    
+                    # Aptos payload varies widely, try to extract 'to' from entry function payloads if possible
+                    receiver = 'Unknown'
+                    payload = tx.get('payload', {})
+                    if payload.get('type') == 'entry_function_payload':
+                        args = payload.get('arguments', [])
+                        # A generic heuristic to find an address-like string in arguments
+                        for arg in args:
+                            if isinstance(arg, str) and arg.startswith('0x') and len(arg) > 40:
+                                receiver = arg
+                                break
+                    
+                    # Value extraction from events if it's a coin transfer
+                    value = 0.0
+                    for event in tx.get('events', []):
+                        if 'WithdrawEvent' in event.get('type', ''):
+                            try:
+                                val_str = event.get('data', {}).get('amount')
+                                if val_str:
+                                    value = float(val_str) / 1e8 # APT decimal assumption
+                                    break
+                            except:
+                                pass
+                                
+                    timestamp = tx.get('timestamp')
+                    formatted_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    if timestamp:
+                        try:
+                            formatted_time = datetime.fromtimestamp(int(timestamp) / 1000000).strftime('%Y-%m-%d %H:%M:%S')
+                        except:
+                            pass
+                            
+                    all_txs.append({
+                        'hash': tx.get('hash'),
+                        'from': sender,
+                        'to': receiver,
+                        'value': value,
+                        'timestamp': formatted_time,
+                        'block': int(tx.get('version', 0)),
+                        'chain': chain,
+                        'type': tx.get('type', 'user_transaction')
+                    })
+                    
+                # Pagination logic for Aptos REST
+                start_version = data[-1].get('version')
+                if not start_version:
+                    break
+                    
+                # Decrement start version for next page (Aptos orders chronologically normally)
+                # But since we want to go backward in time, we actually need to use 'start' parameter differently.
+                # Since Alchemy returns earliest first if `start` rests, we must reverse at the end.
+            except Exception as e:
+                print(f"[-] Aptos fetch error on {chain}: {e}")
+                break
+                
+        # Deduplicate and sort descending by timestamp
+        unique_txs = {tx['hash']: tx for tx in all_txs if tx.get('hash')}
+        final_list = list(unique_txs.values())
+        final_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        counts = {'normal': len(final_list)}
+        print(f"[+] {chain.upper()}: {counts['normal']} transactions found")
+        return final_list, counts
+
+    @staticmethod
+    def fetch_by_tx_hash(chain: str, tx_hash: str) -> Optional[Dict]:
+        chain = chain.lower()
+        if chain not in AlchemyAptosFetcher.APTOS_URLS or not ALCHEMY_API_KEY:
+            return None
+            
+        base_url = AlchemyAptosFetcher.APTOS_URLS[chain]
+        url = f"{base_url}{ALCHEMY_API_KEY}/v1/transactions/by_hash/{tx_hash}"
+        
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                tx = response.json()
+                
+                sender = tx.get('sender', 'Unknown')
+                receiver = 'Unknown'
+                payload = tx.get('payload', {})
+                if payload.get('type') == 'entry_function_payload':
+                    args = payload.get('arguments', [])
+                    for arg in args:
+                        if isinstance(arg, str) and arg.startswith('0x') and len(arg) > 40:
+                            receiver = arg
+                            break
+                            
+                value = 0.0
+                for event in tx.get('events', []):
+                    if 'WithdrawEvent' in event.get('type', ''):
+                        try:
+                            val_str = event.get('data', {}).get('amount')
+                            if val_str:
+                                value = float(val_str) / 1e8 
+                                break
+                        except:
+                            pass
+                            
+                timestamp = tx.get('timestamp')
+                formatted_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                if timestamp:
+                    try:
+                        formatted_time = datetime.fromtimestamp(int(timestamp) / 1000000).strftime('%Y-%m-%d %H:%M:%S')
+                    except:
+                        pass
+                        
+                return {
+                    'hash': tx.get('hash'),
+                    'from': sender,
+                    'to': receiver,
+                    'value': value,
+                    'timestamp': formatted_time,
+                    'block': int(tx.get('version', 0)),
+                    'chain': chain
+                }
+            return None
+        except Exception as e:
+            print(f"[-] Aptos Hash Fetch error: {e}")
+            return None
 
 # ==================== BITCOIN (Mempool.space) ====================
 
@@ -512,7 +1077,7 @@ class MempoolFetcher:
         endpoint = os.getenv('GETBLOCK_ENDPOINT')
         
         if not getblock_key and not endpoint:
-            print("⚠️ No GETBLOCK_DOGE_KEY or GETBLOCK_ENDPOINT in .env. Falling back to empty response.")
+            print("[!] No GETBLOCK_DOGE_KEY or GETBLOCK_ENDPOINT in .env. Falling back to empty response.")
             return [], counts
             
         print(f"[GetBlock.io] Attempting fallback for {address}...")
@@ -546,12 +1111,12 @@ class MempoolFetcher:
                             'type': 'doge'
                         })
                     counts['normal'] = len(transactions)
-                    print(f"✅ Dogecoin (GetBlock): {counts['normal']} transactions")
+                    print(f"[+] Dogecoin (GetBlock): {counts['normal']} transactions")
                     return transactions, counts
             else:
-                 print(f"❌ GetBlock.io returned status {resp.status_code}")
+                 print(f"[-] GetBlock.io returned status {resp.status_code}")
         except Exception as e:
-             print(f"❌ GetBlock.io Error: {e}")
+             print(f"[-] GetBlock.io Error: {e}")
              
         return [], counts
     
@@ -606,15 +1171,15 @@ class MempoolFetcher:
                     })
                 
                 counts['normal'] = len(transactions)
-                print(f"✅ Bitcoin (Mempool): {counts['normal']} transactions")
+                print(f"[+] Bitcoin (Mempool): {counts['normal']} transactions")
                 return transactions, counts
             else:
-                print(f"❌ Mempool API error: {response.status_code}")
+                print(f"[-] Mempool API error: {response.status_code}")
                 
             return transactions, counts
             
         except Exception as e:
-            print(f"❌ Bitcoin fetch error: {e}")
+            print(f"[-] Bitcoin fetch error: {e}")
             return [], counts
 
     @staticmethod
@@ -648,7 +1213,7 @@ class MempoolFetcher:
                 }
             return None
         except Exception as e:
-            print(f"❌ Bitcoin Tx details Error: {e}")
+            print(f"[-] Bitcoin Tx details Error: {e}")
             return None
 
 
@@ -673,10 +1238,10 @@ class SolanaFetcher:
             print(f"[Solana] Initializing Helius Enhanced Fetch for {address}...")
             transactions, counts = SolanaFetcher._fetch_helius_enhanced(address)
             if transactions:
-                # print(f"✅ Helius Enhanced API: {len(transactions)} transactions found")
+                # print(f"[+] Helius Enhanced API: {len(transactions)} transactions found")
                 return transactions, counts
         except Exception as e:
-            print(f"⚠️ Helius Enhanced API failed: {e}. Trying Solscan fallback...")
+            print(f"[!] Helius Enhanced API failed: {e}. Trying Solscan fallback...")
 
         # 2. Solscan Fallback (Internal api-v2 or Pro)
         transactions = []
@@ -707,7 +1272,7 @@ class SolanaFetcher:
             
             # If authorized failed, try Public API
             if resp.status_code in [401, 403]:
-                print(f"⚠️  Solscan {resp.status_code}. Trying Public API fallback...")
+                print(f"[!]  Solscan {resp.status_code}. Trying Public API fallback...")
                 public_headers = {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
                     "Accept": "application/json",
@@ -787,14 +1352,14 @@ class SolanaFetcher:
                         })
                     
                     counts['normal'] = len(transactions)
-                    print(f"✅ Solscan: {len(transactions)} transactions found")
+                    print(f"[+] Solscan: {len(transactions)} transactions found")
                     return transactions, counts
             
         except Exception as e:
-            print(f"⚠️ Solscan API Error: {e}")
+            print(f"[!] Solscan API Error: {e}")
 
         # 3. Last Resort: Public Solana RPC
-        print("⚠️ Helius and Solscan failed. Attempting publicnode last-resort fallback...")
+        print("[!] Helius and Solscan failed. Attempting publicnode last-resort fallback...")
         return SolanaFetcher._fetch_rpc_signatures(address, url="https://solana-rpc.publicnode.com")
 
     @staticmethod
@@ -882,13 +1447,13 @@ class SolanaFetcher:
                     })
                 
                 counts['normal'] = len(transactions)
-                print(f"✅ Helius Enhanced: {len(transactions)} transactions found")
+                print(f"[+] Helius Enhanced: {len(transactions)} transactions found")
                 return transactions, counts
             else:
-                print(f"⚠️ Helius Enhanced Error: {resp.status_code}")
+                print(f"[!] Helius Enhanced Error: {resp.status_code}")
                 return [], counts
         except Exception as e:
-            print(f"⚠️ Helius Enhanced Exception: {e}")
+            print(f"[!] Helius Enhanced Exception: {e}")
             return [], counts
 
     @staticmethod
@@ -967,7 +1532,7 @@ class SolanaFetcher:
                                     
                                     if resp.status_code == 429:
                                         wait_time = (2 ** attempt) * 3 # Exponential: 3s, 6s, 12s, 24s...
-                                        print(f"⚠️ Rate limited (429) for {sig[:8]}... attempt {attempt+1}/{max_retries}, waiting {wait_time}s...")
+                                        print(f"[!] Rate limited (429) for {sig[:8]}... attempt {attempt+1}/{max_retries}, waiting {wait_time}s...")
                                         time.sleep(wait_time)
                                         continue
                                         
@@ -1008,23 +1573,23 @@ class SolanaFetcher:
                                     
                                 except Exception as sub_e:
                                     # Network error, wait and retry
-                                    print(f"⚠️ Failed to fetch detail for {sig}: {sub_e}")
+                                    print(f"[!] Failed to fetch detail for {sig}: {sub_e}")
                                     time.sleep(2)
                             
                             # Increased base delay to 1.0s to be very safe
                             time.sleep(1.0)
 
                 except Exception as e:
-                    print(f"⚠️ Solana Sequential RPC failed: {e}")
+                    print(f"[!] Solana Sequential RPC failed: {e}")
 
-                print(f"✅ Solana RPC: {len(transactions)} transactions found")
+                print(f"[+] Solana RPC: {len(transactions)} transactions found")
                 counts['normal'] = len(transactions)
                 return transactions, counts
             else:
-                print(f"❌ Solana RPC Error: {data.get('error', {})}")
+                print(f"[-] Solana RPC Error: {data.get('error', {})}")
                 return [], counts
         except Exception as e:
-            print(f"❌ Solana RPC Exception: {e}")
+            print(f"[-] Solana RPC Exception: {e}")
             return [], counts
 
     @staticmethod
@@ -1086,7 +1651,7 @@ class SolanaFetcher:
                     }
             return None
         except Exception as e:
-            print(f"❌ Solana Tx details Error: {e}")
+            print(f"[-] Solana Tx details Error: {e}")
             return None
 
 
@@ -1134,13 +1699,13 @@ class TronFetcher:
                         })
                         
                     counts['normal'] = len(transactions)
-                    print(f"✅ Tron (TronGrid): {counts['normal']} transactions")
+                    print(f"[+] Tron (TronGrid): {counts['normal']} transactions")
                     return transactions, counts
             
-            print(f"⚠️ TronGrid Failed ({response.status_code}). Trying TronScan fallback...")
+            print(f"[!] TronGrid Failed ({response.status_code}). Trying TronScan fallback...")
             
         except Exception as e:
-            print(f"⚠️ TronGrid Error: {e}")
+            print(f"[!] TronGrid Error: {e}")
 
         # 2. Try TronScan (Public API)
         try:
@@ -1200,15 +1765,15 @@ class TronFetcher:
                         has_more = False
                         
                 else:
-                    print(f"❌ TronScan Error: {response.status_code}")
+                    print(f"[-] TronScan Error: {response.status_code}")
                     has_more = False # Stop on error
                     
             counts['normal'] = len(transactions)
-            print(f"✅ Tron (TronScan): {counts['normal']} transactions")
+            print(f"[+] Tron (TronScan): {counts['normal']} transactions")
             return transactions, counts
                 
         except Exception as e:
-            print(f"❌ TronScan Exception: {e}")
+            print(f"[-] TronScan Exception: {e}")
             return [], counts
 
     @staticmethod
@@ -1239,7 +1804,7 @@ class TronFetcher:
                     }
             return None
         except Exception as e:
-            print(f"❌ Tron Tx details Error: {e}")
+            print(f"[-] Tron Tx details Error: {e}")
             return None
 
 
@@ -1283,7 +1848,7 @@ class XRPLFetcher:
                                 'chain': 'xrp'
                             })
                         counts['normal'] = len(transactions)
-                        print(f"✅ XRP: {counts['normal']} transactions")
+                        print(f"[+] XRP: {counts['normal']} transactions")
                         return transactions, counts
             except:
                 continue
@@ -1366,18 +1931,24 @@ class MultiChainFetcher:
         
         # 2. External Fetch
         # EVM Chains
-        if chain in ['ethereum', 'ethereum', 'eth']:
-            return EtherscanMultiChainFetcher.fetch_transactions('ethereum', address, **kwargs)
-        elif chain in ['polygon', 'matic']:
-            return EtherscanMultiChainFetcher.fetch_transactions('polygon', address, **kwargs)
-        elif chain in ['arbitrum', 'arb']:
-            return EtherscanMultiChainFetcher.fetch_transactions('arbitrum', address, **kwargs)
-        elif chain in ['optimism', 'op']:
-            return EtherscanMultiChainFetcher.fetch_transactions('optimism', address, **kwargs)
-        elif chain in ['bsc', 'binance', 'bnb']:
-            return EtherscanMultiChainFetcher.fetch_transactions('bsc', address, **kwargs)
+        evm_aliases = {
+            'eth': 'ethereum', 'matic': 'polygon', 'arb': 'arbitrum', 'op': 'optimism', 'binance': 'bsc', 'bnb': 'bsc'
+        }
+        actual_evm_chain = evm_aliases.get(chain, chain)
+        
+        if actual_evm_chain in EtherscanMultiChainFetcher.CHAIN_CONFIGS:
+            return EtherscanMultiChainFetcher.fetch_transactions(actual_evm_chain, address, **kwargs)
+            
+        elif actual_evm_chain in BlockScoutFetcher.BLOCKSCOUT_URLS:
+            return BlockScoutFetcher.fetch_transactions(actual_evm_chain, address)
+        
+        # Alchemy EVM Layers
+        elif chain in AlchemyEVMFetcher.ALCHEMY_URLS:
+            return AlchemyEVMFetcher.fetch_transactions(chain, address)
             
         # Non-EVM Chains (Real Implementations)
+        elif chain in ['aptos', 'aptos_testnet']:
+            return AlchemyAptosFetcher.fetch_transactions(chain, address)
         elif chain in ['bitcoin', 'btc']:
             return MempoolFetcher.fetch_transactions(address)
         elif chain in ['solana', 'sol']:
@@ -1391,7 +1962,7 @@ class MultiChainFetcher:
             return BlockCypherFetcher.fetch_transactions(address)
             
         else:
-            print(f"⚠️ Unsupported chain '{chain}', defaulting to empty")
+            print(f"[!] Unsupported chain '{chain}', defaulting to empty")
             return [], {}
             
     @staticmethod
@@ -1400,10 +1971,23 @@ class MultiChainFetcher:
         chain = chain.lower()
         
         # EVM Chains
-        if chain in ['ethereum', 'eth', 'polygon', 'matic', 'arbitrum', 'arb', 'optimism', 'op', 'bsc', 'binance', 'bnb', 'base', 'avalanche', 'fantom', 'cronos', 'moonbeam', 'gnosis', 'celo', 'blast', 'linea', 'sepolia']:
-            return EtherscanMultiChainFetcher.fetch_by_tx_hash(chain, tx_hash)
+        evm_aliases = {
+            'eth': 'ethereum', 'matic': 'polygon', 'arb': 'arbitrum', 'op': 'optimism', 'binance': 'bsc', 'bnb': 'bsc'
+        }
+        actual_evm_chain = evm_aliases.get(chain, chain)
+        
+        if actual_evm_chain in EtherscanMultiChainFetcher.CHAIN_CONFIGS:
+            return EtherscanMultiChainFetcher.fetch_by_tx_hash(actual_evm_chain, tx_hash)
+            
+        elif actual_evm_chain in BlockScoutFetcher.BLOCKSCOUT_URLS:
+            return BlockScoutFetcher.fetch_by_tx_hash(actual_evm_chain, tx_hash)
+            
+        elif chain in AlchemyEVMFetcher.ALCHEMY_URLS:
+            return AlchemyEVMFetcher.fetch_by_tx_hash(chain, tx_hash)
             
         # Non-EVM Chains
+        elif chain in ['aptos', 'aptos_testnet']:
+            return AlchemyAptosFetcher.fetch_by_tx_hash(chain, tx_hash)
         elif chain in ['bitcoin', 'btc']:
             return MempoolFetcher.fetch_by_tx_hash(tx_hash)
         elif chain in ['solana', 'sol']:
@@ -1414,7 +1998,7 @@ class MultiChainFetcher:
             return BlockCypherFetcher.fetch_by_tx_hash(tx_hash)
         
         else:
-            print(f"⚠️ Unsupported chain '{chain}' for hash lookup")
+            print(f"[!] Unsupported chain '{chain}' for hash lookup")
             return None
     
     @staticmethod
@@ -1427,6 +2011,21 @@ class MultiChainFetcher:
             'tron': f'https://tronscan.org/#/address/{address}',
             'xrp': f'https://xrpscan.com/account/{address}',
             'dogecoin': f'https://dogechain.info/address/{address}',
+            'gnosis': f'https://gnosisscan.io/address/{address}',
+            'celo': f'https://celoscan.io/address/{address}',
+            'blast': f'https://blastscan.io/address/{address}',
+            'linea': f'https://lineascan.build/address/{address}',
+            'polygon_zkevm': f'https://zkevm.polygonscan.com/address/{address}',
+            'mantle': f'https://explorer.mantle.xyz/address/{address}',
+            'bob': f'https://explorer.gobob.xyz/address/{address}',
+            'botanix': f'https://blockscout.botanixlabs.dev/address/{address}',
+            'galactica': f'https://explorer.galactica.com/address/{address}',
+            'opbnb': f'https://opbnbscan.com/address/{address}',
+            'sei': f'https://seitrace.com/address/{address}',
+            'zksync': f'https://explorer.zksync.io/address/{address}',
+            'scroll': f'https://scrollscan.com/address/{address}',
+            'rootstock': f'https://explorer.rootstock.io/address/{address}',
+            'aptos': f'https://explorer.aptoslabs.com/account/{address}'
         }
         return explorers.get(chain, '#')
 
@@ -1445,6 +2044,21 @@ class MultiChainFetcher:
             'tron': 'https://tronscan.org/#/transaction/',
             'xrp': 'https://xrpscan.com/tx/',
             'dogecoin': 'https://dogechain.info/tx/',
+            'gnosis': 'https://gnosisscan.io/tx/',
+            'celo': 'https://celoscan.io/tx/',
+            'blast': 'https://blastscan.io/tx/',
+            'linea': 'https://lineascan.build/tx/',
+            'polygon_zkevm': 'https://zkevm.polygonscan.com/tx/',
+            'mantle': 'https://explorer.mantle.xyz/tx/',
+            'bob': 'https://explorer.gobob.xyz/tx/',
+            'botanix': 'https://blockscout.botanixlabs.dev/tx/',
+            'galactica': 'https://explorer.galactica.com/tx/',
+            'opbnb': 'https://opbnbscan.com/tx/',
+            'sei': 'https://seitrace.com/tx/',
+            'zksync': 'https://explorer.zksync.io/tx/',
+            'scroll': 'https://scrollscan.com/tx/',
+            'rootstock': 'https://explorer.rootstock.io/tx/',
+            'aptos': 'https://explorer.aptoslabs.com/txn/'
         }
         # Fallback to etherscan
         return explorers.get(chain, 'https://etherscan.io/tx/')

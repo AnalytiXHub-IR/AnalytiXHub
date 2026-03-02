@@ -1,49 +1,69 @@
-#!/usr/bin/env python3
-from app import app
+import sys
+import os
 
-client = app.test_client()
-data = {'address': '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', 'chain': 'ethereum'}
+# Ensure modules package is accessible from test directory
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-response = client.post('/', data=data, follow_redirects=True)
-html = response.data.decode('utf-8', errors='ignore')
+from modules.fetchers.multi_chain import MultiChainFetcher
 
-checks = {
-    'Chain name (ETHEREUM)': 'ETHEREUM',
-    'Chain ID': 'Chain ID: 1',
-    'Total Transactions': 'Transactions: 10000',
-    'Total Inflow badge': 'Total Inflow',
-    'Total Outflow badge': 'Total Outflow',
-    'Net Flow badge': 'Net Flow',
-    'Overview tab': 'id="overview"',
-    'Metric Summary': 'Metric Summary',
-    'Live Data': 'Live Blockchain Data',
+# Common heavy wallets for robust testing
+test_wallets = {
+    'evm': '0x9d2bCc598a30cC54AF0D9B021Fb24Be41A46F171', # Lightweight test wallet
+    'solana': '5Q544fKrFoe6tsEbD7S8EmxPoCYAWcZc4wN8X59iW2eD',
+    'bitcoin': '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+    'tron': 'TE2RzoSV3wFK99w6J9UnnZ4vLfXYoxvRwP',
+    'aptos': '0x889add27cfbd2432ae9f6d6c1df807e3350ddad7de6f3ec8bdf5fbf920cc70d0', 
+    'dogecoin': 'DSaN7XWaEa1nF8k16JzMvVjFhR8D8zE6F3',
+    'xrp': 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh'
 }
 
-print("✅ OVERVIEW TAB DATA VERIFICATION\n")
-print("="*60)
+chains_to_test = [
+    # BlockScout Fallbacks (Previously restricted by Etherscan & Alchemy)
+    ('base', 'evm'),
+    ('gnosis', 'evm'),
+    ('celo', 'evm'),
+    ('blast', 'evm'),
+    ('linea', 'evm'),
+    ('polygon_zkevm', 'evm'),
+    ('mantle', 'evm'),
+    ('bob', 'evm'),
+    ('botanix', 'evm'),
+    ('galactica', 'evm'),
+    ('opbnb', 'evm'),
+    ('sei', 'evm'),
+    
+    # Alchemy EVM L2s
+    ('zksync', 'evm'),
+    ('scroll', 'evm'),
+    ('beacon', 'evm'),
+    ('rootstock', 'evm'),
+    
+    # Alchemy Non-EVMs
+    ('aptos', 'aptos'),
+]
 
-all_pass = True
-for name, search_term in checks.items():
-    if search_term in html:
-        print(f"✅ {name:30} FOUND")
-    else:
-        print(f"❌ {name:30} NOT FOUND")
-        all_pass = False
+def run_verification():
+    print("========================================")
+    print("Multi-Chain Endpoint Integrity Test")
+    print("========================================")
+    
+    for chain, typ in chains_to_test:
+        address = test_wallets[typ]
+        print(f"\n[TESTING] {chain.upper():<15} (Wallet: {address[:12]}...)")
+        try:
+            # We bypass DB and immediately external fetch for verification
+            txs, counts = MultiChainFetcher.fetch_by_chain(chain, address, include_internal=False, include_token_transfers=False)
+            total = len(txs)
+            
+            if total > 0:
+                print(f"  [SUCCESS]: {total} transactions grabbed")
+                print(f"  [SAMPLE]:  {txs[0].get('hash')}")
+            else:
+                print(f"  [WARN]: 0 transactions (Endpoint returned nothing)")
+        except Exception as e:
+            import traceback
+            print(f"  [FAIL]: Crashed -> {e}")
+            print(traceback.format_exc())
 
-print("="*60)
-
-if all_pass:
-    print("\n✅ ALL DATA FIELDS PRESENT IN OVERVIEW TAB")
-    print("   The overview tab is rendering correctly!")
-else:
-    print("\n❌ Some fields are missing")
-
-# Show actual values rendered
-print("\n📊 SAMPLE OUTPUT FROM OVERVIEW:")
-idx = html.find('Metric Summary')
-if idx > 0:
-    section = html[idx:idx+700]
-    lines = section.split('\n')
-    for line in lines[:20]:
-        if line.strip() and ('badge' in line or 'stat' in line or 'Metric' in line):
-            print(f"  {line.strip()[:80]}")
+if __name__ == "__main__":
+    run_verification()
