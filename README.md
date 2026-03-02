@@ -32,6 +32,23 @@ By leveraging advanced machine learning, real-time threat intelligence, and cros
 
 ---
 
+## 🚀 What's New in V5.0
+
+### 1. High-Volume Transaction Optimization
+- **Backend Scaling**: Integrated `bulk_insert_mappings` to process massive address histories (e.g., 60,000+ transactions) near-instantaneously.
+- **Frontend Rendering**: Optimized UI logic to dynamically render the top 500 transactions for a snappy user experience while comprehensively analyzing the full dataset via the backend threat engine.
+
+### 2. Enhanced Solana Forensics
+- **Accurate Flow Attribution**: Revamped the Solscan V2 parsing logic to precisely attribute sender and receiver transaction directions based on underlying balance changes.
+- **Complete Visibility**: Addressed dropping of incoming/outgoing records to ensure 100% accurate representation of complex Solana movements.
+
+### 3. Data Integrity & UI Refinements
+- **Case-Sensitive Forensics**: Guaranteed original address and hash casing is preserved throughout the pipeline (from Fetch to Database to UI) to prevent mismatch errors.
+- **Streamlined API Configuration**: Removed redundant network entries (e.g., duplicates of Worldchain, abstract networks) to provide a cleaner Multi-Chain dropdown array.
+- **Threat Intel Upgrades**: Enhanced investigations with highly accurate rendering of indicators.
+
+---
+
 ## ✨ Key Features
 
 ### 1. **Unified Multi-Chain Dashboard**
