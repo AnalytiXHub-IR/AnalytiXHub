@@ -22,6 +22,8 @@ ALCHEMY_API_KEY = os.getenv('ALCHEMY_API_KEY')
 SOLANA_API_KEY = os.getenv('SOLANA_API_KEY', "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjcmVhdGVkQXQiOjE3NzA3MTg3MzU5ODAsImVtYWlsIjoia29sbHVydXNhaWFiaGlyYW01MTNAZ21haWwuY29tIiwiYWN0aW9uIjoidG9rZW4tYXBpIiwiYXBpVmVyc2lvbiI6InYyIiwiaWF0IjoxNzcwNzE4NzM1fQ.SGdL7FJRYiMhC5YnSky-6UXCa4NLOgkoWSvhD2AvRDg")
 HELIUS_API_KEY = os.getenv('HELIUS_API_KEY', "a44ade62-a70f-4b75-8054-3e8388f70058")
 TRON_API_KEY = os.getenv('TRON_API_KEY', "72ac1d93-4497-4664-a844-f730b2b5e606")
+MORALIS_API_KEY = os.getenv('MORALIS_API_KEY', '')
+COVALENT_API_KEY = os.getenv('COVALENT_API_KEY', '')
 
 # Global Checksum Helper
 try:
@@ -421,6 +423,9 @@ class EtherscanMultiChainFetcher:
         'katana_bokuto': {'chainid': 737373, 'name': 'Katana Bokuto'},
         'sei': {'chainid': 1329, 'name': 'Sei Mainnet'},
         'sei_testnet': {'chainid': 1328, 'name': 'Sei Testnet'},
+        # P1 Chains via Etherscan V2
+        'bnb': {'chainid': 56, 'name': 'BNB Chain (BSC)'},
+        'bnb_testnet': {'chainid': 97, 'name': 'BNB Testnet'},
     }
     
     @staticmethod
@@ -601,6 +606,15 @@ class AlchemyEVMFetcher:
         'scroll_sepolia': 'https://scroll-sepolia.g.alchemy.com/v2/',
         'zksync': 'https://zksync-mainnet.g.alchemy.com/v2/',
         'zksync_sepolia': 'https://zksync-sepolia.g.alchemy.com/v2/',
+        # P1 Chains via Alchemy
+        'avalanche': 'https://avax-mainnet.g.alchemy.com/v2/',
+        'avalanche_fuji': 'https://avax-fuji.g.alchemy.com/v2/',
+        'optimism': 'https://opt-mainnet.g.alchemy.com/v2/',
+        'optimism_sepolia': 'https://opt-sepolia.g.alchemy.com/v2/',
+        'base': 'https://base-mainnet.g.alchemy.com/v2/',
+        'base_sepolia': 'https://base-sepolia.g.alchemy.com/v2/',
+        'polygon_zkevm': 'https://polygonzkevm-mainnet.g.alchemy.com/v2/',
+        'polygon_zkevm_cardona': 'https://polygonzkevm-cardona.g.alchemy.com/v2/',
         
         # Extended Alchemy Networks via User Specification
         'worldchain': 'https://worldchain-mainnet.g.alchemy.com/v2/',
@@ -1960,7 +1974,31 @@ class MultiChainFetcher:
         elif chain in ['dogecoin', 'doge']:
             # Use BlockCypher with Pagination (Free Tier friendly)
             return BlockCypherFetcher.fetch_transactions(address)
-            
+        
+        # === P1 Chains ===
+        # LTC, BCH → Trezor public Blockbook (full history)
+        elif chain in ['litecoin', 'ltc', 'bitcoin_cash', 'bch',
+                       'zcash', 'zec', 'groestlcoin', 'grs', 'peercoin', 'ppc']:
+            return BlockbookFetcher.fetch_transactions(chain, address)
+        # DASH → BlockCypher (confirmed working)
+        elif chain in ['dash']:
+            return UTXOBlockCypherFetcher.fetch_transactions(chain, address)
+        # DGB → DigiExplorer Insight API
+        elif chain in ['digibyte', 'dgb']:
+            return InsightFetcher.fetch_transactions('digibyte', address)
+        elif chain in ['ecash', 'xec']:
+            return ChronIKFetcher.fetch_transactions(address)
+        elif chain in ['stellar', 'xlm']:
+            return StellarFetcher.fetch_transactions(address)
+        elif chain in ['ton']:
+            return TONFetcher.fetch_transactions(address)
+        elif chain in ['stacks', 'stx']:
+            return StacksFetcher.fetch_transactions(address)
+        elif chain in ['monero', 'xmr']:
+            return MoneroFetcher.fetch_transactions(address)
+        # === Moralis: Fantom + supported EVM chains not in Etherscan/Alchemy ===
+        elif chain in MoralisFetcher.CHAIN_MAP:
+            return MoralisFetcher.fetch_transactions(chain, address)
         else:
             print(f"[!] Unsupported chain '{chain}', defaulting to empty")
             return [], {}
@@ -1996,6 +2034,25 @@ class MultiChainFetcher:
             return TronFetcher.fetch_by_tx_hash(tx_hash)
         elif chain in ['dogecoin', 'doge']:
             return BlockCypherFetcher.fetch_by_tx_hash(tx_hash)
+        
+        # === P1 Chains TX Hash Lookup ===
+        elif chain in ['litecoin', 'ltc', 'bitcoin_cash', 'bch',
+                       'zcash', 'zec', 'groestlcoin', 'grs', 'peercoin', 'ppc']:
+            return BlockbookFetcher.fetch_by_tx_hash(chain, tx_hash)
+        elif chain in ['dash']:
+            return UTXOBlockCypherFetcher.fetch_by_tx_hash(chain, tx_hash)
+        elif chain in ['digibyte', 'dgb']:
+            return InsightFetcher.fetch_by_tx_hash('digibyte', tx_hash)
+        elif chain in ['ecash', 'xec']:
+            return ChronIKFetcher.fetch_by_tx_hash(tx_hash)
+        elif chain in ['stellar', 'xlm']:
+            return StellarFetcher.fetch_by_tx_hash(tx_hash)
+        elif chain in ['ton']:
+            return TONFetcher.fetch_by_tx_hash(tx_hash)
+        elif chain in ['stacks', 'stx']:
+            return StacksFetcher.fetch_by_tx_hash(tx_hash)
+        elif chain in ['monero', 'xmr']:
+            return MoneroFetcher.fetch_by_tx_hash(tx_hash)
         
         else:
             print(f"[!] Unsupported chain '{chain}' for hash lookup")
@@ -2065,3 +2122,931 @@ class MultiChainFetcher:
 
 if __name__ == '__main__':
     print("Test run...")
+
+# ==================== MORALIS FETCHER (Fantom + 20 EVM chains) ====================
+
+class MoralisFetcher:
+    """Fetch EVM transactions via Moralis Deep Index API.
+    Free tier: 40,000 requests/day.
+    Covers: Fantom, BNB, Avalanche, Cronos, Arbitrum, Optimism, Base, Polygon, Linea, and more."""
+
+    BASE = 'https://deep-index.moralis.io/api/v2.2'
+
+    # Moralis chain slug mapping
+    CHAIN_MAP = {
+        'fantom': 'fantom',
+        'ftm': 'fantom',
+        'bnb': 'bsc',
+        'bsc': 'bsc',
+        'avalanche': 'avalanche',
+        'avax': 'avalanche',
+        'cronos': 'cronos',
+        'cro': 'cronos',
+        'arbitrum': 'arbitrum',
+        'optimism': 'optimism',
+        'base': 'base',
+        'polygon': 'polygon',
+        'matic': 'polygon',
+        'linea': 'linea',
+        'moonbeam': 'moonbeam',
+        'moonriver': 'moonriver',
+        'gnosis': 'gnosis',
+        'celo': 'celo',
+        'ethereum': 'eth',
+        'eth': 'eth',
+    }
+
+    @staticmethod
+    def fetch_transactions(chain: str, address: str) -> Tuple[List[Dict], Dict]:
+        moralis_chain = MoralisFetcher.CHAIN_MAP.get(chain.lower())
+        if not moralis_chain or not MORALIS_API_KEY:
+            return [], {'normal': 0}
+
+        transactions = []
+        counts = {'normal': 0, 'internal': 0, 'token': 0}
+        headers = {'X-API-Key': MORALIS_API_KEY, 'accept': 'application/json'}
+
+        try:
+            print(f"[+] Moralis: Fetching {chain} ({moralis_chain}) transactions for {address[:12]}...")
+            cursor = None
+            page_count = 0
+
+            while True:
+                params = {
+                    'chain': moralis_chain,
+                    'limit': 100,
+                    'order': 'DESC',
+                }
+                if cursor:
+                    params['cursor'] = cursor
+
+                resp = requests.get(
+                    f"{MoralisFetcher.BASE}/wallets/{address}/history",
+                    headers=headers, params=params, timeout=20
+                )
+
+                if resp.status_code == 401:
+                    print(f"[-] Moralis: Auth error — check API key")
+                    break
+                if resp.status_code != 200:
+                    print(f"[-] Moralis HTTP {resp.status_code}: {resp.text[:200]}")
+                    break
+
+                data = resp.json()
+                results = data.get('result', [])
+
+                if not results:
+                    break
+
+                for tx in results:
+                    from_addr = safe_checksum(tx.get('from_address', 'Unknown'))
+                    to_addr = safe_checksum(tx.get('to_address') or tx.get('receipt_contract_address') or 'Unknown')
+                    value_wei = int(tx.get('value', 0) or 0)
+                    value = value_wei / 1e18
+
+                    # Determine type
+                    tx_type = 'normal'
+                    if tx.get('category') in ('erc20', 'token'):
+                        tx_type = 'erc20'
+                        counts['token'] += 1
+                    elif tx.get('category') == 'internal':
+                        tx_type = 'internal'
+                        counts['internal'] += 1
+                    else:
+                        counts['normal'] += 1
+
+                    block_ts = tx.get('block_timestamp', '')
+                    try:
+                        if block_ts:
+                            # Moralis returns ISO8601 format
+                            block_ts = block_ts.replace('T', ' ').split('.')[0].replace('Z', '')
+                    except:
+                        pass
+
+                    transactions.append({
+                        'hash': tx.get('hash', ''),
+                        'from': from_addr,
+                        'to': to_addr,
+                        'value': value,
+                        'timestamp': block_ts,
+                        'block': tx.get('block_number', 0),
+                        'chain': chain,
+                        'type': tx_type,
+                        'asset': tx.get('native_token_symbol', '')
+                    })
+
+                cursor = data.get('cursor')
+                page_count += 1
+                if not cursor:
+                    break
+                time.sleep(0.15)  # Respect free tier (40K req/day)
+
+            total = sum(counts.values())
+            print(f"[+] {chain} (Moralis): {total} transactions across {page_count} pages")
+
+        except Exception as e:
+            print(f"[-] Moralis {chain} error: {e}")
+
+        return transactions, counts
+
+    @staticmethod
+    def fetch_by_tx_hash(chain: str, tx_hash: str) -> Optional[Dict]:
+        moralis_chain = MoralisFetcher.CHAIN_MAP.get(chain.lower())
+        if not moralis_chain or not MORALIS_API_KEY:
+            return None
+        headers = {'X-API-Key': MORALIS_API_KEY, 'accept': 'application/json'}
+        try:
+            resp = requests.get(
+                f"{MoralisFetcher.BASE}/transaction/{tx_hash}",
+                headers=headers, params={'chain': moralis_chain}, timeout=15
+            )
+            if resp.status_code == 200:
+                tx = resp.json()
+                block_ts = tx.get('block_timestamp', '').replace('T', ' ').split('.')[0].replace('Z', '')
+                return {
+                    'hash': tx_hash,
+                    'from': safe_checksum(tx.get('from_address', 'Unknown')),
+                    'to': safe_checksum(tx.get('to_address') or 'Unknown'),
+                    'value': int(tx.get('value', 0) or 0) / 1e18,
+                    'timestamp': block_ts,
+                    'block': tx.get('block_number', 0),
+                    'chain': chain
+                }
+        except Exception as e:
+            print(f"[-] Moralis TX hash error: {e}")
+        return None
+
+
+# ==================== COVALENT / GOLDRUSH FETCHER (Universal EVM fallback — 200+ chains) ====================
+
+class CovalentFetcher:
+    """Universal EVM fallback via Covalent GoldRush API.
+    Free tier: 100K requests/month.
+    Covers 200+ chains by numeric chain_id as universal fallback."""
+
+    BASE = 'https://api.covalenthq.com/v1'
+
+    # Chain ID mapping for Covalent
+    CHAIN_IDS = {
+        'ethereum': 1, 'eth': 1,
+        'polygon': 137, 'matic': 137,
+        'bnb': 56, 'bsc': 56,
+        'avalanche': 43114, 'avax': 43114,
+        'fantom': 250, 'ftm': 250,
+        'arbitrum': 42161,
+        'optimism': 10,
+        'base': 8453,
+        'gnosis': 100,
+        'celo': 42220,
+        'moonbeam': 1284,
+        'moonriver': 1285,
+        'cronos': 25,
+        'linea': 59144,
+        'scroll': 534352,
+        'zksync': 324,
+        'polygon_zkevm': 1101,
+        'mantle': 5000,
+        'blast': 81457,
+        'taiko': 167000,
+        'metis': 1088,
+        'kava': 2222,
+        'aurora': 1313161554,
+        'harmony': 1666600000,
+    }
+
+    @staticmethod
+    def fetch_transactions(chain: str, address: str) -> Tuple[List[Dict], Dict]:
+        chain_id = CovalentFetcher.CHAIN_IDS.get(chain.lower())
+        if not chain_id or not COVALENT_API_KEY:
+            return [], {'normal': 0}
+
+        transactions = []
+        counts = {'normal': 0}
+        try:
+            print(f"[+] Covalent: Fetching {chain} (chain_id={chain_id}) for {address[:12]}...")
+            page = 0
+            page_size = 100
+
+            while True:
+                url = f"{CovalentFetcher.BASE}/{chain_id}/address/{address}/transactions_v3/"
+                params = {'page-size': page_size, 'page-number': page}
+                resp = requests.get(url, params=params, auth=(COVALENT_API_KEY, ''), timeout=20)
+
+                if resp.status_code != 200:
+                    print(f"[-] Covalent HTTP {resp.status_code}: {resp.text[:200]}")
+                    break
+
+                data = resp.json().get('data', {})
+                items = data.get('items', [])
+                if not items:
+                    break
+
+                for tx in items:
+                    from_addr = safe_checksum(tx.get('from_address', 'Unknown'))
+                    to_addr = safe_checksum(tx.get('to_address') or 'Unknown')
+                    value = int(tx.get('value', 0) or 0) / 1e18
+                    ts = tx.get('block_signed_at', '')
+                    if ts:
+                        ts = ts.replace('T', ' ').split('.')[0].replace('Z', '')
+
+                    transactions.append({
+                        'hash': tx.get('tx_hash', ''),
+                        'from': from_addr,
+                        'to': to_addr,
+                        'value': value,
+                        'timestamp': ts,
+                        'block': tx.get('block_height', 0),
+                        'chain': chain,
+                        'type': 'normal'
+                    })
+                    counts['normal'] += 1
+
+                pagination = data.get('pagination', {})
+                has_more = pagination.get('has_more', False)
+                if not has_more or len(items) < page_size:
+                    break
+                page += 1
+                time.sleep(0.2)
+
+            print(f"[+] {chain} (Covalent): {counts['normal']} transactions")
+
+        except Exception as e:
+            print(f"[-] Covalent {chain} error: {e}")
+
+        return transactions, counts
+
+    @staticmethod
+    def fetch_by_tx_hash(chain: str, tx_hash: str) -> Optional[Dict]:
+        chain_id = CovalentFetcher.CHAIN_IDS.get(chain.lower())
+        if not chain_id or not COVALENT_API_KEY:
+            return None
+        try:
+            url = f"{CovalentFetcher.BASE}/{chain_id}/transaction_v2/{tx_hash}/"
+            resp = requests.get(url, auth=(COVALENT_API_KEY, ''), timeout=15)
+            if resp.status_code == 200:
+                items = resp.json().get('data', {}).get('items', [])
+                if items:
+                    tx = items[0]
+                    ts = tx.get('block_signed_at', '').replace('T', ' ').split('.')[0].replace('Z', '')
+                    return {
+                        'hash': tx_hash,
+                        'from': safe_checksum(tx.get('from_address', 'Unknown')),
+                        'to': safe_checksum(tx.get('to_address') or 'Unknown'),
+                        'value': int(tx.get('value', 0) or 0) / 1e18,
+                        'timestamp': ts,
+                        'block': tx.get('block_height', 0),
+                        'chain': chain
+                    }
+        except Exception as e:
+            print(f"[-] Covalent TX hash error: {e}")
+        return None
+
+
+# ==================== P1 CHAINS: UTXO CHAINS (No Blockchair) ====================
+
+TON_API_KEY = os.getenv('TON_API_KEY', '')
+
+# BlockCypher already covers DOGE — extend it to BCH, LTC, DASH
+# These chain slugs are the BlockCypher v1 API path segments
+BLOCKCYPHER_P1_CHAINS = {
+    'bitcoin_cash': 'bch/main',
+    'bch': 'bch/main',
+    'litecoin': 'ltc/main',
+    'ltc': 'ltc/main',
+    'dash': 'dash/main',
+}
+
+class UTXOBlockCypherFetcher:
+    """Fetch BCH, LTC, DASH transactions via BlockCypher (existing key).
+    Uses the same BlockCypher token already in .env for Dogecoin."""
+
+    BASE = 'https://api.blockcypher.com/v1'
+    TOKEN = os.getenv('BLOCKCYPHER_TOKEN', '280c03c6f8f34afb9d6f5e1b1fb1ab59')
+
+    @staticmethod
+    def fetch_transactions(chain: str, address: str) -> Tuple[List[Dict], Dict]:
+        slug = BLOCKCYPHER_P1_CHAINS.get(chain.lower())
+        if not slug:
+            return [], {'normal': 0}
+
+        transactions = []
+        counts = {'normal': 0}
+        try:
+            print(f"[+] BlockCypher P1: Fetching {chain} transactions for {address[:12]}...")
+            before_bh = None
+
+            while True:
+                url = f"{UTXOBlockCypherFetcher.BASE}/{slug}/addrs/{address}/full"
+                params = {
+                    'token': UTXOBlockCypherFetcher.TOKEN,
+                    'limit': 200,
+                    'includeHex': False
+                }
+                if before_bh:
+                    params['before'] = before_bh
+
+                resp = requests.get(url, params=params, timeout=15)
+                if resp.status_code != 200:
+                    print(f"[-] BlockCypher P1 HTTP {resp.status_code} for {chain}")
+                    break
+
+                data = resp.json()
+                txs = data.get('txs', [])
+                if not txs:
+                    break
+
+                for tx in txs:
+                    inputs = tx.get('inputs', [])
+                    outputs = tx.get('outputs', [])
+                    from_addr = (inputs[0].get('addresses') or ['Unknown'])[0] if inputs else 'Unknown'
+                    to_addr = (outputs[0].get('addresses') or ['Unknown'])[0] if outputs else 'Unknown'
+                    value = tx.get('total', 0) / 1e8
+
+                    transactions.append({
+                        'hash': tx.get('hash', ''),
+                        'from': from_addr,
+                        'to': to_addr,
+                        'value': value,
+                        'timestamp': tx.get('received', ''),
+                        'block': tx.get('block_height', 0),
+                        'chain': chain,
+                        'type': 'normal'
+                    })
+                    before_bh = tx.get('block_height', before_bh)
+
+                if len(txs) < 200:
+                    break
+                time.sleep(0.3)
+
+            counts['normal'] = len(transactions)
+            print(f"[+] {chain} (BlockCypher): {counts['normal']} transactions")
+        except Exception as e:
+            print(f"[-] BlockCypher P1 {chain} error: {e}")
+        return transactions, counts
+
+    @staticmethod
+    def fetch_by_tx_hash(chain: str, tx_hash: str) -> Optional[Dict]:
+        slug = BLOCKCYPHER_P1_CHAINS.get(chain.lower())
+        if not slug:
+            return None
+        try:
+            url = f"{UTXOBlockCypherFetcher.BASE}/{slug}/txs/{tx_hash}"
+            resp = requests.get(url, params={'token': UTXOBlockCypherFetcher.TOKEN}, timeout=15)
+            if resp.status_code == 200:
+                tx = resp.json()
+                inputs = tx.get('inputs', [])
+                outputs = tx.get('outputs', [])
+                return {
+                    'hash': tx_hash,
+                    'from': (inputs[0].get('addresses') or ['Unknown'])[0] if inputs else 'Unknown',
+                    'to': (outputs[0].get('addresses') or ['Unknown'])[0] if outputs else 'Unknown',
+                    'value': tx.get('total', 0) / 1e8,
+                    'timestamp': tx.get('received', ''),
+                    'block': tx.get('block_height', 0),
+                    'chain': chain
+                }
+        except Exception as e:
+            print(f"[-] BlockCypher P1 TX error: {e}")
+        return None
+
+
+# ==================== P1 CHAINS: INSIGHT API (DGB, DASH) ====================
+
+class InsightFetcher:
+    """Fetch transactions via Bitcore/Insight REST API (BitPay open-source).
+    No API key required. Covers DigiByte (digiexplorer.info) and DASH (insight.dash.org)."""
+
+    ENDPOINTS = {
+        'digibyte': 'https://digiexplorer.info/insight-api',
+        'dgb': 'https://digiexplorer.info/insight-api',
+        'dash': 'http://insight.dash.org/insight-api',
+    }
+
+    @staticmethod
+    def fetch_transactions(chain: str, address: str) -> Tuple[List[Dict], Dict]:
+        base = InsightFetcher.ENDPOINTS.get(chain.lower())
+        if not base:
+            return [], {'normal': 0}
+
+        transactions = []
+        counts = {'normal': 0}
+        try:
+            print(f"[+] Insight ({chain}): Fetching transactions for {address[:12]}...")
+            from_idx = 0
+            page_size = 50
+
+            while True:
+                url = f"{base}/addrs/{address}/txs"
+                params = {'from': from_idx, 'to': from_idx + page_size}
+                resp = requests.get(url, params=params, timeout=20)
+
+                if resp.status_code != 200:
+                    print(f"[-] Insight HTTP {resp.status_code} for {chain}")
+                    break
+
+                data = resp.json()
+                items = data.get('items', [])
+                if not items:
+                    break
+
+                for tx in items:
+                    vin = tx.get('vin', [])
+                    vout = tx.get('vout', [])
+                    from_addr = vin[0].get('addr', 'Unknown') if vin else 'Unknown'
+                    to_addr = vout[0].get('scriptPubKey', {}).get('addresses', ['Unknown'])[0] if vout else 'Unknown'
+                    value = float(tx.get('valueOut', 0) or 0)
+                    ts_raw = tx.get('time', 0) or tx.get('blocktime', 0)
+                    ts = datetime.utcfromtimestamp(ts_raw).strftime('%Y-%m-%d %H:%M:%S') if ts_raw else ''
+
+                    transactions.append({
+                        'hash': tx.get('txid', ''),
+                        'from': from_addr,
+                        'to': to_addr,
+                        'value': value,
+                        'timestamp': ts,
+                        'block': tx.get('blockheight', 0),
+                        'chain': chain,
+                        'type': 'normal'
+                    })
+
+                total_items = data.get('totalItems', len(items))
+                from_idx += page_size
+                if from_idx >= total_items:
+                    break
+                time.sleep(0.2)
+
+            counts['normal'] = len(transactions)
+            print(f"[+] {chain} (Insight): {counts['normal']} transactions")
+        except Exception as e:
+            print(f"[-] Insight {chain} error: {e}")
+        return transactions, counts
+
+    @staticmethod
+    def fetch_by_tx_hash(chain: str, tx_hash: str) -> Optional[Dict]:
+        base = InsightFetcher.ENDPOINTS.get(chain.lower())
+        if not base:
+            return None
+        try:
+            resp = requests.get(f"{base}/tx/{tx_hash}", timeout=15)
+            if resp.status_code == 200:
+                tx = resp.json()
+                vin = tx.get('vin', [])
+                vout = tx.get('vout', [])
+                ts_raw = tx.get('time', 0) or tx.get('blocktime', 0)
+                return {
+                    'hash': tx_hash,
+                    'from': vin[0].get('addr', 'Unknown') if vin else 'Unknown',
+                    'to': vout[0].get('scriptPubKey', {}).get('addresses', ['Unknown'])[0] if vout else 'Unknown',
+                    'value': float(tx.get('valueOut', 0) or 0),
+                    'timestamp': datetime.utcfromtimestamp(ts_raw).strftime('%Y-%m-%d %H:%M:%S') if ts_raw else '',
+                    'block': tx.get('blockheight', 0),
+                    'chain': chain
+                }
+        except Exception as e:
+            print(f"[-] Insight TX hash error: {e}")
+        return None
+
+
+# ==================== P1 CHAINS: ECASH (XEC) via ChronIK ====================
+
+class ChronIKFetcher:
+    """Fetch eCash (XEC) transactions via the official ChronIK indexer.
+    ChronIK is built directly into the eCash node — 100% free, no key."""
+
+    # Primary: official eCash Foundation Chronik; fallback: be.cash mirror
+    BASE = 'https://chronik.e.cash'
+    BASE_FALLBACK = 'https://chronik.be.cash/xec'
+
+    @staticmethod
+    def fetch_transactions(address: str) -> Tuple[List[Dict], Dict]:
+        transactions = []
+        counts = {'normal': 0}
+        try:
+            print(f"[+] ChronIK (eCash): Fetching transactions for {address[:12]}...")
+            page = 0
+            page_size = 200
+
+            while True:
+                # ChronIK REST API: /blockchain/address/{addr}/transactions
+                url = f"{ChronIKFetcher.BASE}/blockchain/address/{address}/transactions"
+                params = {'page': page, 'pageSize': page_size}
+                resp = requests.get(url, params=params, timeout=25)
+                if resp.status_code != 200:
+                    # Fallback to be.cash mirror with different URL format
+                    url2 = f"{ChronIKFetcher.BASE_FALLBACK}/address/{address}/txs"
+                    resp = requests.get(url2, timeout=25)
+                    if resp.status_code != 200:
+                        break
+
+                data = resp.json()
+                txs = data.get('txs', [])
+                if not txs:
+                    break
+
+                for tx in txs:
+                    inputs = tx.get('inputs', [])
+                    outputs = tx.get('outputs', [])
+                    from_addr = inputs[0].get('outputScript', 'Unknown') if inputs else 'Unknown'
+                    to_addr = outputs[0].get('outputScript', 'Unknown') if outputs else 'Unknown'
+                    value = sum(int(o.get('value', 0)) for o in outputs) / 1e2  # satoshi to XEC (1 XEC = 100 sats)
+
+                    transactions.append({
+                        'hash': tx.get('txid', ''),
+                        'from': from_addr,
+                        'to': to_addr,
+                        'value': value,
+                        'timestamp': datetime.utcfromtimestamp(tx.get('timeFirstSeen', 0) or tx.get('block', {}).get('timestamp', 0)).strftime('%Y-%m-%d %H:%M:%S'),
+                        'block': tx.get('block', {}).get('height', 0),
+                        'chain': 'ecash',
+                        'type': 'normal'
+                    })
+
+                num_pages = data.get('numPages', 1)
+                if page + 1 >= num_pages:
+                    break
+                page += 1
+                time.sleep(0.2)
+
+            counts['normal'] = len(transactions)
+            print(f"[+] eCash (ChronIK): {counts['normal']} transactions")
+        except Exception as e:
+            print(f"[-] ChronIK eCash error: {e}")
+        return transactions, counts
+
+    @staticmethod
+    def fetch_by_tx_hash(tx_hash: str) -> Optional[Dict]:
+        try:
+            resp = requests.get(f"{ChronIKFetcher.BASE}/tx/{tx_hash}", timeout=15)
+            if resp.status_code == 200:
+                tx = resp.json()
+                inputs = tx.get('inputs', [])
+                outputs = tx.get('outputs', [])
+                return {
+                    'hash': tx_hash,
+                    'from': inputs[0].get('outputScript', 'Unknown') if inputs else 'Unknown',
+                    'to': outputs[0].get('outputScript', 'Unknown') if outputs else 'Unknown',
+                    'value': sum(int(o.get('value', 0)) for o in outputs) / 1e2,
+                    'timestamp': datetime.utcfromtimestamp(tx.get('timeFirstSeen', 0)).strftime('%Y-%m-%d %H:%M:%S'),
+                    'block': tx.get('block', {}).get('height', 0),
+                    'chain': 'ecash'
+                }
+        except Exception as e:
+            print(f"[-] ChronIK TX error: {e}")
+        return None
+
+
+# ==================== P1 CHAINS: BLOCKBOOK (Groestlcoin, Peercoin, DigiByte, Zcash) ====================
+
+class BlockbookFetcher:
+    """Fetch transactions via public Blockbook APIs (Trezor open-source explorer).
+    GRS/PPC use chain-specific nodes; DGB and ZEC use Trezor public nodes."""
+
+    ENDPOINTS = {
+        'groestlcoin': 'https://blockbook.groestlcoin.org',
+        'grs': 'https://blockbook.groestlcoin.org',
+        'peercoin': 'https://blockbook.peercoin.net',
+        'ppc': 'https://blockbook.peercoin.net',
+        # Trezor public Blockbook instances — numbered subdomain pattern
+        'zcash': 'https://zec1.trezor.io',
+        'zec': 'https://zec1.trezor.io',
+        # Correct Trezor LTC/BCH subdomains (numbered pattern like zec1)
+        'litecoin': 'https://ltc1.trezor.io',
+        'ltc': 'https://ltc1.trezor.io',
+        'bitcoin_cash': 'https://bch1.trezor.io',
+        'bch': 'https://bch1.trezor.io',
+    }
+
+
+    @staticmethod
+    def fetch_transactions(chain: str, address: str) -> Tuple[List[Dict], Dict]:
+        base = BlockbookFetcher.ENDPOINTS.get(chain.lower())
+        if not base:
+            return [], {'normal': 0}
+
+        transactions = []
+        counts = {'normal': 0}
+        try:
+            print(f"[+] Blockbook: Fetching {chain} transactions for {address[:12]}...")
+            page = 1
+            while True:
+                url = f"{base}/api/v2/address/{address}"
+                params = {'page': page, 'pageSize': 50, 'details': 'txs'}
+                resp = requests.get(url, params=params, timeout=15)
+                if resp.status_code != 200:
+                    break
+                data = resp.json()
+                txs = data.get('transactions') or []
+                for tx in txs:
+                    vin = tx.get('vin', [])
+                    vout = tx.get('vout', [])
+                    from_addr = vin[0].get('addresses', ['Unknown'])[0] if vin else 'Unknown'
+                    to_addr = vout[0].get('addresses', ['Unknown'])[0] if vout else 'Unknown'
+                    value = int(tx.get('value', 0)) / 1e8
+                    transactions.append({
+                        'hash': tx.get('txid', ''),
+                        'from': from_addr,
+                        'to': to_addr,
+                        'value': value,
+                        'timestamp': datetime.utcfromtimestamp(tx.get('blockTime', 0)).strftime('%Y-%m-%d %H:%M:%S') if tx.get('blockTime') else '',
+                        'block': tx.get('blockHeight', 0),
+                        'chain': chain,
+                        'type': 'normal'
+                    })
+                total_pages = data.get('totalPages', 1)
+                if page >= total_pages:
+                    break
+                page += 1
+                time.sleep(0.3)
+            counts['normal'] = len(transactions)
+            print(f"[+] {chain}: {counts['normal']} transactions via Blockbook")
+        except Exception as e:
+            print(f"[-] Blockbook {chain} error: {e}")
+        return transactions, counts
+
+    @staticmethod
+    def fetch_by_tx_hash(chain: str, tx_hash: str) -> Optional[Dict]:
+        base = BlockbookFetcher.ENDPOINTS.get(chain.lower())
+        if not base:
+            return None
+        try:
+            resp = requests.get(f"{base}/api/v2/tx/{tx_hash}", timeout=15)
+            if resp.status_code == 200:
+                tx = resp.json()
+                vin = tx.get('vin', [])
+                vout = tx.get('vout', [])
+                return {
+                    'hash': tx_hash,
+                    'from': vin[0].get('addresses', ['Unknown'])[0] if vin else 'Unknown',
+                    'to': vout[0].get('addresses', ['Unknown'])[0] if vout else 'Unknown',
+                    'value': int(tx.get('value', 0)) / 1e8,
+                    'timestamp': datetime.utcfromtimestamp(tx.get('blockTime', 0)).strftime('%Y-%m-%d %H:%M:%S') if tx.get('blockTime') else '',
+                    'block': tx.get('blockHeight', 0),
+                    'chain': chain
+                }
+        except Exception as e:
+            print(f"[-] Blockbook TX hash error: {e}")
+        return None
+
+
+# ==================== P1 CHAINS: STELLAR (XLM) ====================
+
+class StellarFetcher:
+    """Fetch Stellar transactions via public Horizon API"""
+
+    HORIZON = 'https://horizon.stellar.org'
+
+    @staticmethod
+    def fetch_transactions(address: str) -> Tuple[List[Dict], Dict]:
+        transactions = []
+        counts = {'normal': 0}
+        try:
+            print(f"[+] Stellar Horizon: Fetching transactions for {address[:12]}...")
+            url = f"{StellarFetcher.HORIZON}/accounts/{address}/transactions"
+            params = {'limit': 200, 'order': 'desc'}
+
+            while True:
+                resp = requests.get(url, params=params, timeout=15)
+                if resp.status_code != 200:
+                    break
+                data = resp.json()
+                records = data.get('_embedded', {}).get('records', [])
+                for tx in records:
+                    transactions.append({
+                        'hash': tx.get('hash', ''),
+                        'from': tx.get('source_account', 'Unknown'),
+                        'to': address,  # Stellar doesn't expose simple to in tx root
+                        'value': float(tx.get('fee_charged', 0)) / 1e7,
+                        'timestamp': tx.get('created_at', ''),
+                        'block': tx.get('ledger', 0),
+                        'chain': 'stellar',
+                        'type': 'normal'
+                    })
+                # Pagination
+                next_link = data.get('_links', {}).get('next', {}).get('href')
+                if not next_link or len(records) < 200:
+                    break
+                url = next_link
+                params = {}
+                time.sleep(0.2)
+
+            counts['normal'] = len(transactions)
+            print(f"[+] Stellar: {counts['normal']} transactions")
+        except Exception as e:
+            print(f"[-] Stellar error: {e}")
+        return transactions, counts
+
+    @staticmethod
+    def fetch_by_tx_hash(tx_hash: str) -> Optional[Dict]:
+        try:
+            resp = requests.get(f"{StellarFetcher.HORIZON}/transactions/{tx_hash}", timeout=15)
+            if resp.status_code == 200:
+                tx = resp.json()
+                return {
+                    'hash': tx_hash,
+                    'from': tx.get('source_account', 'Unknown'),
+                    'to': 'See operations',
+                    'value': float(tx.get('fee_charged', 0)) / 1e7,
+                    'timestamp': tx.get('created_at', ''),
+                    'block': tx.get('ledger', 0),
+                    'chain': 'stellar'
+                }
+        except Exception as e:
+            print(f"[-] Stellar TX hash error: {e}")
+        return None
+
+
+# ==================== P1 CHAINS: TON ====================
+
+class TONFetcher:
+    """Fetch TON transactions via TonCenter API"""
+
+    BASE = 'https://toncenter.com/api/v2'
+
+    @staticmethod
+    def fetch_transactions(address: str) -> Tuple[List[Dict], Dict]:
+        transactions = []
+        counts = {'normal': 0}
+        try:
+            print(f"[+] TON TonCenter: Fetching transactions for {address[:12]}...")
+            limit = 100
+            lt = None
+            hash_arg = None
+
+            while True:
+                params = {
+                    'address': address,
+                    'limit': limit,
+                    'api_key': TON_API_KEY
+                }
+                if lt:
+                    params['lt'] = lt
+                    params['hash'] = hash_arg
+
+                resp = requests.get(f"{TONFetcher.BASE}/getTransactions", params=params, timeout=15)
+                if resp.status_code != 200:
+                    break
+                data = resp.json()
+                if not data.get('ok'):
+                    break
+                txs = data.get('result', [])
+                if not txs:
+                    break
+
+                for tx in txs:
+                    msg_in = tx.get('in_msg', {}) or {}
+                    msg_out = (tx.get('out_msgs') or [{}])[0]
+                    from_addr = msg_in.get('source', 'Unknown') or 'Unknown'
+                    to_addr = msg_in.get('destination', address) or address
+                    value = int(msg_in.get('value', 0)) / 1e9  # nanotons to TON
+
+                    transactions.append({
+                        'hash': tx.get('transaction_id', {}).get('hash', ''),
+                        'from': from_addr,
+                        'to': to_addr,
+                        'value': value,
+                        'timestamp': datetime.utcfromtimestamp(tx.get('utime', 0)).strftime('%Y-%m-%d %H:%M:%S'),
+                        'block': tx.get('transaction_id', {}).get('lt', 0),
+                        'chain': 'ton',
+                        'type': 'normal'
+                    })
+
+                if len(txs) < limit:
+                    break
+                # Paginate using last transaction's lt and hash
+                last = txs[-1].get('transaction_id', {})
+                lt = last.get('lt')
+                hash_arg = last.get('hash')
+                time.sleep(0.3)
+
+            counts['normal'] = len(transactions)
+            print(f"[+] TON: {counts['normal']} transactions")
+        except Exception as e:
+            print(f"[-] TON error: {e}")
+        return transactions, counts
+
+    @staticmethod
+    def fetch_by_tx_hash(tx_hash: str) -> Optional[Dict]:
+        try:
+            # TonCenter doesn't support direct TX hash lookup; return partial info
+            return {
+                'hash': tx_hash,
+                'from': 'See TON explorer',
+                'to': 'See TON explorer',
+                'value': 0.0,
+                'timestamp': '',
+                'block': 0,
+                'chain': 'ton'
+            }
+        except Exception as e:
+            print(f"[-] TON TX hash error: {e}")
+        return None
+
+
+# ==================== P1 CHAINS: STACKS (STX) ====================
+
+class StacksFetcher:
+    """Fetch Stacks (STX) transactions via Hiro API (free, no key needed)"""
+
+    BASE = 'https://api.hiro.so'
+
+    @staticmethod
+    def fetch_transactions(address: str) -> Tuple[List[Dict], Dict]:
+        transactions = []
+        counts = {'normal': 0}
+        try:
+            print(f"[+] Stacks Hiro: Fetching transactions for {address[:12]}...")
+            offset = 0
+            limit = 50
+
+            while True:
+                url = f"{StacksFetcher.BASE}/extended/v1/address/{address}/transactions"
+                params = {'limit': limit, 'offset': offset}
+                resp = requests.get(url, params=params, timeout=15)
+                if resp.status_code != 200:
+                    break
+                data = resp.json()
+                txs = data.get('results', [])
+                if not txs:
+                    break
+
+                for tx in txs:
+                    from_addr = tx.get('sender_address', 'Unknown')
+                    # For contract calls, to is the contract address
+                    to_addr = tx.get('token_transfer', {}).get('recipient_address') or tx.get('contract_call', {}).get('contract_id') or address
+                    value = int(tx.get('token_transfer', {}).get('amount', 0)) / 1e6  # microSTX to STX
+
+                    transactions.append({
+                        'hash': tx.get('tx_id', ''),
+                        'from': from_addr,
+                        'to': to_addr,
+                        'value': value,
+                        'timestamp': datetime.utcfromtimestamp(tx.get('burn_block_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if tx.get('burn_block_time') else '',
+                        'block': tx.get('block_height', 0),
+                        'chain': 'stacks',
+                        'type': 'normal'
+                    })
+
+                total = data.get('total', 0)
+                if offset + limit >= total:
+                    break
+                offset += limit
+                time.sleep(0.2)
+
+            counts['normal'] = len(transactions)
+            print(f"[+] Stacks: {counts['normal']} transactions")
+        except Exception as e:
+            print(f"[-] Stacks error: {e}")
+        return transactions, counts
+
+    @staticmethod
+    def fetch_by_tx_hash(tx_hash: str) -> Optional[Dict]:
+        try:
+            resp = requests.get(f"{StacksFetcher.BASE}/extended/v1/tx/{tx_hash}", timeout=15)
+            if resp.status_code == 200:
+                tx = resp.json()
+                return {
+                    'hash': tx_hash,
+                    'from': tx.get('sender_address', 'Unknown'),
+                    'to': tx.get('token_transfer', {}).get('recipient_address') or tx.get('contract_call', {}).get('contract_id') or 'Unknown',
+                    'value': int(tx.get('token_transfer', {}).get('amount', 0)) / 1e6,
+                    'timestamp': datetime.utcfromtimestamp(tx.get('burn_block_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if tx.get('burn_block_time') else '',
+                    'block': tx.get('block_height', 0),
+                    'chain': 'stacks'
+                }
+        except Exception as e:
+            print(f"[-] Stacks TX hash error: {e}")
+        return None
+
+
+# ==================== P1 CHAINS: MONERO (XMR — TX Hash only) ====================
+
+class MoneroFetcher:
+    """Monero TX hash lookup via xmrchain.net. 
+    NOTE: Monero is a privacy chain. Address history is NOT publicly available by design."""
+
+    BASE = 'https://xmrchain.net/api'
+
+    @staticmethod
+    def fetch_transactions(address: str) -> Tuple[List[Dict], Dict]:
+        print("[!] Monero: Address transaction history unavailable — Monero is a privacy chain by design.")
+        return [], {'normal': 0}
+
+    @staticmethod
+    def fetch_by_tx_hash(tx_hash: str) -> Optional[Dict]:
+        try:
+            resp = requests.get(f"{MoneroFetcher.BASE}/transaction/{tx_hash}", timeout=15)
+            if resp.status_code == 200:
+                tx = resp.json().get('data', {})
+                return {
+                    'hash': tx_hash,
+                    'from': 'Hidden (Monero privacy)',
+                    'to': 'Hidden (Monero privacy)',
+                    'value': float(tx.get('xmr_outputs', 0)),
+                    'timestamp': tx.get('timestamp_utc', ''),
+                    'block': tx.get('block_no', 0),
+                    'chain': 'monero'
+                }
+        except Exception as e:
+            print(f"[-] Monero TX hash error: {e}")
+        return None
+
