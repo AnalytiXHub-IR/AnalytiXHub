@@ -423,9 +423,6 @@ class EtherscanMultiChainFetcher:
         'katana_bokuto': {'chainid': 737373, 'name': 'Katana Bokuto'},
         'sei': {'chainid': 1329, 'name': 'Sei Mainnet'},
         'sei_testnet': {'chainid': 1328, 'name': 'Sei Testnet'},
-        # P1 Chains via Etherscan V2
-        'bnb': {'chainid': 56, 'name': 'BNB Chain (BSC)'},
-        'bnb_testnet': {'chainid': 97, 'name': 'BNB Testnet'},
     }
     
     @staticmethod
@@ -591,6 +588,53 @@ class EtherscanMultiChainFetcher:
          print(f"[+] Proxying Etherscan TxHash to BlockScout...")
          return BlockScoutFetcher.fetch_by_tx_hash(chain, tx_hash)
 
+# ==================== ROUTESCAN API (Avalanche Fallback) ====================
+
+class RoutescanFetcher:
+    """Fetch transactions for specific networks via api.routescan.io (Etherscan V1 compatible)"""
+    
+    @staticmethod
+    def fetch_transactions(chain: str, address: str) -> Tuple[List[Dict], Dict]:
+        transactions = []
+        counts = {'normal': 0}
+        
+        try:
+            print(f"[+] Fetching {chain} via Routescan...")
+            url = 'https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api'
+            params = {
+                'module': 'account',
+                'action': 'txlist',
+                'address': address
+            }
+            res = requests.get(url, params=params, timeout=15)
+            data = res.json()
+            
+            if data.get('status') == '1' and isinstance(data.get('result'), list):
+                txs = data['result']
+                for tx in txs:
+                    transactions.append({
+                        'hash': tx.get('hash'),
+                        'from': safe_checksum(tx.get('from')),
+                        'to': safe_checksum(tx.get('to')),
+                        'value': float(tx.get('value', 0)) / 1e18 if tx.get('value') else 0.0,
+                        'timestamp': datetime.fromtimestamp(int(tx.get('timeStamp', 0))).isoformat() if tx.get('timeStamp') else datetime.now().isoformat(),
+                        'block': tx.get('blockNumber', 0),
+                        'chain': chain
+                    })
+                counts['normal'] = len(transactions)
+                print(f"[+] {chain} (Routescan): {counts['normal']} transactions")
+            else:
+                print(f"[-] Routescan {chain} returned 0 or error: {data.get('message')}")
+                
+            return transactions, counts
+        except Exception as e:
+            print(f"[-] Routescan fetch error: {e}")
+            return [], {}
+            
+    @staticmethod
+    def fetch_by_tx_hash(chain: str, tx_hash: str) -> Optional[Dict]:
+        return None
+
 # ==================== ALCHEMY API (EVM Layer 2s) ====================
 
 class AlchemyEVMFetcher:
@@ -607,12 +651,12 @@ class AlchemyEVMFetcher:
         'zksync': 'https://zksync-mainnet.g.alchemy.com/v2/',
         'zksync_sepolia': 'https://zksync-sepolia.g.alchemy.com/v2/',
         # P1 Chains via Alchemy
-        'avalanche': 'https://avax-mainnet.g.alchemy.com/v2/',
-        'avalanche_fuji': 'https://avax-fuji.g.alchemy.com/v2/',
         'optimism': 'https://opt-mainnet.g.alchemy.com/v2/',
         'optimism_sepolia': 'https://opt-sepolia.g.alchemy.com/v2/',
         'base': 'https://base-mainnet.g.alchemy.com/v2/',
         'base_sepolia': 'https://base-sepolia.g.alchemy.com/v2/',
+        'polygon_zkevm': 'https://polygonzkevm-mainnet.g.alchemy.com/v2/',
+        'polygon_zkevm': 'https://polygonzkevm-mainnet.g.alchemy.com/v2/',
         'polygon_zkevm': 'https://polygonzkevm-mainnet.g.alchemy.com/v2/',
         'polygon_zkevm_cardona': 'https://polygonzkevm-cardona.g.alchemy.com/v2/',
         
@@ -1956,6 +2000,10 @@ class MultiChainFetcher:
         elif actual_evm_chain in BlockScoutFetcher.BLOCKSCOUT_URLS:
             return BlockScoutFetcher.fetch_transactions(actual_evm_chain, address)
         
+        # Avalanche (Routescan fallback)
+        elif actual_evm_chain == 'avalanche':
+            return RoutescanFetcher.fetch_transactions(actual_evm_chain, address)
+        
         # Alchemy EVM Layers
         elif chain in AlchemyEVMFetcher.ALCHEMY_URLS:
             return AlchemyEVMFetcher.fetch_transactions(chain, address)
@@ -2019,6 +2067,9 @@ class MultiChainFetcher:
             
         elif actual_evm_chain in BlockScoutFetcher.BLOCKSCOUT_URLS:
             return BlockScoutFetcher.fetch_by_tx_hash(actual_evm_chain, tx_hash)
+            
+        elif actual_evm_chain == 'avalanche':
+            return RoutescanFetcher.fetch_by_tx_hash(actual_evm_chain, tx_hash)
             
         elif chain in AlchemyEVMFetcher.ALCHEMY_URLS:
             return AlchemyEVMFetcher.fetch_by_tx_hash(chain, tx_hash)
@@ -2445,7 +2496,7 @@ class UTXOBlockCypherFetcher:
                 if before_bh:
                     params['before'] = before_bh
 
-                resp = requests.get(url, params=params, timeout=15)
+                resp = requests.get(url, params=params, timeout=25)
                 if resp.status_code != 200:
                     print(f"[-] BlockCypher P1 HTTP {resp.status_code} for {chain}")
                     break
@@ -2517,8 +2568,8 @@ class InsightFetcher:
     No API key required. Covers DigiByte (digiexplorer.info) and DASH (insight.dash.org)."""
 
     ENDPOINTS = {
-        'digibyte': 'https://digiexplorer.info/insight-api',
-        'dgb': 'https://digiexplorer.info/insight-api',
+        'digibyte': 'https://digiexplorer.info/api',
+        'dgb': 'https://digiexplorer.info/api',
         'dash': 'http://insight.dash.org/insight-api',
     }
 
@@ -2731,7 +2782,7 @@ class BlockbookFetcher:
             while True:
                 url = f"{base}/api/v2/address/{address}"
                 params = {'page': page, 'pageSize': 50, 'details': 'txs'}
-                resp = requests.get(url, params=params, timeout=15)
+                resp = requests.get(url, params=params, timeout=25)
                 if resp.status_code != 200:
                     break
                 data = resp.json()
@@ -2802,10 +2853,10 @@ class StellarFetcher:
         try:
             print(f"[+] Stellar Horizon: Fetching transactions for {address[:12]}...")
             url = f"{StellarFetcher.HORIZON}/accounts/{address}/transactions"
-            params = {'limit': 200, 'order': 'desc'}
+            params = {'limit': 100, 'order': 'desc'}
 
             while True:
-                resp = requests.get(url, params=params, timeout=15)
+                resp = requests.get(url, params=params, timeout=25)
                 if resp.status_code != 200:
                     break
                 data = resp.json()
@@ -2961,7 +3012,7 @@ class StacksFetcher:
             while True:
                 url = f"{StacksFetcher.BASE}/extended/v1/address/{address}/transactions"
                 params = {'limit': limit, 'offset': offset}
-                resp = requests.get(url, params=params, timeout=15)
+                resp = requests.get(url, params=params, timeout=25)
                 if resp.status_code != 200:
                     break
                 data = resp.json()

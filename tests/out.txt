@@ -1,0 +1,7 @@
+--- Testing Alternatives ---
+BNB (BlockScout V1): ERROR - Expecting value: line 1 column 1 (char 0)
+OP (BlockScout V2): OK - 50 txns (V2 API)
+BASE (BlockScout V2): OK - 50 txns (V2 API)
+ZKEVM (BlockScout V2): ERROR - Expecting value: line 1 column 1 (char 0)
+AVAX (Routescan V1): OK - 0 txns (V1 API)
+FTM (Routescan V1): WARNING - Unknown format or error: {'status': '0', 'message': 'chain not supported', 'result': None}
